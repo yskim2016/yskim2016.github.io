@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>승강기기능사 실전 문제</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Share+Tech+Mono&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --steel-dark: #17191c;
+    --steel: #23262b;
+    --steel-light: #2e3238;
+    --panel: #34383f;
+    --amber: #f2a900;
+    --amber-dim: #a87400;
+    --led-green: #3ecf6e;
+    --led-red: #e2483d;
+    --text: #e9e7e0;
+    --text-dim: #9a9da2;
+    --text-dim2: #8b8e93;
+    --brushed: repeating-linear-gradient(180deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 3px);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background: var(--steel-dark);
+    background-image: var(--brushed);
+    color: var(--text);
+    font-family:'Noto Sans KR', sans-serif;
+    min-height:100vh;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding: 28px 14px;
+  }
+  .rig{
+    width:100%;
+    max-width:640px;
+  }
+  /* --- Floor indicator header --- */
+  .indicator{
+    background: linear-gradient(180deg, #0d0f11, #1a1c1f);
+    border: 3px solid #3a3d42;
+    border-radius: 10px;
+    padding: 18px 22px;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.6), 0 6px 18px rgba(0,0,0,0.4);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .indicator .title{
+    font-family:'Oswald', sans-serif;
+    font-weight:600;
+    font-size: 14px;
+    letter-spacing: 3px;
+    color: var(--text-dim2);
+    text-transform: uppercase;
+  }
+  .indicator .title span{
+    display:block;
+    font-size: 19px;
+    color: var(--amber);
+    letter-spacing: 1px;
+    margin-top: 3px;
+  }
+  .led-display{
+    font-family:'Share Tech Mono', monospace;
+    font-size: 34px;
+    color: var(--led-green);
+    text-shadow: 0 0 8px rgba(62,207,110,0.7);
+    background: #0a0b0c;
+    padding: 4px 14px;
+    border-radius: 4px;
+    min-width: 64px;
+    text-align:center;
+    border: 1px solid #000;
+  }
+  .led-display.idle{ color:#3a3d3a; text-shadow:none; }
+
+  /* --- Panel (main card) --- */
+  .panel{
+    background: var(--steel);
+    border: 1px solid #3a3d42;
+    border-radius: 10px;
+    padding: 26px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    position: relative;
+    overflow:hidden;
+  }
+  .panel::before{
+    content:"";
+    position:absolute; top:0; left:0; right:0; height:6px;
+    background: repeating-linear-gradient(90deg, var(--amber) 0 14px, #1a1c1f 14px 28px);
+    opacity:0.85;
+  }
+
+  /* --- Subject select screen --- */
+  .screen-title{
+    font-family:'Oswald', sans-serif;
+    font-size: 22px;
+    font-weight:600;
+    letter-spacing:1px;
+    margin: 4px 0 4px;
+    color: var(--text);
+  }
+  .screen-sub{
+    color: var(--text-dim2);
+    font-size: 13.5px;
+    margin-bottom: 22px;
+    line-height:1.6;
+  }
+  .call-buttons{
+    display:flex;
+    flex-direction:column;
+    gap: 12px;
+  }
+  .call-btn{
+    display:flex;
+    align-items:center;
+    gap: 16px;
+    background: var(--panel);
+    border: 1px solid #45494f;
+    border-radius: 8px;
+    padding: 16px 18px;
+    cursor:pointer;
+    text-align:left;
+    color: var(--text);
+    font-family:'Noto Sans KR', sans-serif;
+    transition: all 0.15s ease;
+  }
+  .call-btn:hover{
+    background: #3a3f46;
+    border-color: var(--amber-dim);
+    transform: translateX(3px);
+  }
+  .call-btn .num{
+    font-family:'Share Tech Mono', monospace;
+    font-size: 20px;
+    color: var(--steel-dark);
+    background: var(--amber);
+    width: 40px; height:40px;
+    border-radius: 50%;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+    box-shadow: 0 0 0 3px rgba(242,169,0,0.15);
+  }
+  .call-btn .label{
+    flex:1;
+  }
+  .call-btn .label .name{
+    font-weight:700;
+    font-size:15.5px;
+  }
+  .call-btn .label .desc{
+    font-size:12px;
+    color: var(--text-dim2);
+    margin-top:2px;
+  }
+  .call-btn .arrow{
+    color: var(--text-dim2);
+    font-size:18px;
+  }
+
+  /* --- Quiz screen --- */
+  .progress-track{
+    display:flex;
+    gap:5px;
+    margin-bottom: 20px;
+  }
+  .progress-seg{
+    flex:1;
+    height:6px;
+    background:#000;
+    border-radius:3px;
+    overflow:hidden;
+    border:1px solid #45494f;
+  }
+  .progress-seg .fill{
+    height:100%;
+    width:0%;
+    background: var(--amber);
+    transition: width 0.3s ease;
+  }
+  .progress-seg.done .fill{ width:100%; background: var(--led-green); }
+  .progress-seg.wrong .fill{ width:100%; background: var(--led-red); }
+  .progress-seg.current .fill{ width:100%; background: var(--amber); }
+
+  .q-meta{
+    font-family:'Share Tech Mono', monospace;
+    font-size:12px;
+    color: var(--amber);
+    letter-spacing:1.5px;
+    margin-bottom:8px;
+    text-transform:uppercase;
+  }
+  .q-text{
+    font-size: 17px;
+    font-weight:500;
+    line-height:1.55;
+    margin-bottom: 20px;
+    color:var(--text);
+  }
+  .options{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    margin-bottom: 20px;
+  }
+  .opt{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background: var(--panel);
+    border:1px solid #45494f;
+    border-radius:8px;
+    padding: 13px 16px;
+    cursor:pointer;
+    font-size:14.5px;
+    color:var(--text);
+    transition: all 0.15s ease;
+  }
+  .opt:hover:not(.locked){
+    border-color: var(--amber-dim);
+    background:#3a3f46;
+  }
+  .opt .tag{
+    font-family:'Share Tech Mono', monospace;
+    width:26px; height:26px;
+    border-radius:50%;
+    border:1px solid #5a5e64;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12.5px;
+    flex-shrink:0;
+    color: var(--text-dim2);
+  }
+  .opt.correct{
+    border-color: var(--led-green);
+    background: rgba(62,207,110,0.12);
+  }
+  .opt.correct .tag{ background:var(--led-green); color:#0a0b0c; border-color:var(--led-green); }
+  .opt.incorrect{
+    border-color: var(--led-red);
+    background: rgba(226,72,61,0.12);
+  }
+  .opt.incorrect .tag{ background:var(--led-red); color:#0a0b0c; border-color:var(--led-red); }
+
+  .explain{
+    background:#1a1c1f;
+    border-left:3px solid var(--amber);
+    border-radius:4px;
+    padding:12px 14px;
+    font-size:13px;
+    line-height:1.6;
+    color:var(--text-dim2);
+    margin-bottom:18px;
+    display:none;
+  }
+  .explain.show{ display:block; }
+  .explain b{ color: var(--amber); }
+
+  .nav-row{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+  }
+  .btn{
+    font-family:'Oswald', sans-serif;
+    font-weight:600;
+    letter-spacing:1px;
+    font-size:14px;
+    padding: 11px 22px;
+    border-radius:6px;
+    border:none;
+    cursor:pointer;
+    background: var(--amber);
+    color:#17191c;
+    transition: all 0.15s ease;
+  }
+  .btn:hover{ background:#ffbe2e; }
+  .btn:disabled{
+    background:#45494f;
+    color:#7a7d82;
+    cursor:not-allowed;
+  }
+  .btn.ghost{
+    background:transparent;
+    border:1px solid #45494f;
+    color:var(--text-dim2);
+  }
+  .btn.ghost:hover{ border-color:var(--amber-dim); color:var(--text); background:transparent; }
+
+  /* --- Result screen --- */
+  .result-display{
+    text-align:center;
+    padding: 10px 0 6px;
+  }
+  .result-score{
+    font-family:'Share Tech Mono', monospace;
+    font-size: 56px;
+    color: var(--led-green);
+    text-shadow: 0 0 14px rgba(62,207,110,0.6);
+    margin: 6px 0;
+  }
+  .result-score.fail{
+    color: var(--led-red);
+    text-shadow: 0 0 14px rgba(226,72,61,0.6);
+  }
+  .result-status{
+    font-family:'Oswald', sans-serif;
+    letter-spacing:3px;
+    font-size:13px;
+    color: var(--text-dim2);
+    text-transform:uppercase;
+    margin-bottom: 22px;
+  }
+  .result-breakdown{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    margin-bottom:22px;
+  }
+  .rb-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background:var(--panel);
+    border:1px solid #45494f;
+    border-radius:6px;
+    padding:10px 14px;
+    font-size:13.5px;
+  }
+  .rb-row .rb-score{
+    font-family:'Share Tech Mono', monospace;
+    color: var(--amber);
+  }
+  .hidden{ display:none; }
+  .foot-note{
+    text-align:center;
+    color:#5c5f64;
+    font-size:11.5px;
+    margin-top:16px;
+    letter-spacing:0.5px;
+  }
+</style>
+</head>
+<body>
+<a href="../student.html" style="position:fixed;top:14px;left:14px;z-index:9999;display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#EDEAE0;background:rgba(15,36,29,0.92);border:1px solid rgba(201,129,74,0.4);padding:7px 13px;border-radius:999px;text-decoration:none;">← 학생용 홈으로</a>
+<div class="rig">
+
+  <div class="indicator">
+    <div class="title">ELEVATOR TECHNICIAN CERT.<span id="headerSub">과목 선택</span></div>
+    <div class="led-display idle" id="floorDisplay">--</div>
+  </div>
+
+  <div class="panel">
+
+    <!-- SCREEN 1: Subject Select -->
+    <div id="screen-select">
+      <div class="screen-title">승강기기능사 실전 문제</div>
+      <div class="screen-sub">과목을 선택하세요. 각 과목당 5문제씩 출제됩니다. 버튼을 눌러 운행을 시작하세요.</div>
+      <div class="call-buttons" id="subjectButtons"></div>
+    </div>
+
+    <!-- SCREEN 2: Quiz -->
+    <div id="screen-quiz" class="hidden">
+      <div class="progress-track" id="progressTrack"></div>
+      <div class="q-meta" id="qMeta">SUBJECT · Q1/5</div>
+      <div class="q-text" id="qText"></div>
+      <div class="options" id="qOptions"></div>
+      <div class="explain" id="qExplain"></div>
+      <div class="nav-row">
+        <button class="btn ghost" id="btnQuit">과목 선택으로</button>
+        <button class="btn" id="btnNext" disabled>다음 층 ▲</button>
+      </div>
+    </div>
+
+    <!-- SCREEN 3: Result -->
+    <div id="screen-result" class="hidden">
+      <div class="screen-title" id="resultSubject">결과</div>
+      <div class="result-display">
+        <div class="result-score" id="resultScore">0 / 5</div>
+        <div class="result-status" id="resultStatus">RUN COMPLETE</div>
+      </div>
+      <div class="result-breakdown" id="resultBreakdown"></div>
+      <div class="nav-row" style="justify-content:space-between;">
+        <button class="btn ghost" id="btnRetry">다시 풀기</button>
+        <button class="btn" id="btnBackToSelect">과목 선택으로 ▲</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="foot-note">B1 &nbsp;·&nbsp; 1F &nbsp;·&nbsp; 2F &nbsp;·&nbsp; 3F &nbsp;&mdash;&nbsp; 정기검사 필 &nbsp;·&nbsp; 정원 5문제</div>
+</div>
+
+<script>
+const QUIZ_DATA = {
+  intro: {
+    name: "승강기개론",
+    desc: "승강기의 정의, 분류, 기본 구조",
+    questions: [
+      {
+        q: "엘리베이터의 카(Car)가 승강로 내에서 흔들리지 않고 수직으로 움직이도록 안내하는 장치는?",
+        options: ["가이드레일", "완충기", "조속기", "균형추"],
+        answer: 0,
+        explain: "<b>가이드레일</b>은 승강로 양쪽에 수직으로 설치되어 카와 균형추의 승강 운동을 안내하고 흔들림을 방지하는 역할을 합니다."
+      },
+      {
+        q: "다음 중 승강기의 주요 구성요소로 옳지 않은 것은?",
+        options: ["권상기", "카(Car)", "균형추", "에스컬레이터"],
+        answer: 3,
+        explain: "에스컬레이터는 <b>별도의 승강기 종류</b>이며, 엘리베이터를 구성하는 부품이 아닙니다."
+      },
+      {
+        q: "승강기에서 카와 균형추를 연결하여 권상기의 구동력을 전달하는 것은?",
+        options: ["메인 로프", "조속기 로프", "완충기", "리미트 스위치"],
+        answer: 0,
+        explain: "<b>메인 로프(주로프)</b>는 카와 균형추를 연결해 권상기의 회전력을 카의 승강 운동으로 전달합니다."
+      },
+      {
+        q: "다음 중 유압식 엘리베이터의 특징으로 옳은 것은?",
+        options: ["기계실을 옥상 등 높은 곳에 설치해야 한다", "저층 건물에 적합하다", "로프식보다 승강 속도가 빠르다", "균형추가 반드시 필요하다"],
+        answer: 1,
+        explain: "유압식은 유압 실린더로 카를 직접 밀어 올리는 방식으로 <b>속도가 느려 저층 건물에 주로 사용</b>되며 균형추가 필요 없습니다."
+      },
+      {
+        q: "에스컬레이터의 경사각은 일반적으로 몇 도 이하로 설치하는가?",
+        options: ["20°", "30°", "45°", "60°"],
+        answer: 1,
+        explain: "에스컬레이터의 경사각은 안전상의 이유로 일반적으로 <b>30° 이하</b>로 설치하는 것이 원칙입니다."
+      }
+    ]
+  },
+  design: {
+    name: "승강기 구조/설계",
+    desc: "권상기, 로프, 완충기 등 기계요소",
+    questions: [
+      {
+        q: "권상기에서 로프와 도르래(시브) 사이의 마찰력을 이용하여 구동하는 방식은?",
+        options: ["트랙션식", "드럼식", "체인식", "랙 피니언식"],
+        answer: 0,
+        explain: "<b>트랙션식(견인식)</b>은 로프와 시브 홈 사이의 마찰력으로 카를 움직이는 가장 일반적인 로프식 엘리베이터 구동 방식입니다."
+      },
+      {
+        q: "균형추(counterweight)를 설치하는 주된 목적은?",
+        options: ["카의 속도를 높이기 위해", "소비전력을 줄이고 권상기의 부담을 감소시키기 위해", "카의 도어를 자동으로 열기 위해", "비상정지 기능을 수행하기 위해"],
+        answer: 1,
+        explain: "균형추는 카의 무게와 균형을 맞춰 <b>권상기의 구동 부담과 소비전력을 줄이는</b> 역할을 합니다."
+      },
+      {
+        q: "승강기 주로프(메인 로프)의 재료로 가장 적합한 것은?",
+        options: ["알루미늄 합금선", "고탄소강 와이어로프", "구리선", "나일론 합성섬유"],
+        answer: 1,
+        explain: "주로프는 큰 하중과 반복 하중을 견뎌야 하므로 <b>고탄소강 와이어로프</b>가 사용됩니다."
+      },
+      {
+        q: "완충기(buffer)의 설치 목적으로 가장 적절한 것은?",
+        options: ["카의 속도를 높이기 위해", "카가 승강로 최하부에 도달 시 충격을 완화하기 위해", "로프의 장력을 자동 조정하기 위해", "도어를 자동으로 여닫기 위해"],
+        answer: 1,
+        explain: "완충기는 승강로 피트 하부에 설치되어 <b>카나 균형추가 이상 하강 시 충격을 흡수·완화</b>합니다."
+      },
+      {
+        q: "다음 중 완충기의 종류로 옳지 않은 것은?",
+        options: ["스프링 완충기", "유입(오일) 완충기", "우레탄 완충기", "전자석 완충기"],
+        answer: 3,
+        explain: "완충기는 통상 스프링식·유입식·우레탄(폴리우레탄)식으로 구분되며, <b>전자석 완충기는 존재하지 않는</b> 방식입니다."
+      }
+    ]
+  },
+  safety: {
+    name: "안전관리",
+    desc: "안전장치, 법정검사, 사고예방",
+    questions: [
+      {
+        q: "승강기가 정격속도를 초과하여 운행될 때 이를 감지하여 비상정지장치를 작동시키는 장치는?",
+        options: ["조속기(governor)", "리미트 스위치", "완충기", "도어 인터록"],
+        answer: 0,
+        explain: "<b>조속기</b>는 카의 속도를 상시 감시하다가 정격속도를 초과하면 비상정지장치를 작동시켜 카를 정지시킵니다."
+      },
+      {
+        q: "카가 승강로의 최상부나 최하부를 지나 과도하게 운행되는 것을 막기 위해 설치하는 안전장치는?",
+        options: ["조속기", "리미트 스위치(종점 스위치)", "균형추", "메인 브레이크"],
+        answer: 1,
+        explain: "<b>리미트 스위치(종점 스위치)</b>는 카가 운행 한계를 벗어나기 전에 전원을 차단하여 과주행을 방지합니다."
+      },
+      {
+        q: "승강기 도어가 완전히 닫히지 않으면 카가 움직이지 않도록 하는 안전장치는?",
+        options: ["도어 인터록 스위치", "조속기", "완충기", "가이드슈"],
+        answer: 0,
+        explain: "<b>도어 인터록 스위치</b>는 승강장문과 카문이 완전히 잠기지 않으면 운행 회로를 차단해 카가 움직이지 못하게 합니다."
+      },
+      {
+        q: "국내 법령상 승강기의 정기검사는 일반적으로 얼마의 주기로 실시하는가?",
+        options: ["매월", "6개월마다", "1년마다", "3년마다"],
+        answer: 2,
+        explain: "승강기 정기검사는 원칙적으로 <b>1년에 1회</b> 실시하며, 승강기 종류에 따라 예외가 있을 수 있습니다."
+      },
+      {
+        q: "승강기 안전관리자의 주요 업무로 옳지 않은 것은?",
+        options: ["승강기 운행 상태 점검", "고장 및 사고 발생 시 초동 조치", "승강기 설계 변경 승인", "안전수칙 준수 여부 확인"],
+        answer: 2,
+        explain: "승강기 설계 변경 승인은 <b>제조·설치업체 및 관련 인증기관의 소관</b>이며 안전관리자의 업무 범위가 아닙니다."
+      }
+    ]
+  }
+};
+
+let currentSubject = null;
+let currentIndex = 0;
+let userAnswers = [];
+let selectedOption = null;
+
+const el = id => document.getElementById(id);
+
+function renderSubjectButtons(){
+  const wrap = el('subjectButtons');
+  wrap.innerHTML = '';
+  Object.keys(QUIZ_DATA).forEach((key, i) => {
+    const s = QUIZ_DATA[key];
+    const btn = document.createElement('div');
+    btn.className = 'call-btn';
+    btn.innerHTML = `
+      <div class="num">${i+1}</div>
+      <div class="label">
+        <div class="name">${s.name}</div>
+        <div class="desc">${s.desc} · 5문제</div>
+      </div>
+      <div class="arrow">▶</div>
+    `;
+    btn.onclick = () => startQuiz(key);
+    wrap.appendChild(btn);
+  });
+}
+
+function startQuiz(key){
+  currentSubject = key;
+  currentIndex = 0;
+  userAnswers = new Array(QUIZ_DATA[key].questions.length).fill(null);
+  el('screen-select').classList.add('hidden');
+  el('screen-result').classList.add('hidden');
+  el('screen-quiz').classList.remove('hidden');
+  el('headerSub').textContent = QUIZ_DATA[key].name;
+  renderProgress();
+  renderQuestion();
+}
+
+function renderProgress(){
+  const track = el('progressTrack');
+  track.innerHTML = '';
+  const total = QUIZ_DATA[currentSubject].questions.length;
+  for(let i=0;i<total;i++){
+    const seg = document.createElement('div');
+    seg.className = 'progress-seg';
+    if(userAnswers[i] !== null){
+      seg.classList.add(userAnswers[i] === QUIZ_DATA[currentSubject].questions[i].answer ? 'done' : 'wrong');
+    } else if(i === currentIndex){
+      seg.classList.add('current');
+    }
+    seg.innerHTML = '<div class="fill"></div>';
+    track.appendChild(seg);
+  }
+}
+
+function renderQuestion(){
+  selectedOption = null;
+  const subj = QUIZ_DATA[currentSubject];
+  const q = subj.questions[currentIndex];
+  const total = subj.questions.length;
+
+  el('floorDisplay').classList.remove('idle');
+  el('floorDisplay').textContent = (currentIndex+1) + 'F';
+  el('qMeta').textContent = `${subj.name.toUpperCase()} · Q${currentIndex+1}/${total}`;
+  el('qText').textContent = q.q;
+
+  const optWrap = el('qOptions');
+  optWrap.innerHTML = '';
+  const letters = ['①','②','③','④'];
+  q.options.forEach((optText, idx) => {
+    const opt = document.createElement('div');
+    opt.className = 'opt';
+    opt.innerHTML = `<div class="tag">${letters[idx]}</div><div>${optText}</div>`;
+    opt.onclick = () => selectOption(idx);
+    optWrap.appendChild(opt);
+  });
+
+  el('qExplain').classList.remove('show');
+  el('qExplain').innerHTML = '';
+  el('btnNext').disabled = true;
+  el('btnNext').textContent = currentIndex === total - 1 ? '결과 확인 ▲' : '다음 층 ▲';
+  renderProgress();
+}
+
+function selectOption(idx){
+  if(userAnswers[currentIndex] !== null) return; // already answered
+  selectedOption = idx;
+  const q = QUIZ_DATA[currentSubject].questions[currentIndex];
+  userAnswers[currentIndex] = idx;
+
+  const opts = document.querySelectorAll('#qOptions .opt');
+  opts.forEach((o, i) => {
+    o.classList.add('locked');
+    if(i === q.answer) o.classList.add('correct');
+    else if(i === idx && idx !== q.answer) o.classList.add('incorrect');
+  });
+
+  const explainBox = el('qExplain');
+  explainBox.innerHTML = (idx === q.answer ? '✅ 정답입니다. ' : '❌ 오답입니다. ') + q.explain;
+  explainBox.classList.add('show');
+
+  el('btnNext').disabled = false;
+  renderProgress();
+}
+
+el('btnNext').onclick = () => {
+  const total = QUIZ_DATA[currentSubject].questions.length;
+  if(currentIndex < total - 1){
+    currentIndex++;
+    renderQuestion();
+  } else {
+    showResult();
+  }
+};
+
+el('btnQuit').onclick = () => {
+  el('screen-quiz').classList.add('hidden');
+  el('screen-select').classList.remove('hidden');
+  el('headerSub').textContent = '과목 선택';
+  el('floorDisplay').classList.add('idle');
+  el('floorDisplay').textContent = '--';
+};
+
+function showResult(){
+  const subj = QUIZ_DATA[currentSubject];
+  const total = subj.questions.length;
+  let correct = 0;
+  userAnswers.forEach((a, i) => { if(a === subj.questions[i].answer) correct++; });
+
+  el('screen-quiz').classList.add('hidden');
+  el('screen-result').classList.remove('hidden');
+  el('headerSub').textContent = subj.name + ' 결과';
+  el('floorDisplay').textContent = 'END';
+
+  el('resultSubject').textContent = subj.name + ' — 운행 결과';
+  const scoreEl = el('resultScore');
+  scoreEl.textContent = `${correct} / ${total}`;
+  const pass = correct >= Math.ceil(total * 0.6);
+  scoreEl.classList.toggle('fail', !pass);
+  el('resultStatus').textContent = pass ? 'PASS · 안전 운행 완료' : 'RETRY · 재점검 필요';
+
+  const bd = el('resultBreakdown');
+  bd.innerHTML = '';
+  subj.questions.forEach((q, i) => {
+    const row = document.createElement('div');
+    row.className = 'rb-row';
+    const ok = userAnswers[i] === q.answer;
+    row.innerHTML = `<div>${i+1}F · ${q.q.length > 26 ? q.q.slice(0,26)+'…' : q.q}</div><div class="rb-score">${ok ? 'OK' : 'X'}</div>`;
+    bd.appendChild(row);
+  });
+}
+
+el('btnRetry').onclick = () => startQuiz(currentSubject);
+el('btnBackToSelect').onclick = () => {
+  el('screen-result').classList.add('hidden');
+  el('screen-select').classList.remove('hidden');
+  el('headerSub').textContent = '과목 선택';
+  el('floorDisplay').classList.add('idle');
+  el('floorDisplay').textContent = '--';
+};
+
+renderSubjectButtons();
+</script>
+</body>
+</html>

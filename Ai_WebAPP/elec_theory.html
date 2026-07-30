@@ -1,0 +1,2034 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>전기기능사 합격 마스터 · 김쌔미앙tv</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  body { background: #0F172A; background-image:none; }
+  #root { min-height:100vh; }
+  #boot {
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:#0F172A; color:#8FA79B; font-family:'JetBrains Mono',monospace; font-size:0.85rem;
+    letter-spacing:0.05em; z-index:1;
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.383.0?external=react"
+  }
+}
+</script>
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+</head>
+<body>
+
+<a class="back-pill" href="../student.html">← 학생용 홈으로</a>
+<div id="boot">불러오는 중...</div>
+<div id="root"></div>
+
+<script type="text/babel" data-type="module" data-presets="react,typescript">
+import React, { useState, useEffect, useMemo } from 'react';
+
+// ==========================================
+// 분수 표기를 위한 시각적 Math 컴포넌트
+// ==========================================
+const Frac = ({ n, d }) => (
+  <span className="inline-flex flex-col items-center justify-center align-middle mx-1 text-center font-mono">
+    <span className="border-b-2 border-amber-900/80 px-1.5 pb-0.5 text-xs sm:text-sm font-bold leading-none">{n}</span>
+    <span className="px-1.5 pt-0.5 text-xs sm:text-sm font-bold leading-none">{d}</span>
+  </span>
+);
+
+// ==========================================
+// 60문항 기출 기반 모의고사 데이터 베이스
+// ==========================================
+const examQuestionsData = [
+  // --- [1과목: 전기이론] (1~20) ---
+  {
+    id: 1,
+    subject: 1,
+    subjectName: '전기이론',
+    question: '진공 중에서 같은 크기의 두 정전하 사이에 작용하는 정전력(쿨롱의 힘)은 두 전하의 거리 r에 대해 어떠한 관계가 있는가?',
+    options: ['거리 r에 비례한다.', '거리 r의 제곱에 비례한다.', '거리 r의 제곱에 반비례한다.', '거리 r에 반비례한다.'],
+    answer: 2,
+    explanation: '쿨롱의 법칙: F = k × (Q₁ × Q₂) / r² 이므로, 정전력은 두 전하 사이 거리의 제곱에 반비례합니다.'
+  },
+  {
+    id: 2,
+    subject: 1,
+    subjectName: '전기이론',
+    question: '3 [Ω]의 저항 3개를 델타(Δ) 결선으로 연결하였을 때, 이를 와이(Y) 등가 결선으로 변환하면 한 상의 저항은 몇 [Ω]이 되는가?',
+    options: ['1 Ω', '3 Ω', '6 Ω', '9 Ω'],
+    answer: 0,
+    explanation: 'Δ-Y 변환 시 임피던스는 1/3 배가 됩니다. 따라서 R_Y = R_Δ / 3 = 3 / 3 = 1 [Ω] 입니다.'
+  },
+  {
+    id: 3,
+    subject: 1,
+    subjectName: '전기이론',
+    question: '5 [A]의 전류가 2분 동안 흘렀을 때 전선 단면을 통과한 총 전하량 [C]은 얼마인가?',
+    options: ['10 C', '60 C', '300 C', '600 C'],
+    answer: 3,
+    explanation: '전하량 Q = I × t = 5 [A] × (2 × 60 [s]) = 5 × 120 = 600 [C] 입니다.'
+  },
+  {
+    id: 4,
+    subject: 1,
+    subjectName: '전기이론',
+    question: '정전용량이 10 [μF]인 콘덴서에 100 [V]의 전압을 가할 때, 콘덴서에 축적되는 정전 에너지는 몇 [J]인가?',
+    options: ['0.05 J', '0.1 J', '0.5 J', '1.0 J'],
+    answer: 0,
+    explanation: '축적 에너지 W = ½ C V² = 0.5 × (10 × 10⁻⁶) × 100² = 0.05 [J] 입니다.'
+  },
+  {
+    id: 5,
+    subject: 1,
+    subjectName: '전기이론',
+    question: '자기자속밀도가 B [Wb/m²]인 자기장 속에서 길이 L [m]의 도체가 v [m/s]의 속도로 자기장과 직각으로 이동할 때 유도되는 기전력 [V]은?',
+    options: ['B L v', 'B L / v', 'B / (L v)', 'B² L v'],
+    answer: 0,
+    explanation: '플레밍의 오른손 법칙에 의해 유도 기전력 e = B L v sinθ 이며, 직각(θ=90°)이므로 e = B L v 입니다.'
+  },
+  {
+    id: 6,
+    subject: 1,
+    subjectName: '전기이론',
+    question: '자체 인덕턴스가 0.2 [H]인 코일에 흐르는 전류가 0.1초 동안에 5 [A] 변화하였다. 이때 유도되는 기전력의 크기는 몇 [V]인가?',
+    options: ['1 V', '10 V', '20 V', '100 V'],
+    answer: 1,
+    explanation: '패러데이-렌츠 법칙: e = L × (ΔI / Δt) = 0.2 × (5 / 0.1) = 10 [V] 입니다.'
+  },
+  {
+    id: 7,
+    subject: 1,
+    subjectName: '전기이론',
+    question: '자체 인덕턴스 L [H]에 전류 I [A]가 흐를 때 코일에 저장되는 자성에너지 W [J]의 공식은?',
+    options: ['L I', 'L I²', '½ L I', '½ L I²'],
+    answer: 3,
+    explanation: '인덕터에 저장되는 자기 에너지는 W = ½ L I² [J] 입니다.'
+  },
+  {
+    id: 8,
+    subject: 1,
+    subjectName: '전기이론',
+    question: 'RLC 직렬회로에서 공진 주파수 f [Hz]를 구하는 식으로 올바른 것은?',
+    options: ['1 / (2π√(LC))', '2π√(LC)', '1 / (2πLC)', '2π / √(LC)'],
+    answer: 0,
+    explanation: '공진 조건 X_L = X_C (2π f L = 1 / (2π f C))로부터 공진주파수 f₀ = 1 / (2π √(LC)) 입니다.'
+  },
+  {
+    id: 9,
+    subject: 1,
+    subjectName: '전기이론',
+    question: '정현파 교류 전압의 최대값이 141.4 [V]일 때, 실효값(RMS)은 약 몇 [V]인가?',
+    options: ['90 V', '100 V', '110 V', '141.4 V'],
+    answer: 1,
+    explanation: '정현파 실효값 V_rms = V_m / √2 ≈ 141.4 / 1.414 = 100 [V] 입니다.'
+  },
+  {
+    id: 10,
+    subject: 1,
+    subjectName: '전기이론',
+    question: '전압이 v(t) = 100 sin(ωt + 30°) [V], 전류가 i(t) = 10 sin(ωt - 30°) [A] 일 때, 위상차는 얼마인가?',
+    options: ['0°', '30°', '60°', '90°'],
+    answer: 2,
+    explanation: '위상차 θ = 30° - (-30°) = 60° 입니다. 전압이 전류보다 60° 앞섭니다(진상).'
+  },
+  {
+    id: 11,
+    subject: 1,
+    subjectName: '전기이론',
+    question: '대칭 3상 Y결선에서 선간전압과 상전압의 위상 관계는?',
+    options: ['선간전압이 상전압보다 위상이 30° 앞선다.', '선간전압이 상전압보다 위상이 30° 늦다.', '선간전압과 상전압의 위상이 같다.', '선간전압이 상전압보다 위상이 60° 앞선다.'],
+    answer: 0,
+    explanation: 'Y결선에서 선간전압 크기는 상전압의 √3배이고, 위상은 상전압보다 30° 앞섭니다.'
+  },
+  {
+    id: 12,
+    subject: 1,
+    subjectName: '전기이론',
+    question: '비유전율이 큰 유전체를 콘덴서 극판 사이에 넣으면 정전용량은 어떻게 되는가?',
+    options: ['감소한다', '증가한다', '변함없다', '0이 된다'],
+    answer: 1,
+    explanation: '정전용량 C = ε (A / d) = ε₀ ε_r (A / d) 이므로 비유전율(ε_r)에 비례하여 증가합니다.'
+  },
+  {
+    id: 13,
+    subject: 1,
+    subjectName: '전기이론',
+    question: '히스테리시스 곡선에서 가로축과 세로축이 나타내는 것은 각각 무엇인가?',
+    options: ['가로축: 자속밀도, 세로축: 자기장의 세기', '가로축: 자기장의 세기, 세로축: 자속밀도', '가로축: 전계, 세로축: 자계', '가로축: 자속, 세로축: 기전력'],
+    answer: 1,
+    explanation: 'B-H 히스테리시스 곡선에서 가로축(H)은 자기장의 세기(자계의 세기), 세로축(B)은 자속밀도입니다.'
+  },
+  {
+    id: 14,
+    subject: 1,
+    subjectName: '전기이론',
+    question: '1 [kWh]의 전력량은 몇 [kJ]에 해당하는가?',
+    options: ['36 kJ', '360 kJ', '3600 kJ', '860 kJ'],
+    answer: 2,
+    explanation: '1 [kWh] = 1000 [W] × 3600 [s] = 3,600,000 [J] = 3600 [kJ] 입니다. (열량 변환 시 약 860 kcal)'
+  },
+  {
+    id: 15,
+    subject: 1,
+    subjectName: '전기이론',
+    question: '물질의 자성체 종류 중 비자율(μr)이 1보다 아주 큰 자성체는?',
+    options: ['상자성체', '반자성체', '강자성체', '비자성체'],
+    answer: 2,
+    explanation: '강자성체(철, 니켈, 코발트 등)는 비자율이 1보다 매우 커서 강하게 자화됩니다.'
+  },
+  {
+    id: 16,
+    subject: 1,
+    subjectName: '전기이론',
+    question: '플레밍의 왼손법칙에서 엄지손가락이 가리키는 방향은 무엇인가?',
+    options: ['자계의 방향', '전류의 방향', '힘(운동)의 방향', '유도기전력의 방향'],
+    answer: 2,
+    explanation: '플레밍의 왼손법칙(전동기 원리): 엄지=힘(F), 검지=자기장(B), 중지=전류(I).'
+  },
+  {
+    id: 17,
+    subject: 1,
+    subjectName: '전기이론',
+    question: '저항 6 [Ω], 유도 리액턴스 15 [Ω], 용량 리액턴스 7 [Ω]이 직렬로 연결된 회로의 합성 임피던스 [Ω]는?',
+    options: ['8 Ω', '10 Ω', '12 Ω', '14 Ω'],
+    answer: 1,
+    explanation: '임피던스 Z = √[ R² + (X_L - X_C)² ] = √[ 6² + (15 - 7)² ] = √[ 36 + 64 ] = √100 = 10 [Ω] 입니다.'
+  },
+  {
+    id: 18,
+    subject: 1,
+    subjectName: '전기이론',
+    question: '열전쌍을 이용하여 두 접점의 온도 차이에 의해 열기전력이 발생하는 현상은?',
+    options: ['제베크 효과', '펠티에 효과', '톰슨 효과', '홀 효과'],
+    answer: 0,
+    explanation: '제베크(Seebeck) 효과: 서로 다른 두 금속에 온도 차를 주면 열기전력이 생겨 전류가 흐르는 현상입니다.'
+  },
+  {
+    id: 19,
+    subject: 1,
+    subjectName: '전기이론',
+    question: '키르히호프의 제1법칙은 무엇에 관한 법칙인가?',
+    options: ['전압의 법칙', '전하량 보존 법칙(전류의 법칙)', '에너지 보존 법칙', '자기장 합성 법칙'],
+    answer: 1,
+    explanation: '키르히호프 제1법칙(KCL): 회로의 임의의 접속점에 들어오는 전류의 합은 나가는 전류의 합과 같다 (전하량 보존 법칙).'
+  },
+  {
+    id: 20,
+    subject: 1,
+    subjectName: '전기이론',
+    question: '주파수가 60 [Hz]인 정현파 교류의 주기 T는 몇 초인가?',
+    options: ['0.0167 초', '0.06 초', '1.67 초', '60 초'],
+    answer: 0,
+    explanation: '주기 T = 1 / f = 1 / 60 ≈ 0.01667 [s] 입니다.'
+  },
+
+  // --- [2과목: 전기기기] (21~40) ---
+  {
+    id: 21,
+    subject: 2,
+    subjectName: '전기기기',
+    question: '직류발전기의 3대 요소에 해당하지 않는 것은?',
+    options: ['계자', '전기자', '정류자', '슬립링'],
+    answer: 3,
+    explanation: '직류기의 3대 요소는 계자(자속 발생), 전기자(기전력 발생), 정류자(교류를 직류로 변환)입니다. 슬립링은 교류기에 사용됩니다.'
+  },
+  {
+    id: 22,
+    subject: 2,
+    subjectName: '전기기기',
+    question: '직류발전기에서 정류 작용을 불량하게 만드는 전기자 반작용을 방지하기 위한 가장 효과적인 대책은?',
+    options: ['탄소 브러시 사용', '보극 및 보상권선 설치', '균압선 설치', '계자 저항 증가'],
+    answer: 1,
+    explanation: '전기자 반작용 및 정류 개선을 위한 가장 보편적이고 효과적인 대책은 보극(Interpole) 및 보상권선(Compensating winding) 설치입니다.'
+  },
+  {
+    id: 23,
+    subject: 2,
+    subjectName: '전기기기',
+    question: '무부하 상태에서 운전 중 계자 권선이 단선되면 위험한 속도 상승(폭주)을 일으키는 직류전동기는?',
+    options: ['직권 전동기', '분권 전동기', '복권 전동기', '타회사 전동기'],
+    answer: 1,
+    explanation: '분권전동기는 N ∝ 1/Φ 이므로 무부하 시 계자권선 단선으로 자속 Φ → 0이 되면 속도가 무한대로 급상승하여 폭주합니다.'
+  },
+  {
+    id: 24,
+    subject: 2,
+    subjectName: '전기기기',
+    question: '변압기에서 철손(자화손)을 줄이기 위하여 사용하는 방법으로 가장 적절한 것은?',
+    options: ['동선 사용', '규소강판 적층 사용', '냉각유 증량', '권수비 증가'],
+    answer: 1,
+    explanation: '철손(히스테리시스손 + 와류손)을 줄이기 위해 규소 함유량이 높은 규소강판을 얇게 겹쳐 쌓는(적층) 방식을 사용합니다.'
+  },
+  {
+    id: 25,
+    subject: 2,
+    subjectName: '전기기기',
+    question: '변압기의 효율이 최대가 되는 조건은?',
+    options: ['철손 > 동손', '철손 = 동손', '철손 < 동손', '동손 = 0'],
+    answer: 1,
+    explanation: '변압기는 무부하손(철손)과 부하손(동손)이 같아질 때(P_i = P_c) 최고 효율을 나타냅니다.'
+  },
+  {
+    id: 26,
+    subject: 2,
+    subjectName: '전기기기',
+    question: '3상 변압기 2대를 이용하여 3상 전원을 V-V 결선할 때, 단상 변압기 1대 용량에 대한 출력 비는 몇 배인가?',
+    options: ['1.0 배', '1.414 배', '1.732 배', '2.0 배'],
+    answer: 2,
+    explanation: 'V결선 시 총 출력 P_V = √3 × P₁ ≈ 1.732 P₁ 입니다 (단상 변압기 용량의 √3배).'
+  },
+  {
+    id: 27,
+    subject: 2,
+    subjectName: '전기기기',
+    question: '동기발전기의 동기속도가 1800 [rpm]이고 극수가 4극일 때, 전원 주파수는 몇 [Hz]인가?',
+    options: ['50 Hz', '60 Hz', '100 Hz', '120 Hz'],
+    answer: 1,
+    explanation: '동기속도 N_s = (120 × f) / P ⇒ 1800 = (120 × f) / 4 ⇒ f = (1800 × 4) / 120 = 60 [Hz] 입니다.'
+  },
+  {
+    id: 28,
+    subject: 2,
+    subjectName: '전기기기',
+    question: '동기전동기의 위상특성곡선(V 곡선)에서 공급전압과 부하가 일정할 때 계자전류를 변화시키면 변하는 것은?',
+    options: ['전동기 회전속도', '전기자 전류와 역률', '주파수', '극수'],
+    answer: 1,
+    explanation: '동기전동기 V곡선은 계자전류(I_f)의 변화에 따른 전기자전류(I_a) 및 역률(cosθ)의 변화 특성을 나타냅니다.'
+  },
+  {
+    id: 29,
+    subject: 2,
+    subjectName: '전기기기',
+    question: '3상 유도전동기의 슬립 s의 범위로 일반적인 정상 운전 영역은?',
+    options: ['s < 0', '0 < s < 1', 's = 1', 's > 1'],
+    answer: 1,
+    explanation: '전동기 정상 운전 영역의 슬립 s는 0 < s < 1 범위(보통 0.02~0.05)에 존재합니다. (s<0은 발전기, s>1은 제동기)'
+  },
+  {
+    id: 30,
+    subject: 2,
+    subjectName: '전기기기',
+    question: '6극 60 [Hz] 3상 유도전동기의 동기속도가 1200 [rpm]이고 회전자 속도가 1140 [rpm]일 때 슬립 s는?',
+    options: ['0.02', '0.05', '0.08', '0.10'],
+    answer: 1,
+    explanation: '슬립 s = (N_s - N) / N_s = (1200 - 1140) / 1200 = 60 / 1200 = 0.05 (5%) 입니다.'
+  },
+  {
+    id: 31,
+    subject: 2,
+    subjectName: '전기기기',
+    question: '3상 농형 유도전동기의 Y-Δ(와이-델타) 기동 시 기동전류는 전전압 기동(직입기동) 시의 몇 배가 되는가?',
+    options: ['1/3 배', '1/√3 배', '1/2 배', '3 배'],
+    answer: 0,
+    explanation: 'Y-Δ 기동 방식은 기동 전압을 1/√3로 낮추어, 기동 전류와 기동 토크를 각각 1/3로 감소시킵니다.'
+  },
+  {
+    id: 32,
+    subject: 2,
+    subjectName: '전기기기',
+    question: '단상 유도전동기 중 기동 토크가 가장 큰 방식은?',
+    options: ['분상 기동형', '콘덴서 기동형', '반발 기동형', '세이딩 코일형'],
+    answer: 2,
+    explanation: '단상 유도전동기의 기동 토크 크기 순서: 반발 기동형 > 반발 유도형 > 콘덴서 기동형 > 분상 기동형 > 세이딩 코일형.'
+  },
+  {
+    id: 33,
+    subject: 2,
+    subjectName: '전기기기',
+    question: '3상 유도전동기의 회전 방향을 반대로 바꾸기(역전) 위한 방법은?',
+    options: ['3상 전원선 중 임의의 2선의 접속을 서로 바꾼다.', '전원선 3개를 모두 바꾼다.', '주파수를 높인다.', '전압을 낮춘다.'],
+    answer: 0,
+    explanation: '3상 유도전동기는 공급 전원 3선 중 임의의 두 선의 단자를 서로 교체하면 회전자계 방향이 반대가 되어 역회전합니다.'
+  },
+  {
+    id: 34,
+    subject: 2,
+    subjectName: '전기기기',
+    question: 'SCR(단방향 제어 정류 소자)의 단자 구성으로 올바른 것은?',
+    options: ['애노드, 캐소드', '애노드, 캐소드, 게이트', '베이스, 콜렉터, 에미터', '드레인, 소스, 게이트'],
+    answer: 1,
+    explanation: 'SCR은 3단자 소자로, 양극(Anode), 음극(Cathode), 게이트(Gate)로 구성됩니다.'
+  },
+  {
+    id: 35,
+    subject: 2,
+    subjectName: '전기기기',
+    question: '변압기 단상 3대 중 1대가 고장나서 2대로 3상 전력을 공급할 수 있는 결선 방식은?',
+    options: ['Y-Y 결선', 'Δ-Δ 결선', 'V-V 결선', '스콧 결선'],
+    answer: 2,
+    explanation: 'Δ-Δ 결선 중 1대 변압기 고장 시 남은 2대로 V-V 결선하여 3상 전력을 지속 공급할 수 있습니다.'
+  },
+  {
+    id: 36,
+    subject: 2,
+    subjectName: '전기기기',
+    question: '동기발전기의 병렬운전 조건에 포함되지 않는 항목은?',
+    options: ['기전력의 크기가 같을 것', '기전력의 주파수가 같을 것', '기전력의 위상이 같을 것', '발전기의 용량이 같을 것'],
+    answer: 3,
+    explanation: '동기발전기 병렬운전 조건: 기전력의 크기, 주파수, 위상, 파형, 상회전 방향이 일치해야 합니다. 용량이 달라도 무방합니다.'
+  },
+  {
+    id: 37,
+    subject: 2,
+    subjectName: '전기기기',
+    question: '직류 모터의 속도 제어 방식 중 제어 효율이 가장 우수하고 넓은 범위의 속도 제어가 가능한 방식은?',
+    options: ['계자제어법', '전압제어법', '저항제어법', '주파수제어법'],
+    answer: 1,
+    explanation: '전압제어법(워드 레오나드 방식 등)은 손실이 적고 넓은 범위에서 광범위하고 정밀한 속도 제어가 가능합니다.'
+  },
+  {
+    id: 38,
+    subject: 2,
+    subjectName: '전기기기',
+    question: '단상 반파 정류회로에서 입력 교류전압의 실효값이 V[V]일 때, 출력 직류 전압의 평균값 E_d는 약 얼마인가?',
+    options: ['0.45 V', '0.90 V', '1.17 V', '1.414 V'],
+    answer: 0,
+    explanation: '단상 반파 정류 직류 전압 E_d = (√2 / π) × V ≈ 0.45 V 입니다. (단상 전파 정류 시 0.90 V)'
+  },
+  {
+    id: 39,
+    subject: 2,
+    subjectName: '전기기기',
+    question: '스텝 모터(Stepping Motor)의 특징으로 틀린 것은?',
+    options: ['펄스 신호 수에 비례하여 회전각이 제어된다.', '위치 결정 제어에 유용하게 쓰인다.', '피드백 장치 없이 정확한 제어가 가능하다(펄스당 제어).', '아날로그 전압으로 연속적 회전 속도를 직접 제어한다.'],
+    answer: 3,
+    explanation: '스텝 모터는 아날로그 전압이 아닌 디지털 펄스(Pulse) 입력 신호에 따라 입력 펄스 수만큼 일정 각도씩 이동하는 모터입니다.'
+  },
+  {
+    id: 40,
+    subject: 2,
+    subjectName: '전기기기',
+    question: '변압기의 절연유가 갖추어야 할 조건으로 적절하지 않은 것은?',
+    options: ['절연내력이 클 것', '점도가 높을 것', '인화점이 높을 것', '응고점이 낮을 것'],
+    answer: 1,
+    explanation: '변압기 절연유는 냉각 및 순환 작용을 원활하게 하기 위해 점도가 낮아야(유동성이 좋아야) 합니다.'
+  },
+
+  // --- [3과목: 전기설비 - KEC 기준 반영] (41~60) ---
+  {
+    id: 41,
+    subject: 3,
+    subjectName: '전기설비',
+    question: 'KEC 규정에 따른 교류(AC) 저압의 정의로 옳은 기준은?',
+    options: ['AC 600 V 이하', 'AC 750 V 이하', 'AC 1000 V 이하', 'AC 1500 V 이하'],
+    answer: 2,
+    explanation: '한국전기설비규정(KEC) 상 저압 기준: 교류(AC) 1000V 이하, 직류(DC) 1500V 이하입니다.'
+  },
+  {
+    id: 42,
+    subject: 3,
+    subjectName: '전기설비',
+    question: '합성수지관 공사에서 관의 지지점 간 거리는 몇 [m] 이하로 해야 하는가?',
+    options: ['1.0 m', '1.5 m', '2.0 m', '3.0 m'],
+    answer: 1,
+    explanation: '합성수지관 공사의 지지점 간격은 1.5m 이하입니다. (금속관 및 가요전선관은 2.0m, 금속덕트는 3m)'
+  },
+  {
+    id: 43,
+    subject: 3,
+    subjectName: '전기설비',
+    question: '금속관 공사 시 관 단구에 전선의 피복 손상을 방지하기 위해 사용하는 부속품은?',
+    options: ['부싱 (Bushing)', '록너트 (Lock nut)', '커플링 (Coupling)', '새들 (Saddle)'],
+    answer: 0,
+    explanation: '부싱(Bushing)은 금속관 끝 단구에 설치하여 전선을 인입 및 인출할 때 피복 상해를 방지하는 역할을 합니다.'
+  },
+  {
+    id: 44,
+    subject: 3,
+    subjectName: '전기설비',
+    question: '전선의 두께를 측정하기 위한 공구로 적합한 것은?',
+    options: ['와이어 게이지', '피어싱 펀치', '프레스 바이트', '클리퍼'],
+    answer: 0,
+    explanation: '와이어 게이지(Wire Gauge) 또는 마이크로미터는 전선의 지름 및 두께를 측정할 때 사용하는 공구입니다.'
+  },
+  {
+    id: 45,
+    subject: 3,
+    subjectName: '전기설비',
+    question: '천장 숨은 공사 등에 주로 사용되며 굴곡 장소가 많아 가공성이 요구될 때 사용하는 전선관 공사는?',
+    options: ['가요전선관 공사', '자연관 공사', '케이블 트레이 공사', '라이팅 덕트 공사'],
+    answer: 0,
+    explanation: '가요전선관(Flexible conduit)은 구부리기 쉬우므로 복잡한 배선 및 진동이 있는 곳에 주로 사용됩니다.'
+  },
+  {
+    id: 46,
+    subject: 3,
+    subjectName: '전기설비',
+    question: '옥내에 시설하는 누전차단기(ELB)의 주된 설치 목적은 무엇인가?',
+    options: ['과전류 차단', '감전 및 누전 사고 방지', '단락 사고 저항', '역률 개선'],
+    answer: 1,
+    explanation: '누전차단기는 회로에 누전(지락) 발생 시 신속히 전원을 차단하여 감전 및 화재 사고를 방지합니다.'
+  },
+  {
+    id: 47,
+    subject: 3,
+    subjectName: '전기설비',
+    question: 'KEC 표준 전선 식별 색상에서 L1, L2, L3 및 중성선(N)의 식별 색상 조합으로 올바른 것은?',
+    options: ['갈색, 흑색, 회색, 청색', '흑색, 적색, 청색, 백색', '적색, 황색, 청색, 녹색', '갈색, 회색, 흑색, 녹색'],
+    answer: 0,
+    explanation: 'KEC 규정 전선 색상: L1(갈색), L2(흑색), L3(회색), N 중성선(청색), PE 보호계통(녹색-노랑 복합색).'
+  },
+  {
+    id: 48,
+    subject: 3,
+    subjectName: '전기설비',
+    question: '접지 시스템의 구성 요소 중 지중에 매설되어 전류를 땅으로 흘려보내는 금속 도체는?',
+    options: ['접지극', '접지선', '보호도체', '주접지 단자'],
+    answer: 0,
+    explanation: '접지극(Earthing electrode)은 토양에 직접 접촉하여 누설전류를 대지로 방출하는 매설 도체입니다.'
+  },
+  {
+    id: 49,
+    subject: 3,
+    subjectName: '전기설비',
+    question: '화재 발생 시 C급 화재는 어떤 화재를 의미하는가?',
+    options: ['일반화재', '유류화재', '전기화재', '금속화재'],
+    answer: 2,
+    explanation: '화재 분류: A급(일반화재), B급(유류화재), C급(전기화재), D급(금속화재).'
+  },
+  {
+    id: 50,
+    subject: 3,
+    subjectName: '전기설비',
+    question: '전선 두 개를 박스 내부에서 접속할 때 주로 사용되는 접속법 및 커넥터는?',
+    options: ['쥐꼬리 접속 및 와이어 커넥터', '직선 접속', '트위스트 접속', '권선 접속'],
+    answer: 0,
+    explanation: '아울렛 박스 내부 배선 접속 시 쥐꼬리 접속 후 와이어 커넥터(스프링 캡)로 마감 처리합니다.'
+  },
+  {
+    id: 51,
+    subject: 3,
+    subjectName: '전기설비',
+    question: '인체 감전보호용 누전차단기의 정격 감도전류와 동작시간 기준은?',
+    options: ['30 mA 이하, 0.03 초 이내', '50 mA 이하, 0.1 초 이내', '100 mA 이하, 0.05 초 이내', '15 mA 이하, 0.5 초 이내'],
+    answer: 0,
+    explanation: '일반 인체감전보호용 누전차단기는 정격 감도전류 30mA 이하, 동작시간 0.03초 이내의 고감도 고속형을 사용합니다.'
+  },
+  {
+    id: 52,
+    subject: 3,
+    subjectName: '전기설비',
+    question: '공사 현장에서 전선의 피복을 벗기는 데 사용되는 다목적 공구는?',
+    options: ['와이어 스트리퍼', '파이프 랜치', '버니어 캘리퍼스', '클램프 메타'],
+    answer: 0,
+    explanation: '와이어 스트리퍼(Wire stripper)는 전선의 겉비닐 피복을 심선 손상 없이 신속히 벗기는 공구입니다.'
+  },
+  {
+    id: 53,
+    subject: 3,
+    subjectName: '전기설비',
+    question: '금속관 공사에서 관 상호 간을 직접 연결할 때 사용하는 부속품은?',
+    options: ['커플링', '유니온', '엘보', '티'],
+    answer: 0,
+    explanation: '금속관 상호 간을 직선 접속할 때는 커플링(Coupling)을 사용합니다.'
+  },
+  {
+    id: 54,
+    subject: 3,
+    subjectName: '전기설비',
+    question: '애자 공사 시 전선과 조영재(벽면) 사이의 이격거리는 저압 기준 최소 몇 [cm] 이상이어야 하는가? (단, 400V 미만)',
+    options: ['1.5 cm', '2.5 cm', '4.5 cm', '6.0 cm'],
+    answer: 1,
+    explanation: '저압 애자공사 시 400V 미만의 경우 전선과 조영재 사이 이격거리는 2.5cm 이상입니다. (400V 이상은 4.5cm 이상)'
+  },
+  {
+    id: 55,
+    subject: 3,
+    subjectName: '전기설비',
+    question: '네온 변압기를 이용한 네온 방전등 공사 시 네온 변압기 외함의 접지공사로 옳은 것은?',
+    options: ['반드시 단속접지', '보호계통 접지', '미설치 가능', '차폐선 접지 생략'],
+    answer: 1,
+    explanation: '네온 변압기 외함 등 노출 도전성 부분은 감전 예방을 위해 KEC 접지 규정에 의한 접지를 실시해야 합니다.'
+  },
+  {
+    id: 56,
+    subject: 3,
+    subjectName: '전기설비',
+    question: '특고압 또는 고압 전로와 저압 전로를 결합하는 변압기 저압측에 설치하는 보호장치는?',
+    options: ['혼촉 방지판 접지 장치', '과전류 차단기', '계기용 변압기', '보호용 퓨즈'],
+    answer: 0,
+    explanation: '고저압 혼촉 시 저압 측 전위상승 방지를 위해 변압기 저압 측 일단에 혼촉방지판 접지를 시행합니다.'
+  },
+  {
+    id: 57,
+    subject: 3,
+    subjectName: '전기설비',
+    question: '전기울타리용 전원장치에 전 공급 전압은 몇 [V] 이하이어야 하는가?',
+    options: ['100 V', '250 V', '300 V', '600 V'],
+    answer: 1,
+    explanation: 'KEC 규정에 의해 가축 이탈 방지용 전기울타리 전원장치의 정격 사용전압은 250V 이하이어야 합니다.'
+  },
+  {
+    id: 58,
+    subject: 3,
+    subjectName: '전기설비',
+    question: '몰드변압기의 주요 장점으로 옳은 것은?',
+    options: ['난연성이 우수하고 유지가 용이하다.', '절연유 교체가 자주 필요하다.', '습기에 매우 약하다.', '대형 수변전용으로만 제한된다.'],
+    answer: 0,
+    explanation: '몰드변압기는 난연성 에폭시 수지로 몰딩하여 화재 위험이 적고, 절연유가 없어 난연성 및 보수점검이 용이합니다.'
+  },
+  {
+    id: 59,
+    subject: 3,
+    subjectName: '전기설비',
+    question: '옥내 저압 가공 인입선의 지표상 높이는 일반적인 장소에서 최소 몇 [m] 이상이어야 하는가?',
+    options: ['3.5 m', '4.0 m', '5.0 m', '6.0 m'],
+    answer: 2,
+    explanation: '옥내 가공 인입선 도로 횡단 시 6m, 일반 장소 지표상 높이는 최소 5m 이상이어야 합니다 (교통 장애 없을 시 3.5m까지 감하 가능).'
+  },
+  {
+    id: 60,
+    subject: 3,
+    subjectName: '전기설비',
+    question: '수변전 설비에서 단로기(DS)와 차단기(CB)의 조작 순서로 차단(OFF) 시 옳은 순서는?',
+    options: ['차단기(CB) OFF 후 단로기(DS) OFF', '단로기(DS) OFF 후 차단기(CB) OFF', '동시 OFF', '순서 관계없음'],
+    answer: 0,
+    explanation: '단로기(DS)는 아크 소호 능력이 없으므로 반드시 차단기(CB)를 먼저 열어(OFF) 부하전류를 차단한 후 단로기를 열어야 합니다.'
+  }
+];
+
+// ==========================================
+// 시각적 분수 구조가 반영된 과목별 핵심 이론 요약
+// ==========================================
+const theorySummaryData = [
+  {
+    id: 1,
+    title: '제1과목: 전기이론 핵심 요약',
+    icon: '⚡',
+    sections: [
+      {
+        subtitle: '1. 직류 회로 & 기본 공식',
+        items: [
+          {
+            label: '옴의 법칙',
+            searchKey: '옴의 법칙 I=V/R V=IR R=V/I 전압 전류 저항',
+            formula: (
+              <span>
+                I = <Frac n="V" d="R" /> [A], &nbsp;&nbsp;&nbsp;
+                V = I × R [V], &nbsp;&nbsp;&nbsp;
+                R = <Frac n="V" d="I" /> [Ω]
+              </span>
+            ),
+            detail: '전류(I)는 전압(V)에 비례하고 저항(R)에 반비례함'
+          },
+          {
+            label: '합성저항(직렬 & 병렬)',
+            searchKey: '합성저항 직렬 R1+R2 병렬 R1R2/(R1+R2)',
+            formula: (
+              <span>
+                직렬: R = R₁ + R₂ + R₃ ...<br />
+                병렬: R = <Frac n="R₁ × R₂" d="R₁ + R₂" /> [Ω]
+              </span>
+            ),
+            detail: '2개 병렬 저항은 (곱 / 합) 공식 적용'
+          },
+          {
+            label: '전력 및 전력량',
+            searchKey: '전력 P=VI=I2R=V2/R 전력량 W=Pt',
+            formula: (
+              <span>
+                전력: P = V × I = I² × R = <Frac n="V²" d="R" /> [W]<br />
+                전력량: W = P × t = V × I × t [J]
+              </span>
+            ),
+            detail: '1 [W] = 1 [J/s], 1 [kWh] = 3.6 × 10⁶ [J]'
+          },
+          {
+            label: '줄의 법칙(발열량)',
+            searchKey: '줄의 법칙 H=0.24I2Rt 열량',
+            formula: (
+              <span>
+                H = 0.24 × I² × R × t [cal]<br />
+                1 [kWh] = 860 [kcal] = 3,600 [kJ]
+              </span>
+            ),
+            detail: '1 [J] ≈ 0.24 [cal] 변환 계수'
+          },
+          {
+            label: '휘트스톤 브리지',
+            searchKey: '휘트스톤 브리지 PQ=RS 대각선',
+            formula: <span>P × Q = R × S &nbsp;&nbsp;(검류계 전류 0일 때)</span>,
+            detail: '마주보는 대각선 저항의 곱은 같다 (미지 저항 측정)'
+          }
+        ]
+      },
+      {
+        subtitle: '2. 정전기 & 콘덴서',
+        items: [
+          {
+            label: '쿨롱의 법칙(정전력)',
+            searchKey: '쿨롱의 법칙 정전력 F=9x10^9 Q1Q2/r2',
+            formula: (
+              <span>
+                F = 9 × 10⁹ × <Frac n="Q₁ × Q₂" d="r²" /> [N]
+              </span>
+            ),
+            detail: '두 전하의 곱에 비례, 거리(r)의 제곱에 반비례'
+          },
+          {
+            label: '전계의 세기(E)',
+            searchKey: '전계의 세기 E=F/q=9x10^9 Q/r2',
+            formula: (
+              <span>
+                E = <Frac n="F" d="q" /> = 9 × 10⁹ × <Frac n="Q" d="r²" /> [V/m]
+              </span>
+            ),
+            detail: '단위 전하(+1C)가 받는 정전력의 크기'
+          },
+          {
+            label: '정전용량(C)',
+            searchKey: '정전용량 C=eA/d 유전율 극판면적 간격',
+            formula: (
+              <span>
+                C = ε × <Frac n="A" d="d" /> = ε₀ × ε_r × <Frac n="A" d="d" /> [F]
+              </span>
+            ),
+            detail: '유전율(ε) 및 극판 면적(A)에 비례, 극판 간격(d)에 반비례'
+          },
+          {
+            label: '콘덴서 직렬 & 병렬 접속',
+            searchKey: '콘덴서 직렬 1/C 병렬 C1+C2',
+            formula: (
+              <span>
+                직렬: <Frac n="1" d="C" /> = <Frac n="1" d="C₁" /> + <Frac n="1" d="C₂" /> &nbsp;⇒&nbsp; C = <Frac n="C₁ × C₂" d="C₁ + C₂" /><br />
+                병렬: C = C₁ + C₂ + C₃ ...
+              </span>
+            ),
+            detail: '콘덴서 접속은 저항 접속 공식과 반대로 계산'
+          },
+          {
+            label: '정전에너지 축적량',
+            searchKey: '정전에너지 W=1/2CV2=1/2QV',
+            formula: (
+              <span>
+                W = <Frac n="1" d="2" /> C V² = <Frac n="1" d="2" /> Q V = <Frac n="Q²" d="2 C" /> [J]
+              </span>
+            ),
+            detail: '콘덴서 극판 사이에 저장되는 전기에너지'
+          }
+        ]
+      },
+      {
+        subtitle: '3. 정자기 & 전류의 자작용',
+        items: [
+          {
+            label: '플레밍의 법칙',
+            searchKey: '플레밍 왼손 F=BILsinθ 오른손 e=BLvsinθ',
+            formula: (
+              <span>
+                왼손(전동기): F = B × I × L × sinθ [N]<br />
+                오른손(발전기): e = B × L × v × sinθ [V]
+              </span>
+            ),
+            detail: '왼손: 엄지(힘 F), 검지(자계 B), 중지(전류 I)'
+          },
+          {
+            label: '비오-사바르 법칙',
+            searchKey: '비오사바르 직선도선 H=I/2pr 원형도선 H=I/2r',
+            formula: (
+              <span>
+                직선 도선: H = <Frac n="I" d="2π r" /> [A/m]<br />
+                원형 도선 중심: H = <Frac n="I" d="2 r" /> [A/m]
+              </span>
+            ),
+            detail: '전류에 의해 주위에 형성되는 자계의 세기(H)'
+          },
+          {
+            label: '패러데이 유도기전력',
+            searchKey: '패러데이 유도기전력 e=-NdF/dt=-LdI/dt',
+            formula: (
+              <span>
+                e = -N × <Frac n="ΔΦ" d="Δt" /> = -L × <Frac n="ΔI" d="Δt" /> [V]
+              </span>
+            ),
+            detail: '음(-)(렌츠의 법칙): 자속 변화를 방해하는 방향'
+          },
+          {
+            label: '코일 저장 자성에너지',
+            searchKey: '인덕턴스 에너에 W=1/2LI2',
+            formula: (
+              <span>
+                W = <Frac n="1" d="2" /> L I² [J]
+              </span>
+            ),
+            detail: '자체 인덕턴스 L에 전류 I가 흐를 때 저장되는 에너지'
+          },
+          {
+            label: 'B-H 히스테리시스 곡선',
+            searchKey: '히스테리시스 가로축 H 세로축 B 잔류자기 코에르시비티',
+            formula: (
+              <span>
+                가로축: 자계의 세기(H) [A/m]<br />
+                세로축: 자속밀도(B) [Wb/m²]
+              </span>
+            ),
+            detail: '곡선 내부 면적 = 단위 부피당 히스테리시스 손실'
+          }
+        ]
+      },
+      {
+        subtitle: '4. 교류 회로 & RLC 수식',
+        items: [
+          {
+            label: 'L & C 위상 관계 (ELI & ICE)',
+            searchKey: 'ELI ICE 위상관계 인덕터 커패시터 지상 진상 90도 앞섬 늦음',
+            formula: (
+              <span>
+                <strong>E L I</strong> : 인덕터(L)에서 전압(E)이 전류(I)보다 90° 앞섬 (지상전류)<br />
+                <strong>I C E</strong> : 커패시터(C)에서 전류(I)가 전압(E)보다 90° 앞섬 (진상전류)
+              </span>
+            ),
+            detail: '• L 회로: 전류 I가 전압 E보다 90° 늦음 (지상, Lagging)\n• C 회로: 전류 I가 전압 E보다 90° 앞섬 (진상, Leading)'
+          },
+          {
+            label: '파형률 & 파구율',
+            searchKey: '파형률 실효값/평균값 파구율 최대값/실효값 정현파',
+            formula: (
+              <span>
+                파형률 = <Frac n="실효값" d="평균값" />, &nbsp;&nbsp; 파구율 = <Frac n="최대값" d="실효값" /><br />
+                정현파 실효값: V = <Frac n="V_m" d="√2" /> ≈ 0.707 V_m<br />
+                정현파 평균값: V_a = <Frac n="2 V_m" d="π" /> ≈ 0.637 V_m
+              </span>
+            ),
+            detail: '실효값(RMS)은 파형 최대값 V_m을 √2로 나눈 값'
+          },
+          {
+            label: '리액턴스 크기',
+            searchKey: '유도리액턴스 XL=2pfL 용량리액턴스 XC=1/2pfC',
+            formula: (
+              <span>
+                유도 리액턴스: X_L = 2π f L [Ω]<br />
+                용량 리액턴스: X_C = <Frac n="1" d="2π f C" /> [Ω]
+              </span>
+            ),
+            detail: '주파수 f가 높아지면 X_L은 증가, X_C는 감소'
+          },
+          {
+            label: 'RLC 임피던스 & 공진 (Resonance)',
+            searchKey: '임피던스 Z=sqrt(R2+(XL-XC)2) 공진주파수 f0=1/2p sqrt(LC) 직렬공진 병렬공진',
+            formula: (
+              <span>
+                임피던스: Z = √[ R² + (X_L - X_C)² ] [Ω]<br />
+                공진 조건 (X_L = X_C) ⇒ 공진주파수: f₀ = <Frac n="1" d="2π √(L C)" /> [Hz]<br />
+                • <strong>직렬 공진</strong>: 임피던스 Z = R (최소), 전류 I (최대)<br />
+                • <strong>병렬 공진</strong>: 임피던스 Z (최대), 전류 I (최소)
+              </span>
+            ),
+            detail: '• 직렬 공진: 전압 확대 작용 (전압 공진, 단락 상태처럼 동작)\n• 병렬 공진: 전류 확대 작용 (전류 공진, 개방 상태처럼 동작)'
+          }
+        ]
+      },
+      {
+        subtitle: '5. 3상 교류 & 전력',
+        items: [
+          {
+            label: '3상 Y(와이) & Δ(델타) 결선',
+            searchKey: 'Y결선 VL=sqrt(3)Vp 델타결선 IL=sqrt(3)Ip',
+            formula: (
+              <span>
+                Y결선: V_L = √3 × V_p (위상 30° 앞섬), &nbsp; I_L = I_p<br />
+                Δ결선: V_L = V_p, &nbsp; I_L = √3 × I_p (위상 30° 늦음)
+              </span>
+            ),
+            detail: 'V_L: 선간전압, V_p: 상전압, I_L: 선전류, I_p: 상전류'
+          },
+          {
+            label: '3상 소비전력',
+            searchKey: '3상 전력 P=sqrt(3)VL IL cosθ = 3Vp Ip cosθ',
+            formula: (
+              <span>
+                P = √3 × V_L × I_L × cosθ = 3 × V_p × I_p × cosθ [W]
+              </span>
+            ),
+            detail: '선간 수치 사용 시 √3 곱함, 상 수치 사용 시 3 곱함'
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: 2,
+    title: '제2과목: 전기기기 핵심 요약',
+    icon: '⚙️',
+    sections: [
+      {
+        subtitle: '1. 직류발전기 (구조 및 특성)',
+        items: [
+          {
+            label: '유기 기전력 공식',
+            searchKey: '유기기전력 E=(PZ/60a)fN=KfN',
+            formula: (
+              <span>
+                E = <Frac n="P Z" d="60 a" /> × Φ × N = K × Φ × N [V]
+              </span>
+            ),
+            detail: 'P: 극수, Z: 총 도체수, a: 병렬회로수, N: 회전수[rpm], Φ: 자속'
+          },
+          {
+            label: '전압 변동률(ε)',
+            searchKey: '전압변동률 (V0-Vn)/Vn x 100',
+            formula: (
+              <span>
+                ε = <Frac n="V₀ - V_n" d="V_n" /> × 100 [%]
+              </span>
+            ),
+            detail: 'V₀: 무부하 단자전압, V_n: 정격 단자전압'
+          },
+          {
+            label: '전기자 반작용 및 대책',
+            searchKey: '전기자 반작용 보극 보상권선 브러시 이동',
+            formula: <span>원인: 전기자 전류에 의한 주자속 방해 및 편자작용</span>,
+            detail: '대책: 보극(Interpole) 및 보상권선(Compensating Winding) 설치'
+          },
+          {
+            label: '직류발전기 종류',
+            searchKey: '타회사 분권 직권 복권 발전기 특성',
+            formula: <span>타회사, 분권(정전압), 직권(무부하 시 전압 0), 복권</span>,
+            detail: '• 분권: 계자권선과 전기자 병렬 접속\n• 직권: 계자권선과 전기자 직렬 접속'
+          }
+        ]
+      },
+      {
+        subtitle: '2. 직류전동기 (토크 및 속도)',
+        items: [
+          {
+            label: '회전 속도 공식',
+            searchKey: '직류전동기 속도 N=(V-IaRa)/Kf',
+            formula: (
+              <span>
+                N = <Frac n="V - I_a × R_a" d="K × Φ" /> [rpm]
+              </span>
+            ),
+            detail: '분권 전동기는 무부하 상태에서 계자 단선 시 자속 Φ → 0 되어 위험한 속도(폭주) 발생'
+          },
+          {
+            label: '발생 토크 공식',
+            searchKey: '토크 T=K f Ia = 0.975 P/N',
+            formula: (
+              <span>
+                T = K′ × Φ × I_a [N·m] = 0.975 × <Frac n="P" d="N" /> [kg·m]
+              </span>
+            ),
+            detail: '직권전동기 토크: T ∝ I_a² (전류 제곱에 비례)'
+          },
+          {
+            label: '속도 제어 방식',
+            searchKey: '속도제어 전압제어 계자제어 저항제어',
+            formula: <span>전압제어(효율 우수, 광범위), 계자제어, 저항제어</span>,
+            detail: '워드 레오나드 방식: 전압제어로 광범위한 제어'
+          }
+        ]
+      },
+      {
+        subtitle: '3. 변압기 (Transformer)',
+        items: [
+          {
+            label: '권수비(a)',
+            searchKey: '권수비 a=N1/N2=V1/V2=I2/I1=sqrt(Z1/Z2)',
+            formula: (
+              <span>
+                a = <Frac n="N₁" d="N₂" /> = <Frac n="V₁" d="V₂" /> = <Frac n="I₂" d="I₁" /> = √<Frac n="Z₁" d="Z₂" />
+              </span>
+            ),
+            detail: '1차측/2차측 권수비, 전압비, 전류비, 임피던스비 관계'
+          },
+          {
+            label: '최고 효율 조건 & 철손',
+            searchKey: '최고효율 철손=동손 규소강판 적층',
+            formula: <span>철손(무부하손 P_i) = 동손(부하손 P_c)</span>,
+            detail: '규소강판(규소 3.8~4.5%)을 얇게 적층(0.35~0.5mm)하여 철손 경감'
+          },
+          {
+            label: '변압기 V-V 결선',
+            searchKey: 'VV결선 PV=sqrt(3)P1 이용률 86.6 출력비 57.7',
+            formula: (
+              <span>
+                출력: P_V = √3 × P₁ ≈ 1.732 P₁
+              </span>
+            ),
+            detail: 'Δ-Δ 결선 중 1대 고장 시 2대로 3상 공급 (이용률 86.6%, 출력비 57.7%)'
+          }
+        ]
+      },
+      {
+        subtitle: '4. 동기기 (발전기 & 전동기)',
+        items: [
+          {
+            label: '동기속도(N_s)',
+            searchKey: '동기속도 Ns=120f/P',
+            formula: (
+              <span>
+                N_s = <Frac n="120 × f" d="P" /> [rpm]
+              </span>
+            ),
+            detail: 'f: 주파수[Hz], P: 극수 (예: 4극 60Hz ⇒ 1800 rpm)'
+          },
+          {
+            label: '동기발전기 유기기전력',
+            searchKey: '동기발전기 기전력 E=4.44fNkw',
+            formula: <span>E = 4.44 × f × Φ × N × k_w [V]</span>,
+            detail: 'k_w: 권선계수 (단판권계수 × 분포권계수)'
+          },
+          {
+            label: '발전기 병렬운전 조건',
+            searchKey: '병렬운전 조건 크기 주파수 위상 파형 상회전',
+            formula: <span>기전력의 크기, 주파수, 위상, 파형, 상회전 방향 일치</span>,
+            detail: '용량이 달라도 병렬운전 가능'
+          },
+          {
+            label: '동기전동기 V곡선',
+            searchKey: 'V곡선 계자전류 전기자전류 역률 동기조상기',
+            formula: <span>계자전류(I_f) 변화에 따른 전기자전류(I_a) 및 역률 변화</span>,
+            detail: '과진상: 콘덴서 작용(동기조상기로 역률 개선)'
+          }
+        ]
+      },
+      {
+        subtitle: '5. 유도기 & 정류기',
+        items: [
+          {
+            label: '슬립(s) & 회전자 속도',
+            searchKey: '슬립 s=(Ns-N)/Ns N=Ns(1-s)',
+            formula: (
+              <span>
+                s = <Frac n="N_s - N" d="N_s" /> &nbsp;⇒&nbsp; N = N_s (1 - s) [rpm]
+              </span>
+            ),
+            detail: '정상 전동기 운전 영역: 0 < s < 1 (보통 0.02~0.05)'
+          },
+          {
+            label: '3상 농형 Y-Δ 기동',
+            searchKey: 'Y-Δ 기동 전압 1/sqrt(3) 전류 토크 1/3',
+            formula: (
+              <span>
+                기동전압 <Frac n="1" d="√3" /> 감하 &nbsp;⇒&nbsp; 기동전류 및 기동토크 <Frac n="1" d="3" /> 로 감소
+              </span>
+            ),
+            detail: '기동 시 발생하는 과도한 기동 전류를 억제'
+          },
+          {
+            label: '단상 반파/전파 정류',
+            searchKey: '정류 반파 0.45V 전파 0.90V',
+            formula: (
+              <span>
+                반파: E_d = <Frac n="√2" d="π" /> V ≈ 0.45 V [V]<br />
+                전파: E_d = <Frac n="2√2" d="π" /> V ≈ 0.90 V [V]
+              </span>
+            ),
+            detail: '입력 교류 실효값 V에 따른 출력 직류 평균값 E_d'
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: 3,
+    title: '제3과목: 전기설비 (KEC 기준 완벽 반영)',
+    icon: '🔌',
+    sections: [
+      {
+        subtitle: '1. 전압의 구분 & 전선 식별 (KEC)',
+        items: [
+          {
+            label: 'KEC 전압 분류 기준',
+            searchKey: '전압 구분 저압 고압 특고압 AC1000V DC1500V 7000V',
+            formula: <span>저압: AC 1000V 이하, DC 1500V 이하</span>,
+            detail: '• 고압: AC 1000V 초과 ~ 7000V 이하 / DC 1500V 초과 ~ 7000V 이하\n• 특고압: 7000V 초과 (154kV, 345kV 등)'
+          },
+          {
+            label: 'KEC 전선 식별 색상',
+            searchKey: '전선 색상 L1 갈색 L2 흑색 L3 회색 N 청색 PE 녹색노랑',
+            formula: <span>L1: 갈색, L2: 흑색, L3: 회색, N(중성선): 청색</span>,
+            detail: 'PE(보호도체): 녹색-노랑 복합색'
+          },
+          {
+            label: '전선 접속 주의사항',
+            searchKey: '전선 접속 저항 20% 쥐꼬리 접속 와이어 커넥터',
+            formula: <span>전선 인장강도 20% 이상 감소 금지 & 전기저항 증가 금지</span>,
+            detail: '옥내 박스 내 접속: 쥐꼬리 접속 + 와이어 커넥터(스프링 캡) 마감'
+          }
+        ]
+      },
+      {
+        subtitle: '2. 절연 종별 & 변압기 절연유',
+        items: [
+          {
+            label: '권선 절연 종별 (최고온도)',
+            searchKey: '절연 종별 Y A E B F H C 90 105 120 130 155 180',
+            formula: <span>Y(90°C) - A(105°C) - E(120°C) - B(130°C) - F(155°C) - H(180°C) - C(180°C 초과)</span>,
+            detail: '암기 팁: "야 에 바 에프 에이치 씨"'
+          },
+          {
+            label: '변압기 절연유 조건',
+            searchKey: '절연유 조건 절연내력 점도 인화점 응고점',
+            formula: <span>① 절연내력 클 것 &nbsp; ② 점도 낮을 것(냉각 작용)</span>,
+            detail: '③ 인화점 높을 것  ④ 응고점 낮을 것  ⑤ 산화 변질 없을 것'
+          },
+          {
+            label: '몰드 변압기 특징',
+            searchKey: '몰드변압기 에폭시 수지 난연성 유지보수',
+            formula: <span>에폭시 수지로 몰딩한 건식 변압기</span>,
+            detail: '장점: 난연성/내진성 우수, 절연유가 없어 유지보수 용이 및 소형화 가능'
+          }
+        ]
+      },
+      {
+        subtitle: '3. 배선 공사 종류 & 규격',
+        items: [
+          {
+            label: '합성수지관 공사',
+            searchKey: '합성수지관 지지점 1.5m 수용률 40%',
+            formula: <span>지지점 간 거리는 1.5m 이하</span>,
+            detail: '관 내부 전선 굴곡 용이, 전선 수용율 40% 이하(동일 전선 48%)'
+          },
+          {
+            label: '금속관 / 가요전선관',
+            searchKey: '금속관 가요전선관 지지점 2.0m 부싱 커플링',
+            formula: <span>지지점 간 거리는 2.0m 이하</span>,
+            detail: '관 단구 피복 손상 방지용: 부싱(Bushing) 사용, 관 상호 연결: 커플링'
+          },
+          {
+            label: '금속덕트 공사',
+            searchKey: '금속덕트 지지점 3.0m 수직 6m 수용율 20%',
+            formula: <span>지지점 간 거리는 3.0m 이하 (수직 설치 시 6m)</span>,
+            detail: '덕트 내 전선 수용율 20% 이하 (제어회로 50% 이하)'
+          },
+          {
+            label: '애자 공사',
+            searchKey: '애자공사 지지점 2.0m 이격거리 2.5cm 4.5cm',
+            formula: <span>지지점 간 거리 2.0m 이하, 400V 미만 이격거리 2.5cm 이상</span>,
+            detail: '습기 많은 장소 가능, 조영재 측면 부착 시 2.0m'
+          }
+        ]
+      },
+      {
+        subtitle: '4. KEC 접지 시스템 규정',
+        items: [
+          {
+            label: 'KEC 계통접지 방식',
+            searchKey: 'TN계통 TT계통 IT계통 TN-S TN-C',
+            formula: <span>TN 계통 (TN-S, TN-C, TN-C-S), TT 계통, IT 계통</span>,
+            detail: '• TN: 전원측 한 점을 직접 접지하고 노출도전부를 보호도체로 연결\n• TT: 전원측과 설비 노출도전부를 각각 별개 독립 접지\n• IT: 전원측을 비접지 또는 고임피던스 접지'
+          },
+          {
+            label: '접지 시스템의 시설 구분',
+            searchKey: '단독접지 공통접지 통합접지 SPD 서지보호장치',
+            formula: <span>단독접지, 공통접지(저압+고압), 통합접지(저압+고압+특고압+통신+피뢰)</span>,
+            detail: '통합접지 시 서지보호장치(SPD) 설치 필수'
+          },
+          {
+            label: '접지극 및 보호도체',
+            searchKey: '접지극 보호도체 PE 노출도전부',
+            formula: <span>접지극: 대지에 직접 접촉하는 도체 (접지봉, 접지판)</span>,
+            detail: '보호도체(PE): 감전보호를 위해 노출도전부 등을 접지극에 연결하는 도체'
+          }
+        ]
+      },
+      {
+        subtitle: '5. 보호장치 & 안전 설비',
+        items: [
+          {
+            label: '인체 감전보호 누전차단기',
+            searchKey: '누전차단기 ELB 30mA 0.03초 15mA',
+            formula: <span>정격 감도전류 30mA 이하, 동작시간 0.03초 이내 (고감도 고속형)</span>,
+            detail: '욕실 등 습기 장소: 15mA 이하, 0.03초 이내'
+          },
+          {
+            label: '수변전 개폐 조작 순서',
+            searchKey: '수변전 조작순서 CB DS 차단기 단로기',
+            formula: (
+              <span>
+                차단(OFF): 차단기(CB) OFF → 단로기(DS) OFF<br />
+                투입(ON): 단로기(DS) ON → 차단기(CB) ON
+              </span>
+            ),
+            detail: '단로기는 아크 소호 능력이 없으므로 반드시 차단기 OFF 후 조작'
+          },
+          {
+            label: '화재 분류 기준',
+            searchKey: '화재분류 A급 B급 C급 D급 전기화재 CO2 소화기',
+            formula: <span>A급(일반-백색), B급(유류-황색), C급(전기-청색), D급(금속)</span>,
+            detail: '전기화재(C급) 소화기: CO₂ 소화기, 분말 소화기 사용'
+          }
+        ]
+      }
+    ]
+  }
+];
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('guide'); // 'guide', 'theory', 'exam'
+  
+  // 과목별 이론 탭 상태
+  const [selectedTheorySubject, setSelectedTheorySubject] = useState(0);
+  const [theorySearchTerm, setTheorySearchTerm] = useState('');
+
+  // 모의고사 탭 상태
+  const [examMode, setExamMode] = useState('full'); // 'full' (60문항), 'sub1', 'sub2', 'sub3'
+  const [examStatus, setExamStatus] = useState('idle'); // 'idle', 'running', 'submitted'
+  const [currentQIndex, setCurrentQIndex] = useState(0);
+  const [userAnswers, setUserAnswers] = useState({});
+  const [timeLeft, setTimeLeft] = useState(3600); // 60분 (3600초)
+  const [filterExplanation, setFilterExplanation] = useState('all'); // 'all', 'wrong'
+
+  // 모의고사 문제 필터링
+  const activeQuestions = useMemo(() => {
+    if (examMode === 'full') return examQuestionsData;
+    if (examMode === 'sub1') return examQuestionsData.filter(q => q.subject === 1);
+    if (examMode === 'sub2') return examQuestionsData.filter(q => q.subject === 2);
+    if (examMode === 'sub3') return examQuestionsData.filter(q => q.subject === 3);
+    return examQuestionsData;
+  }, [examMode]);
+
+  // 카운트다운 타이머
+  useEffect(() => {
+    let timer = null;
+    if (examStatus === 'running' && timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            submitExam();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [examStatus, timeLeft]);
+
+  // 시험 시작
+  const startExam = (mode) => {
+    setExamMode(mode);
+    setUserAnswers({});
+    setCurrentQIndex(0);
+    setTimeLeft(mode === 'full' ? 3600 : 1200); // 전체 60분, 과목별 20분
+    setExamStatus('running');
+  };
+
+  // 답안 선택
+  const handleSelectAnswer = (qIndex, optionIndex) => {
+    if (examStatus !== 'running') return;
+    setUserAnswers(prev => ({
+      ...prev,
+      [qIndex]: optionIndex
+    }));
+  };
+
+  // 시험 제출
+  const submitExam = () => {
+    setExamStatus('submitted');
+  };
+
+  // 시험 결과 초기화 및 메인 대기화면으로 이동
+  const resetExam = () => {
+    setUserAnswers({});
+    setCurrentQIndex(0);
+    setFilterExplanation('all');
+    setExamStatus('idle');
+  };
+
+  // 점수 및 채점 계산
+  const scoreResult = useMemo(() => {
+    let correctCount = 0;
+    const subjectScores = { 1: { correct: 0, total: 0 }, 2: { correct: 0, total: 0 }, 3: { correct: 0, total: 0 } };
+
+    activeQuestions.forEach((q, idx) => {
+      const isCorrect = userAnswers[idx] === q.answer;
+      if (isCorrect) correctCount++;
+
+      if (subjectScores[q.subject]) {
+        subjectScores[q.subject].total += 1;
+        if (isCorrect) subjectScores[q.subject].correct += 1;
+      }
+    });
+
+    const scorePercentage = Math.round((correctCount / activeQuestions.length) * 100);
+    const isPassed = scorePercentage >= 60; // 60점 이상 합격
+
+    return {
+      totalQuestions: activeQuestions.length,
+      correctCount,
+      wrongCount: activeQuestions.length - correctCount,
+      scorePercentage,
+      isPassed,
+      subjectScores
+    };
+  }, [activeQuestions, userAnswers]);
+
+  // 시간 포맷
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col">
+      {/* 상단 통합 헤더 */}
+      <header className="bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 text-white shadow-md sticky top-0 z-30">
+        <div className="max-w-6xl mx-auto px-4 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('guide')}>
+            <div className="bg-amber-400 text-slate-900 p-2.5 rounded-xl font-black text-xl shadow">
+              ⚡
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">전기기능사 합격 마스터</h1>
+              <p className="text-xs text-blue-200">시험 안내 · 핵심 이론 요약 · 실전 CBT 60문항</p>
+            </div>
+          </div>
+
+          {/* 메인 탭 네비게이션 */}
+          <nav className="flex bg-slate-800/60 p-1 rounded-xl border border-white/10 text-sm font-medium w-full sm:w-auto justify-center">
+            <button
+              onClick={() => setActiveTab('guide')}
+              className={`px-3.5 py-2 rounded-lg transition-all ${
+                activeTab === 'guide'
+                  ? 'bg-blue-600 text-white shadow-sm font-semibold'
+                  : 'text-slate-300 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              📋 시험 안내
+            </button>
+            <button
+              onClick={() => setActiveTab('theory')}
+              className={`px-3.5 py-2 rounded-lg transition-all ${
+                activeTab === 'theory'
+                  ? 'bg-blue-600 text-white shadow-sm font-semibold'
+                  : 'text-slate-300 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              📚 이론 요약
+            </button>
+            <button
+              onClick={() => setActiveTab('exam')}
+              className={`px-3.5 py-2 rounded-lg transition-all ${
+                activeTab === 'exam'
+                  ? 'bg-blue-600 text-white shadow-sm font-semibold'
+                  : 'text-slate-300 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              ✏️ CBT 모의고사
+            </button>
+          </nav>
+        </div>
+      </header>
+
+      {/* 메인 컨텐츠 영역 */}
+      <main className="max-w-6xl mx-auto px-4 py-6 flex-grow w-full">
+
+        {/* ========================================== */}
+        {/* TAB 1: 시험 안내 및 응시 방법               */}
+        {/* ========================================== */}
+        {activeTab === 'guide' && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* 자격증 소개 히어로 */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80">
+              <div className="flex items-center space-x-3 mb-3">
+                <span className="px-3 py-1 bg-blue-100 text-blue-700 font-bold text-xs rounded-full">국가기술자격</span>
+                <span className="text-xs text-slate-500">주관: 한국산업인력공단 (Q-Net)</span>
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">전기기능사 자격시험 완벽 가이드</h2>
+              <p className="text-slate-600 leading-relaxed text-sm">
+                전기기능사는 전기에 의한 재해를 방지하고 공사현장에서 전기설비 공사를 안전하게 시공, 유지 및 관리하기 위한 필수 국가기술자격증입니다. 
+                응시자격에 제한이 없어 누구나 도전할 수 있습니다.
+              </p>
+            </div>
+
+            {/* 필기 / 실기 시험 개요 카드 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* 필기시험 */}
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 hover:border-blue-300 transition-all">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                      <span className="text-blue-600">📝</span> 필기시험 안내
+                    </h3>
+                    <p className="text-xs text-slate-500">CBT (Computer Based Test) 방식</p>
+                  </div>
+                  <span className="bg-blue-50 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-lg">60분 / 60문항</span>
+                </div>
+                
+                <ul className="space-y-2.5 text-sm text-slate-600">
+                  <li className="flex justify-between border-b border-slate-100 pb-2">
+                    <span className="font-medium text-slate-700">시험 과목</span>
+                    <span className="text-right">전기이론, 전기기기, 전기설비</span>
+                  </li>
+                  <li className="flex justify-between border-b border-slate-100 pb-2">
+                    <span className="font-medium text-slate-700">출제 문항</span>
+                    <span>각 과목당 20문항 (총 60문항, 객관식 4선승제)</span>
+                  </li>
+                  <li className="flex justify-between border-b border-slate-100 pb-2">
+                    <span className="font-medium text-slate-700">합격 기준</span>
+                    <span className="font-semibold text-blue-600">100점 만점 기준 60점 이상 (36문제 맞춤)</span>
+                  </li>
+                  <li className="flex justify-between">
+                    <span className="font-medium text-slate-700">과락 유무</span>
+                    <span className="text-emerald-600 font-semibold">과락 없음 (전체 36개 이상 합격)</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* 실기시험 */}
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 hover:border-indigo-300 transition-all">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                      <span className="text-indigo-600">🛠️</span> 실기시험 안내
+                    </h3>
+                    <p className="text-xs text-slate-500">전기설비작업 (작업형)</p>
+                  </div>
+                  <span className="bg-indigo-50 text-indigo-700 text-xs font-bold px-2.5 py-1 rounded-lg">약 4시간 30분</span>
+                </div>
+
+                <ul className="space-y-2.5 text-sm text-slate-600">
+                  <li className="flex justify-between border-b border-slate-100 pb-2">
+                    <span className="font-medium text-slate-700">시험 내용</span>
+                    <span>시퀀스 제어판 제작 및 배관 공사 작업</span>
+                  </li>
+                  <li className="flex justify-between border-b border-slate-100 pb-2">
+                    <span className="font-medium text-slate-700">검정 방식</span>
+                    <span>제어판 와이어링 + PE/새들 배관 시공</span>
+                  </li>
+                  <li className="flex justify-between border-b border-slate-100 pb-2">
+                    <span className="font-medium text-slate-700">합격 기준</span>
+                    <span className="font-semibold text-indigo-600">100점 만점 기준 60점 이상</span>
+                  </li>
+                  <li className="flex justify-between">
+                    <span className="font-medium text-slate-700">주의 사항</span>
+                    <span className="text-amber-600 font-semibold">실작동 불능 시 오작동으로 즉시 실격</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            {/* 원서 접수 및 시험 절차 4단계 */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80">
+              <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <span>🚀</span> 시험 접수 및 응시 절차
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 relative">
+                  <span className="text-xs font-extrabold text-blue-600 bg-blue-100 px-2 py-0.5 rounded">STEP 01</span>
+                  <h4 className="font-bold text-slate-800 mt-2 mb-1">Q-Net 회원가입 및 원서접수</h4>
+                  <p className="text-xs text-slate-500">큐넷(q-net.or.kr) 웹/앱에서 시험 일정 확인 후 접수기간 첫날 10시에 접수.</p>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 relative">
+                  <span className="text-xs font-extrabold text-blue-600 bg-blue-100 px-2 py-0.5 rounded">STEP 02</span>
+                  <h4 className="font-bold text-slate-800 mt-2 mb-1">CBT 필기시험 응시</h4>
+                  <p className="text-xs text-slate-500">신분증 필수 지참. PC 화면으로 시험 제출 즉시 현장에서 득점 및 합격여부 확인 가능.</p>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 relative">
+                  <span className="text-xs font-extrabold text-blue-600 bg-blue-100 px-2 py-0.5 rounded">STEP 03</span>
+                  <h4 className="font-bold text-slate-800 mt-2 mb-1">실기시험 원서접수 및 준비</h4>
+                  <p className="text-xs text-slate-500">필기 합격자 발표 후 실기 접수. 전선 스트리퍼, 벨테스터 등 기본 공구 준비.</p>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 relative">
+                  <span className="text-xs font-extrabold text-blue-600 bg-blue-100 px-2 py-0.5 rounded">STEP 04</span>
+                  <h4 className="font-bold text-slate-800 mt-2 mb-1">실기시험 및 자격증 발급</h4>
+                  <p className="text-xs text-slate-500">시퀀스 작업 완성 후 제출. 최종 합격 시 상장형 또는 수첩형 자격증 발급.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 필기 합격 꿀팁 */}
+            <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/80 rounded-2xl p-6 text-slate-800">
+              <h3 className="text-lg font-bold text-amber-900 mb-2 flex items-center gap-2">
+                💡 필기시험 단기 합격 전략
+              </h3>
+              <ul className="list-disc list-inside text-sm text-amber-900/90 space-y-1.5">
+                <li>전체 60문제 중 36문제 이상 맞추면 무조건 합격입니다. (과락 없음)</li>
+                <li><strong>전기설비(제3과목)</strong>는 단순 암기 비중이 높아 점수를 쉽게 올릴 수 있으므로 16문제 이상을 목표로 하세요.</li>
+                <li><strong>전기이론(제1과목)</strong>은 주요 공식(옴의 법칙, 정전용량, 3상전력 등) 10가지를 완벽히 암기하면 과반수 이상 정답이 가능합니다.</li>
+                <li>기출문제가 반복되어 출제되므로 본 앱의 <strong>CBT 모의고사 60문항</strong> 및 해설을 3회 이상 반복 학습하세요!</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================== */}
+        {/* TAB 2: 과목별 핵심 이론 요약                 */}
+        {/* ========================================== */}
+        {activeTab === 'theory' && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* 서브 탭 & 검색 바 */}
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex bg-slate-100 p-1 rounded-xl w-full sm:w-auto overflow-x-auto">
+                {theorySummaryData.map((item, idx) => (
+                  <button
+                    key={item.id}
+                    onClick={() => setSelectedTheorySubject(idx)}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
+                      selectedTheorySubject === idx
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {item.icon} {idx + 1}과목
+                  </button>
+                ))}
+              </div>
+
+              {/* 검색창 */}
+              <div className="relative w-full sm:w-72">
+                <input
+                  type="text"
+                  placeholder="이론/공식 검색 (예: KEC, ELI, 공진)..."
+                  value={theorySearchTerm}
+                  onChange={(e) => setTheorySearchTerm(e.target.value)}
+                  className="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 pl-8 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <span className="absolute left-2.5 top-2.5 text-xs text-slate-400">🔍</span>
+              </div>
+            </div>
+
+            {/* 선택된 과목 이론 카드 */}
+            {theorySummaryData.map((subjectData, sIdx) => {
+              if (sIdx !== selectedTheorySubject) return null;
+
+              return (
+                <div key={subjectData.id} className="space-y-6">
+                  <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl p-5 shadow-sm flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-bold">{subjectData.title}</h2>
+                      <p className="text-xs text-blue-100 mt-1">시험 출제율 높고 필수적인 공식과 개념 완벽 총정리</p>
+                    </div>
+                    <span className="text-3xl">{subjectData.icon}</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {subjectData.sections.map((section, secIdx) => {
+                      // 검색어 필터링 (label, searchKey, detail 검색)
+                      const filteredItems = section.items.filter(item => {
+                        const term = theorySearchTerm.toLowerCase();
+                        const searchKey = item.searchKey || '';
+                        return (
+                          item.label.toLowerCase().includes(term) ||
+                          searchKey.toLowerCase().includes(term) ||
+                          (item.detail && item.detail.toLowerCase().includes(term))
+                        );
+                      });
+
+                      if (theorySearchTerm && filteredItems.length === 0) return null;
+
+                      return (
+                        <div key={secIdx} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 flex flex-col justify-between">
+                          <div>
+                            <h3 className="text-sm font-bold text-slate-900 pb-2.5 mb-3 border-b border-slate-100 flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0"></span>
+                              {section.subtitle}
+                            </h3>
+
+                            <div className="space-y-3">
+                              {filteredItems.map((item, itemIdx) => (
+                                <div key={itemIdx} className="bg-slate-50 p-3 rounded-xl border border-slate-200/60 text-xs sm:text-sm">
+                                  {/* 항목 타이틀 */}
+                                  <div className="font-bold text-slate-800 mb-1 flex items-center justify-between">
+                                    <span>{item.label}</span>
+                                  </div>
+
+                                  {/* 시각적 분수 공식 하이라이트 박스 */}
+                                  <div className="my-2 bg-amber-50/90 text-amber-950 font-mono text-xs sm:text-sm p-3 rounded-xl border border-amber-200/90 font-bold overflow-x-auto leading-relaxed flex flex-wrap items-center gap-y-1">
+                                    {item.formula}
+                                  </div>
+
+                                  {/* 추가 설명 */}
+                                  {item.detail && (
+                                    <p className="text-[11px] sm:text-xs text-slate-500 mt-1 whitespace-pre-line leading-relaxed">
+                                      {item.detail}
+                                    </p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ========================================== */}
+        {/* TAB 3: CBT 실전 모의고사 (60문항)          */}
+        {/* ========================================== */}
+        {activeTab === 'exam' && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* 1) 시험 대기 상태 (IDLE) */}
+            {examStatus === 'idle' && (
+              <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200/80 text-center max-w-2xl mx-auto space-y-6">
+                <div>
+                  <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-2xl font-bold mx-auto mb-4">
+                    ✏️
+                  </div>
+                  <h2 className="text-2xl font-bold text-slate-900 mb-2">전기기능사 실전 CBT 모의고사</h2>
+                  <p className="text-sm text-slate-600">
+                    실제 기출유형을 반영한 60문항 모의고사입니다.<br />
+                    과목 선택 후 시험을 시작하면 실시간 타이머와 OMR 답안지가 제공됩니다.
+                  </p>
+                </div>
+
+                {/* 모의고사 모드 선택 버튼 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+                  <button
+                    onClick={() => startExam('full')}
+                    className="p-4 rounded-xl border-2 border-blue-500 bg-blue-50/50 hover:bg-blue-100/50 transition-all group"
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="font-bold text-blue-900">🎯 전체 실전 모의고사</span>
+                      <span className="text-xs bg-blue-600 text-white font-bold px-2 py-0.5 rounded">60분 / 60문항</span>
+                    </div>
+                    <p className="text-xs text-slate-500">1과목(20), 2과목(20), 3과목(20) 전체 영역 풀이</p>
+                  </button>
+
+                  <button
+                    onClick={() => startExam('sub1')}
+                    className="p-4 rounded-xl border border-slate-200 bg-slate-50 hover:border-blue-400 transition-all"
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="font-bold text-slate-800">⚡ 1과목: 전기이론</span>
+                      <span className="text-xs bg-slate-200 text-slate-700 font-bold px-2 py-0.5 rounded">20분 / 20문항</span>
+                    </div>
+                    <p className="text-xs text-slate-500">전기자기, 회로이론, 3상전력 집중 풀이</p>
+                  </button>
+
+                  <button
+                    onClick={() => startExam('sub2')}
+                    className="p-4 rounded-xl border border-slate-200 bg-slate-50 hover:border-blue-400 transition-all"
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="font-bold text-slate-800">⚙️ 2과목: 전기기기</span>
+                      <span className="text-xs bg-slate-200 text-slate-700 font-bold px-2 py-0.5 rounded">20분 / 20문항</span>
+                    </div>
+                    <p className="text-xs text-slate-500">직류기, 변압기, 유도기, 동기기 집중 풀이</p>
+                  </button>
+
+                  <button
+                    onClick={() => startExam('sub3')}
+                    className="p-4 rounded-xl border border-slate-200 bg-slate-50 hover:border-blue-400 transition-all"
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="font-bold text-slate-800">🔌 3과목: 전기설비</span>
+                      <span className="text-xs bg-slate-200 text-slate-700 font-bold px-2 py-0.5 rounded">20분 / 20문항</span>
+                    </div>
+                    <p className="text-xs text-slate-500">배선공사, 공구, KEC 전압/접지규정 집중 풀이</p>
+                  </button>
+                </div>
+
+                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 text-xs text-slate-500 text-left space-y-1">
+                  <p>• <strong>합격 기준</strong>: 100점 만점 중 60점 이상 (60문제 중 36문제 이상 정답시 합격)</p>
+                  <p>• <strong>주의 사항</strong>: 시험 종료 버튼을 누르면 즉시 채점 결과 및 상세 해설을 볼 수 있습니다.</p>
+                </div>
+
+                {/* 추가된 외부 ComCBT 기출문제 사이트 링크 카드 */}
+                <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-xl p-4.5 text-white text-left flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md border border-slate-800">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-xl bg-blue-600/30 flex items-center justify-center text-xl shrink-0">
+                      🌐
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-amber-300 flex items-center gap-1.5">
+                        전자문제집 CBT (ComCBT) 바로가기
+                      </h4>
+                      <p className="text-xs text-slate-300 mt-0.5">
+                        전회차 기출문제 풀이, HWP 문제지/해설지 다운로드 사이트
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href="https://www.comcbt.com/xe/jo"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full sm:w-auto text-center px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl transition-all shrink-0 flex items-center justify-center gap-1.5 shadow"
+                  >
+                    <span>사이트 이동</span>
+                    <span className="text-xs">↗</span>
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* 2) 시험 진행 중 상태 (RUNNING) */}
+            {examStatus === 'running' && (
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                {/* 메인 문제지 영역 (3열) */}
+                <div className="lg:col-span-3 space-y-4">
+                  {/* 상단 컨트롤 바 */}
+                  <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 flex justify-between items-center">
+                    <div className="flex items-center space-x-3">
+                      <span className="text-xs font-bold bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg">
+                        {activeQuestions[currentQIndex]?.subjectName}
+                      </span>
+                      <span className="text-sm font-bold text-slate-700">
+                        문제 {currentQIndex + 1} / {activeQuestions.length}
+                      </span>
+                    </div>
+
+                    {/* 타이머 & 제출 버튼 */}
+                    <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-1.5 font-mono text-base font-bold bg-slate-900 text-amber-400 px-3 py-1.5 rounded-xl shadow-inner">
+                        <span>⏱️</span>
+                        <span>{formatTime(timeLeft)}</span>
+                      </div>
+                      <button
+                        onClick={submitExam}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm px-3.5 py-2 rounded-xl transition-all shadow"
+                      >
+                        시험 제출
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 문제 지문 및 보기 카드 */}
+                  <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 space-y-6">
+                    {/* 문제 지문 */}
+                    <div className="space-y-2">
+                      <span className="text-xs font-semibold text-slate-400">Q{currentQIndex + 1}.</span>
+                      <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
+                        {activeQuestions[currentQIndex]?.question}
+                      </h3>
+                    </div>
+
+                    {/* 보기 4선 선택 */}
+                    <div className="space-y-3">
+                      {activeQuestions[currentQIndex]?.options.map((opt, optIdx) => {
+                        const isSelected = userAnswers[currentQIndex] === optIdx;
+                        return (
+                          <button
+                            key={optIdx}
+                            onClick={() => handleSelectAnswer(currentQIndex, optIdx)}
+                            className={`w-full text-left p-3.5 rounded-xl border transition-all flex items-start space-x-3 ${
+                              isSelected
+                                ? 'border-blue-600 bg-blue-50/70 text-blue-900 font-semibold ring-2 ring-blue-500/20'
+                                : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700'
+                            }`}
+                          >
+                            <span
+                              className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 ${
+                                isSelected
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-slate-200 text-slate-600'
+                              }`}
+                            >
+                              {optIdx + 1}
+                            </span>
+                            <span className="text-sm leading-relaxed">{opt}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* 네비게이션 버튼 (이전 / 다음) */}
+                    <div className="flex justify-between items-center pt-4 border-t border-slate-100">
+                      <button
+                        onClick={() => setCurrentQIndex(prev => Math.max(0, prev - 1))}
+                        disabled={currentQIndex === 0}
+                        className="px-4 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        ← 이전 문제
+                      </button>
+
+                      <span className="text-xs text-slate-400">
+                        응답한 문항: {Object.keys(userAnswers).length} / {activeQuestions.length}
+                      </span>
+
+                      <button
+                        onClick={() => setCurrentQIndex(prev => Math.min(activeQuestions.length - 1, prev + 1))}
+                        disabled={currentQIndex === activeQuestions.length - 1}
+                        className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        다음 문제 →
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 우측 OMR 답안지 컴포넌트 (1열) */}
+                <div className="lg:col-span-1 bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 flex flex-col h-fit max-h-[600px]">
+                  <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center justify-between border-b pb-2">
+                    <span>📋 OMR 답안지</span>
+                    <span className="text-xs font-normal text-blue-600">
+                      {Object.keys(userAnswers).length} 완료
+                    </span>
+                  </h4>
+
+                  <div className="overflow-y-auto pr-1 space-y-1.5 flex-grow text-xs">
+                    {activeQuestions.map((q, idx) => {
+                      const answered = userAnswers[idx] !== undefined;
+                      const isCurrent = currentQIndex === idx;
+
+                      return (
+                        <div
+                          key={q.id}
+                          onClick={() => setCurrentQIndex(idx)}
+                          className={`p-2 rounded-lg flex items-center justify-between cursor-pointer transition-all ${
+                            isCurrent
+                              ? 'bg-blue-50 border border-blue-300 font-bold'
+                              : 'hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className={`w-6 ${isCurrent ? 'text-blue-700' : 'text-slate-500'}`}>
+                            {idx + 1}.
+                          </span>
+                          <div className="flex space-x-1">
+                            {[0, 1, 2, 3].map(num => (
+                              <span
+                                key={num}
+                                className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${
+                                  userAnswers[idx] === num
+                                    ? 'bg-slate-900 text-white font-bold'
+                                    : 'bg-slate-100 text-slate-400'
+                                }`}
+                              >
+                                {num + 1}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 3) 시험 결과 및 오답 해설 상태 (SUBMITTED) */}
+            {examStatus === 'submitted' && (
+              <div className="space-y-6">
+                {/* 결과 요약 배너 */}
+                <div
+                  className={`rounded-2xl p-6 sm:p-8 text-white shadow-md flex flex-col sm:flex-row items-center justify-between gap-6 ${
+                    scoreResult.isPassed
+                      ? 'bg-gradient-to-r from-emerald-600 to-teal-700'
+                      : 'bg-gradient-to-r from-rose-600 to-pink-700'
+                  }`}
+                >
+                  <div className="space-y-2 text-center sm:text-left">
+                    <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-white/20 uppercase tracking-wider">
+                      CBT 채점 결과
+                    </span>
+                    <h2 className="text-3xl sm:text-4xl font-black">
+                      {scoreResult.isPassed ? '🎉 축하합니다! 합격입니다.' : '📢 아쉽습니다. 불합격입니다.'}
+                    </h2>
+                    <p className="text-xs sm:text-sm text-white/90">
+                      총 {scoreResult.totalQuestions}문항 중 {scoreResult.correctCount}문항 정답 (합격 기준: 60점 이상)
+                    </p>
+                  </div>
+
+                  {/* 점수 뱃지 */}
+                  <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/20 text-center min-w-[140px]">
+                    <div className="text-4xl font-black tracking-tight">{scoreResult.scorePercentage}점</div>
+                    <div className="text-xs text-white/80 mt-1">
+                      {scoreResult.correctCount} / {scoreResult.totalQuestions} 문제
+                    </div>
+                  </div>
+                </div>
+
+                {/* 과목별 분석 데이터 */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[1, 2, 3].map(subId => {
+                    const subData = scoreResult.subjectScores[subId];
+                    if (!subData || subData.total === 0) return null;
+
+                    const subPercent = Math.round((subData.correct / subData.total) * 100);
+                    const subNames = { 1: '1과목: 전기이론', 2: '2과목: 전기기기', 3: '3과목: 전기설비' };
+
+                    return (
+                      <div key={subId} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-xs font-bold text-slate-700">{subNames[subId]}</span>
+                          <span className="text-xs font-extrabold text-blue-600">{subPercent}점</span>
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                          <div
+                            className={`h-2.5 rounded-full ${
+                              subPercent >= 60 ? 'bg-blue-600' : 'bg-rose-500'
+                            }`}
+                            style={{ width: `${subPercent}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-2 text-right">
+                          {subData.correct} / {subData.total} 문제 맞춤
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* 오답 및 전 문항 상세 해설 리스트 */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 space-y-6">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b pb-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900">📝 문제별 정답 및 상세 해설</h3>
+                      <p className="text-xs text-slate-500">틀린 문제를 복습하고 정답 및 해설을 확인하세요.</p>
+                    </div>
+
+                    {/* 오답 보기 필터 및 초기화 리셋 버튼 */}
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setFilterExplanation('all')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                          filterExplanation === 'all'
+                            ? 'bg-slate-900 text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        전체 문제 ({activeQuestions.length})
+                      </button>
+                      <button
+                        onClick={() => setFilterExplanation('wrong')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                          filterExplanation === 'wrong'
+                            ? 'bg-rose-600 text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        오답만 보기 ({scoreResult.wrongCount})
+                      </button>
+                      <button
+                        onClick={resetExam}
+                        className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow transition-all flex items-center gap-1"
+                      >
+                        🔄 재시험 / 초기화
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 문항별 상세 목록 */}
+                  <div className="space-y-6">
+                    {activeQuestions.map((q, idx) => {
+                      const userAns = userAnswers[idx];
+                      const isCorrect = userAns === q.answer;
+
+                      if (filterExplanation === 'wrong' && isCorrect) return null;
+
+                      return (
+                        <div
+                          key={q.id}
+                          className={`p-5 rounded-2xl border transition-all ${
+                            isCorrect
+                              ? 'bg-slate-50/50 border-slate-200'
+                              : 'bg-rose-50/30 border-rose-200'
+                          }`}
+                        >
+                          {/* 문제 상단 헤더 */}
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center space-x-2">
+                              <span
+                                className={`px-2.5 py-0.5 rounded-lg text-xs font-extrabold ${
+                                  isCorrect
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-rose-100 text-rose-800'
+                                }`}
+                              >
+                                {isCorrect ? '✓ 정답' : '✗ 오답'}
+                              </span>
+                              <span className="text-xs font-bold text-slate-500">
+                                [{q.subjectName}] {idx + 1}번 문제
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* 문제 지문 */}
+                          <h4 className="text-base font-bold text-slate-900 mb-3">{q.question}</h4>
+
+                          {/* 보기 목록 */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4 text-xs">
+                            {q.options.map((opt, optIdx) => {
+                              const isRightAnswer = q.answer === optIdx;
+                              const isUserChosen = userAns === optIdx;
+
+                              return (
+                                <div
+                                  key={optIdx}
+                                  className={`p-2.5 rounded-xl border flex items-start space-x-2 ${
+                                    isRightAnswer
+                                      ? 'bg-emerald-100/60 border-emerald-300 font-bold text-emerald-900'
+                                      : isUserChosen
+                                      ? 'bg-rose-100/60 border-rose-300 text-rose-900 font-semibold'
+                                      : 'bg-white border-slate-200 text-slate-600'
+                                  }`}
+                                >
+                                  <span className="font-bold">{optIdx + 1}.</span>
+                                  <span>{opt}</span>
+                                  {isRightAnswer && <span className="ml-auto text-emerald-700">✓ 정답</span>}
+                                  {isUserChosen && !isRightAnswer && <span className="ml-auto text-rose-700">내 선택</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* 해설 박스 */}
+                          <div className="bg-blue-50/80 border border-blue-200/80 rounded-xl p-3 text-xs text-blue-900 space-y-1">
+                            <span className="font-extrabold text-blue-700 block">💡 상세 해설:</span>
+                            <p className="leading-relaxed">{q.explanation}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* 결과페이지 하단 외부 사이트 링크 배너 */}
+                  <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 bg-slate-50 p-4 rounded-xl">
+                    <span>💡 더 많은 회차별 기출문제 풀이가 필요하신가요?</span>
+                    <a
+                      href="https://www.comcbt.com/xe/jo"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg transition-all"
+                    >
+                      ComCBT 기출문제 사이트 이동 ↗
+                    </a>
+                  </div>
+
+                  {/* 결과 지우기 & 초기화 메인 이동 대형 하단 버튼 */}
+                  <div className="pt-2">
+                    <button
+                      onClick={resetExam}
+                      className="w-full py-3.5 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+                    >
+                      <span>🔄</span>
+                      <span>시험 결과 지우기 및 모의고사 메인으로 돌아가기</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+      </main>
+
+      {/* 바닥글 (Footer) */}
+      <footer className="bg-slate-900 text-slate-400 text-xs text-center py-6 border-t border-slate-800">
+        <div className="max-w-6xl mx-auto px-4 space-y-1">
+          <p className="font-semibold text-slate-300">전기기능사 자격시험 합격 마스터 웹앱</p>
+          <p className="text-slate-500">최신 한국전기설비규정(KEC) 및 산업인력공단 기출 출제기준 완벽 반영</p>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+import { createRoot } from 'react-dom/client';
+const bootEl = document.getElementById('boot');
+if (bootEl) bootEl.remove();
+createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+</body>
+</html>

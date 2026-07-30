@@ -1,0 +1,378 @@
+/* ============================================================
+   김쌔미앙tv · 전기전자 실습 허브
+   Design system: PCB (인쇄회로기판) motif
+   board(진한 PCB 그린) + copper(구리 배선) + gold(솔더 패드)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;800&family=Noto+Sans+KR:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap');
+
+:root {
+  --board:        #0F241D;
+  --board-2:      #16332A;
+  --board-3:      #1D3F33;
+  --copper:       #C9814A;
+  --copper-light: #E8B47E;
+  --gold:         #E7C873;
+  --ivory:        #EDEAE0;
+  --dim:          #8FA79B;
+  --line:         rgba(201, 129, 74, 0.28);
+  --shadow:       0 20px 50px -20px rgba(0, 0, 0, 0.6);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--board);
+  color: var(--ivory);
+  font-family: 'Noto Sans KR', sans-serif;
+  line-height: 1.6;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(201,129,74,0.10) 1px, transparent 0);
+  background-size: 28px 28px;
+}
+
+h1, h2, h3, .display {
+  font-family: 'Space Grotesk', 'Noto Sans KR', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+a { color: inherit; text-decoration: none; }
+
+/* ---------- layout shells ---------- */
+.wrap {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ---------- trace divider ---------- */
+.trace {
+  position: relative;
+  height: 2px;
+  background: var(--line);
+  margin: 0 auto;
+  max-width: 980px;
+}
+.trace::before, .trace::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--gold);
+  transform: translateY(-50%);
+  box-shadow: 0 0 8px rgba(231, 200, 115, 0.6);
+}
+.trace::before { left: 0; }
+.trace::after { right: 0; }
+
+/* ---------- top nav ---------- */
+.topnav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.1rem 1.5rem;
+  max-width: 980px;
+  margin: 0 auto;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 700;
+  font-size: 1.02rem;
+  color: var(--ivory);
+}
+.brand-mark { width: 22px; height: 22px; color: var(--copper-light); flex-shrink: 0; }
+.topnav-links { display: flex; gap: 1.4rem; font-size: 0.86rem; color: var(--dim); }
+.topnav-links a:hover { color: var(--copper-light); }
+
+/* ---------- hero ---------- */
+.hero {
+  text-align: center;
+  padding: 3.2rem 1.5rem 3.6rem;
+}
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: var(--copper-light);
+  border: 1px solid var(--line);
+  background: rgba(201,129,74,0.08);
+  border-radius: 999px;
+  padding: 0.4rem 0.95rem;
+  margin-bottom: 1.6rem;
+}
+.hero-bolt {
+  width: 84px;
+  height: 84px;
+  margin: 0 auto 1.6rem;
+  color: var(--gold);
+  filter: drop-shadow(0 0 22px rgba(231,200,115,0.35));
+}
+.hero-bolt path {
+  stroke-dasharray: 300;
+  stroke-dashoffset: 300;
+  animation: draw 1.4s var(--ease) forwards 0.15s;
+}
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+.hero h1 {
+  font-size: clamp(2rem, 5.4vw, 3.1rem);
+  font-weight: 800;
+  margin: 0 0 0.9rem;
+  color: var(--ivory);
+}
+.hero h1 span { color: var(--copper-light); }
+.hero p.lead {
+  max-width: 560px;
+  margin: 0 auto 1.9rem;
+  color: var(--dim);
+  font-size: 1rem;
+}
+
+.channel-links {
+  display: flex;
+  justify-content: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  margin-bottom: 0;
+}
+.channel-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  padding: 0.55rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--board-2);
+  color: var(--ivory);
+  transition: border-color 0.18s var(--ease), transform 0.18s var(--ease), background 0.18s var(--ease);
+}
+.channel-chip:hover { border-color: var(--copper); background: var(--board-3); transform: translateY(-2px); }
+.channel-chip svg { width: 16px; height: 16px; color: var(--copper-light); }
+
+/* ---------- portal buttons (학생용 / 교사용) ---------- */
+.portals {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.4rem;
+  padding: 2.6rem 1.5rem 3.6rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+.portal {
+  position: relative;
+  display: block;
+  padding: 2.1rem 1.6rem;
+  border-radius: 18px;
+  background: linear-gradient(160deg, var(--board-2), var(--board-3));
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  transition: transform 0.22s var(--ease), border-color 0.22s var(--ease);
+  overflow: hidden;
+}
+.portal::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 85% -10%, rgba(231,200,115,0.16), transparent 55%);
+  pointer-events: none;
+}
+.portal:hover { transform: translateY(-4px); border-color: var(--copper); }
+.portal .pin-row {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 1rem;
+}
+.portal .pin-row span {
+  width: 14px; height: 3px; border-radius: 2px; background: var(--copper);
+  opacity: 0.55;
+}
+.portal .pin-row span:nth-child(2) { opacity: 0.8; }
+.portal .pin-row span:nth-child(3) { opacity: 1; background: var(--gold); }
+.portal-icon {
+  width: 40px; height: 40px; color: var(--gold); margin-bottom: 0.9rem;
+}
+.portal h3 { font-size: 1.28rem; margin: 0 0 0.4rem; color: var(--ivory); }
+.portal p { margin: 0 0 1.1rem; color: var(--dim); font-size: 0.9rem; }
+.portal .go {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--copper-light);
+  display: inline-flex; align-items: center; gap: 0.35rem;
+}
+.portal:hover .go { gap: 0.55rem; }
+.portal .go { transition: gap 0.18s var(--ease); }
+
+@media (max-width: 640px) {
+  .portals { grid-template-columns: 1fr; }
+  .topnav-links { display: none; }
+}
+
+/* ---------- section headers ---------- */
+.section-head {
+  text-align: center;
+  padding: 3rem 1.5rem 1.4rem;
+}
+.section-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.74rem;
+  letter-spacing: 0.16em;
+  color: var(--copper-light);
+  margin-bottom: 0.7rem;
+}
+.section-head h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); margin: 0 0 0.6rem; }
+.section-head p { color: var(--dim); max-width: 560px; margin: 0 auto; font-size: 0.95rem; }
+
+/* ---------- category label ---------- */
+.category {
+  max-width: 980px;
+  margin: 2.2rem auto 1rem;
+  padding: 0 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+.category .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 8px rgba(231,200,115,0.6); }
+.category span.label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  color: var(--copper-light);
+}
+.category::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+/* ---------- tool grid (IC socket style) ---------- */
+.tool-grid {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 1.5rem 1.2rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.1rem;
+}
+@media (max-width: 860px) { .tool-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .tool-grid { grid-template-columns: 1fr; } }
+
+.chip {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem 1.3rem 1.3rem;
+  border-radius: 14px;
+  background: var(--board-2);
+  border: 1px solid var(--line);
+  transition: transform 0.2s var(--ease), border-color 0.2s var(--ease), background 0.2s var(--ease);
+}
+.chip:hover { transform: translateY(-3px); border-color: var(--copper); background: var(--board-3); }
+.chip.disabled { opacity: 0.55; }
+.chip.disabled:hover { transform: none; border-color: var(--line); }
+
+/* DIP pin marks along top/bottom of chip card */
+.chip::before, .chip::after {
+  content: '';
+  position: absolute;
+  left: 14px; right: 14px;
+  height: 1px;
+  background-image: repeating-linear-gradient(90deg, var(--copper) 0 6px, transparent 6px 14px);
+  opacity: 0.5;
+}
+.chip::before { top: 0; }
+.chip::after { bottom: 0; }
+
+.chip-icon {
+  width: 34px; height: 34px;
+  color: var(--gold);
+  margin-bottom: 0.85rem;
+}
+.chip-title {
+  font-weight: 700;
+  font-size: 1.03rem;
+  color: var(--ivory);
+  margin-bottom: 0.35rem;
+}
+.chip-desc {
+  font-size: 0.85rem;
+  color: var(--dim);
+  margin-bottom: 0.9rem;
+  flex-grow: 1;
+}
+.chip-tag {
+  align-self: flex-start;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  color: var(--copper-light);
+  background: rgba(201,129,74,0.1);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.22rem 0.65rem;
+}
+
+/* ---------- footer ---------- */
+.site-footer {
+  text-align: center;
+  padding: 3rem 1.5rem 2.6rem;
+  color: var(--dim);
+  font-size: 0.82rem;
+}
+.site-footer .foot-brand { color: var(--copper-light); font-weight: 700; margin-bottom: 0.3rem; }
+
+/* ---------- back link (used on tool pages via inline style too) ---------- */
+.back-pill {
+  position: fixed;
+  top: 14px; left: 14px;
+  z-index: 999;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.76rem;
+  color: var(--ivory);
+  background: rgba(15, 36, 29, 0.92);
+  border: 1px solid var(--line);
+  padding: 0.42rem 0.85rem;
+  border-radius: 999px;
+  backdrop-filter: blur(6px);
+}
+.back-pill:hover { border-color: var(--copper); color: var(--copper-light); }
+
+/* ---------- construction / placeholder page ---------- */
+.construct {
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem 1.5rem;
+}
+.construct-icon { width: 64px; height: 64px; color: var(--gold); margin-bottom: 1.4rem; }
+.construct h1 { font-size: 1.9rem; margin: 0 0 0.7rem; }
+.construct p { color: var(--dim); max-width: 420px; }
+.construct .back-pill { position: static; margin-top: 1.8rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-bolt path { animation: none; stroke-dashoffset: 0; }
+  html { scroll-behavior: auto; }
+}

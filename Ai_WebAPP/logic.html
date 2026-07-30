@@ -1,0 +1,1529 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>논리게이트 · K-Map · 김쌔미앙tv</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  body { background: #0F172A; background-image:none; }
+  #root { min-height:100vh; }
+  #boot {
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:#0F172A; color:#8FA79B; font-family:'JetBrains Mono',monospace; font-size:0.85rem;
+    letter-spacing:0.05em; z-index:1;
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.383.0?external=react"
+  }
+}
+</script>
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+</head>
+<body>
+
+<a class="back-pill" href="../student.html">← 학생용 홈으로</a>
+<div id="boot">불러오는 중...</div>
+<div id="root"></div>
+
+<script type="text/babel" data-type="module" data-presets="react,typescript">
+import React, { useState, useMemo, useEffect } from 'react';
+import { 
+  Zap, 
+  Cpu, 
+  Layers, 
+  Activity, 
+  Grid, 
+  Plus, 
+  Trash2, 
+  Info, 
+  BookOpen, 
+  Play, 
+  Check, 
+  Sliders,
+  Sparkles,
+  Share2,
+  RefreshCw,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  Move,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight
+} from 'lucide-react';
+
+// ==========================================
+// 1. 논리 게이트 기본 정보 및 데이터
+// ==========================================
+const GATES_DATA = {
+  AND: {
+    name: 'AND 게이트',
+    symbol: 'Y = A · B',
+    ic: '7408 (Quad 2-Input AND)',
+    desc: '모든 입력이 1(High)일 때만 출력이 1이 됩니다.',
+    inputs: 2,
+    truthTable: [
+      { a: 0, b: 0, y: 0 },
+      { a: 0, b: 1, y: 0 },
+      { a: 1, b: 0, y: 0 },
+      { a: 1, b: 1, y: 1 },
+    ],
+    fn: (a, b) => (a & b),
+    icPins: [
+      { pin: 1, name: '1A' }, { pin: 2, name: '1B' }, { pin: 3, name: '1Y' },
+      { pin: 4, name: '2A' }, { pin: 5, name: '2B' }, { pin: 6, name: '2Y' },
+      { pin: 7, name: 'GND' }, { pin: 8, name: '3Y' }, { pin: 9, name: '3A' },
+      { pin: 10, name: '3B' }, { pin: 11, name: '4Y' }, { pin: 12, name: '4A' },
+      { pin: 13, name: '4B' }, { pin: 14, name: 'VCC' }
+    ]
+  },
+  OR: {
+    name: 'OR 게이트',
+    symbol: 'Y = A + B',
+    ic: '7432 (Quad 2-Input OR)',
+    desc: '입력 중 하나라도 1(High)이면 출력이 1이 됩니다.',
+    inputs: 2,
+    truthTable: [
+      { a: 0, b: 0, y: 0 },
+      { a: 0, b: 1, y: 1 },
+      { a: 1, b: 0, y: 1 },
+      { a: 1, b: 1, y: 1 },
+    ],
+    fn: (a, b) => (a | b),
+    icPins: [
+      { pin: 1, name: '1A' }, { pin: 2, name: '1B' }, { pin: 3, name: '1Y' },
+      { pin: 4, name: '2A' }, { pin: 5, name: '2B' }, { pin: 6, name: '2Y' },
+      { pin: 7, name: 'GND' }, { pin: 8, name: '3Y' }, { pin: 9, name: '3A' },
+      { pin: 10, name: '3B' }, { pin: 11, name: '4Y' }, { pin: 12, name: '4A' },
+      { pin: 13, name: '4B' }, { pin: 14, name: 'VCC' }
+    ]
+  },
+  NOT: {
+    name: 'NOT 게이트 (Inverter)',
+    symbol: 'Y = A\'',
+    ic: '7404 (Hex Inverter)',
+    desc: '입력 신호를 반전(0→1, 1→0)시켜 출력합니다.',
+    inputs: 1,
+    truthTable: [
+      { a: 0, b: null, y: 1 },
+      { a: 1, b: null, y: 0 },
+    ],
+    fn: (a) => (a ? 0 : 1),
+    icPins: [
+      { pin: 1, name: '1A' }, { pin: 2, name: '1Y' }, { pin: 3, name: '2A' },
+      { pin: 4, name: '2Y' }, { pin: 5, name: '3A' }, { pin: 6, name: '3Y' },
+      { pin: 7, name: 'GND' }, { pin: 8, name: '4Y' }, { pin: 9, name: '4A' },
+      { pin: 10, name: '5Y' }, { pin: 11, name: '5A' }, { pin: 12, name: '6Y' },
+      { pin: 13, name: '6A' }, { pin: 14, name: 'VCC' }
+    ]
+  },
+  NAND: {
+    name: 'NAND 게이트',
+    symbol: 'Y = (A · B)\'',
+    ic: '7400 (Quad 2-Input NAND)',
+    desc: 'AND 게이트의 출력을 반전한 값입니다. Universal 게이트입니다.',
+    inputs: 2,
+    truthTable: [
+      { a: 0, b: 0, y: 1 },
+      { a: 0, b: 1, y: 1 },
+      { a: 1, b: 0, y: 1 },
+      { a: 1, b: 1, y: 0 },
+    ],
+    fn: (a, b) => ((a & b) ? 0 : 1),
+    icPins: [
+      { pin: 1, name: '1A' }, { pin: 2, name: '1B' }, { pin: 3, name: '1Y' },
+      { pin: 4, name: '2A' }, { pin: 5, name: '2B' }, { pin: 6, name: '2Y' },
+      { pin: 7, name: 'GND' }, { pin: 8, name: '3Y' }, { pin: 9, name: '3A' },
+      { pin: 10, name: '3B' }, { pin: 11, name: '4Y' }, { pin: 12, name: '4A' },
+      { pin: 13, name: '4B' }, { pin: 14, name: 'VCC' }
+    ]
+  },
+  NOR: {
+    name: 'NOR 게이트',
+    symbol: 'Y = (A + B)\'',
+    ic: '7402 (Quad 2-Input NOR)',
+    desc: 'OR 게이트의 출력을 반전한 값입니다. Universal 게이트입니다.',
+    inputs: 2,
+    truthTable: [
+      { a: 0, b: 0, y: 1 },
+      { a: 0, b: 1, y: 0 },
+      { a: 1, b: 0, y: 0 },
+      { a: 1, b: 1, y: 0 },
+    ],
+    fn: (a, b) => ((a | b) ? 0 : 1),
+    icPins: [
+      { pin: 1, name: '1Y' }, { pin: 2, name: '1A' }, { pin: 3, name: '1B' },
+      { pin: 4, name: '2Y' }, { pin: 5, name: '2A' }, { pin: 6, name: '2B' },
+      { pin: 7, name: 'GND' }, { pin: 8, name: '3A' }, { pin: 9, name: '3B' },
+      { pin: 10, name: '3Y' }, { pin: 11, name: '4A' }, { pin: 12, name: '4B' },
+      { pin: 13, name: '4Y' }, { pin: 14, name: 'VCC' }
+    ]
+  },
+  XOR: {
+    name: 'XOR 게이트 (Exclusive-OR)',
+    symbol: 'Y = A ⊕ B',
+    ic: '7486 (Quad 2-Input XOR)',
+    desc: '두 입력의 상태가 서로 다를 때만 출력이 1이 됩니다.',
+    inputs: 2,
+    truthTable: [
+      { a: 0, b: 0, y: 0 },
+      { a: 0, b: 1, y: 1 },
+      { a: 1, b: 0, y: 1 },
+      { a: 1, b: 1, y: 0 },
+    ],
+    fn: (a, b) => (a ^ b),
+    icPins: [
+      { pin: 1, name: '1A' }, { pin: 2, name: '1B' }, { pin: 3, name: '1Y' },
+      { pin: 4, name: '2A' }, { pin: 5, name: '2B' }, { pin: 6, name: '2Y' },
+      { pin: 7, name: 'GND' }, { pin: 8, name: '3Y' }, { pin: 9, name: '3A' },
+      { pin: 10, name: '3B' }, { pin: 11, name: '4Y' }, { pin: 12, name: '4A' },
+      { pin: 13, name: '4B' }, { pin: 14, name: 'VCC' }
+    ]
+  },
+  XNOR: {
+    name: 'XNOR 게이트 (Exclusive-NOR)',
+    symbol: 'Y = (A ⊕ B)\'',
+    ic: '74266 / 747266',
+    desc: '두 입력의 상태가 같을 때 출력이 1이 됩니다.',
+    inputs: 2,
+    truthTable: [
+      { a: 0, b: 0, y: 1 },
+      { a: 0, b: 1, y: 0 },
+      { a: 1, b: 0, y: 0 },
+      { a: 1, b: 1, y: 1 },
+    ],
+    fn: (a, b) => ((a ^ b) ? 0 : 1),
+    icPins: [
+      { pin: 1, name: '1A' }, { pin: 2, name: '1B' }, { pin: 3, name: '1Y' },
+      { pin: 4, name: '2Y' }, { pin: 5, name: '2A' }, { pin: 6, name: '2B' },
+      { pin: 7, name: 'GND' }, { pin: 8, name: '3A' }, { pin: 9, name: '3B' },
+      { pin: 10, name: '3Y' }, { pin: 11, name: '4Y' }, { pin: 12, name: '4A' },
+      { pin: 13, name: '4B' }, { pin: 14, name: 'VCC' }
+    ]
+  }
+};
+
+// ==========================================
+// 2. SVG 게이트 심볼 드로잉 컴포넌트
+// ==========================================
+function LogicGateSVG({ type, width = 100, height = 60, inputA = 0, inputB = 0, output = 0, showInputs = true }) {
+  const activeColorA = inputA ? '#06b6d4' : '#475569';
+  const activeColorB = inputB ? '#06b6d4' : '#475569';
+  const activeOutColor = output ? '#10b981' : '#475569';
+
+  return (
+    <svg viewBox="0 0 120 70" width={width} height={height} className="drop-shadow-lg overflow-visible">
+      <defs>
+        <filter id="glow">
+          <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+          <feMerge>
+            <feMergeNode in="coloredBlur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+
+      {/* Input Wires */}
+      {type !== 'NOT' && showInputs && (
+        <>
+          <line x1="5" y1="22" x2="35" y2="22" stroke={activeColorA} strokeWidth="3.5" strokeLinecap="round" />
+          <line x1="5" y1="48" x2="35" y2="48" stroke={activeColorB} strokeWidth="3.5" strokeLinecap="round" />
+        </>
+      )}
+      {type === 'NOT' && showInputs && (
+        <line x1="5" y1="35" x2="35" y2="35" stroke={activeColorA} strokeWidth="3.5" strokeLinecap="round" />
+      )}
+
+      {/* Gate Body Paths */}
+      {type === 'AND' && (
+        <path d="M 35,12 L 60,12 C 78,12 85,22 85,35 C 85,48 78,58 60,58 L 35,58 Z" fill="#1e293b" stroke="#38bdf8" strokeWidth="3" />
+      )}
+      {type === 'NAND' && (
+        <>
+          <path d="M 35,12 L 60,12 C 78,12 85,22 85,35 C 85,48 78,58 60,58 L 35,58 Z" fill="#1e293b" stroke="#38bdf8" strokeWidth="3" />
+          <circle cx="91" cy="35" r="5" fill="#1e293b" stroke="#38bdf8" strokeWidth="2.5" />
+        </>
+      )}
+      {type === 'OR' && (
+        <path d="M 32,12 C 45,12 65,15 88,35 C 65,55 45,58 32,58 C 42,42 42,28 32,12 Z" fill="#1e293b" stroke="#38bdf8" strokeWidth="3" />
+      )}
+      {type === 'NOR' && (
+        <>
+          <path d="M 32,12 C 45,12 65,15 85,35 C 65,55 45,58 32,58 C 42,42 42,28 32,12 Z" fill="#1e293b" stroke="#38bdf8" strokeWidth="3" />
+          <circle cx="91" cy="35" r="5" fill="#1e293b" stroke="#38bdf8" strokeWidth="2.5" />
+        </>
+      )}
+      {type === 'NOT' && (
+        <>
+          <path d="M 35,15 L 78,35 L 35,55 Z" fill="#1e293b" stroke="#38bdf8" strokeWidth="3" />
+          <circle cx="84" cy="35" r="5" fill="#1e293b" stroke="#38bdf8" strokeWidth="2.5" />
+        </>
+      )}
+      {type === 'XOR' && (
+        <>
+          <path d="M 24,12 C 34,28 34,42 24,58" fill="none" stroke="#38bdf8" strokeWidth="3" strokeLinecap="round" />
+          <path d="M 32,12 C 45,12 65,15 88,35 C 65,55 45,58 32,58 C 42,42 42,28 32,12 Z" fill="#1e293b" stroke="#38bdf8" strokeWidth="3" />
+        </>
+      )}
+      {type === 'XNOR' && (
+        <>
+          <path d="M 24,12 C 34,28 34,42 24,58" fill="none" stroke="#38bdf8" strokeWidth="3" strokeLinecap="round" />
+          <path d="M 32,12 C 45,12 65,15 85,35 C 65,55 45,58 32,58 C 42,42 42,28 32,12 Z" fill="#1e293b" stroke="#38bdf8" strokeWidth="3" />
+          <circle cx="91" cy="35" r="5" fill="#1e293b" stroke="#38bdf8" strokeWidth="2.5" />
+        </>
+      )}
+
+      {/* Output Wire */}
+      <line 
+        x1={['NAND', 'NOR', 'XNOR'].includes(type) ? 96 : type === 'NOT' ? 89 : 88} 
+        y1="35" 
+        x2="115" 
+        y2="35" 
+        stroke={activeOutColor} 
+        strokeWidth="3.5" 
+        strokeLinecap="round"
+        filter={output ? "url(#glow)" : undefined}
+      />
+    </svg>
+  );
+}
+
+// ==========================================
+// 3. SVG 동작 파형 그래프 컴포넌트
+// ==========================================
+function TimingWaveformSVG({ type, gateFn, inputA, inputB }) {
+  const isSingleInput = type === 'NOT';
+  const cycles = isSingleInput ? [
+    { a: 0, b: 0, label: 't1 (0)' },
+    { a: 1, b: 0, label: 't2 (1)' },
+    { a: 0, b: 0, label: 't3 (0)' },
+    { a: 1, b: 0, label: 't4 (1)' },
+  ] : [
+    { a: 0, b: 0, label: 't1 (0,0)' },
+    { a: 0, b: 1, label: 't2 (0,1)' },
+    { a: 1, b: 0, label: 't3 (1,0)' },
+    { a: 1, b: 1, label: 't4 (1,1)' },
+  ];
+
+  const valsA = cycles.map(c => c.a);
+  const valsB = cycles.map(c => c.b);
+  const valsY = cycles.map(c => gateFn(c.a, c.b));
+
+  let activeIdx = 0;
+  if (isSingleInput) {
+    activeIdx = cycles.findIndex(c => c.a === inputA);
+  } else {
+    activeIdx = cycles.findIndex(c => c.a === inputA && c.b === inputB);
+  }
+
+  const startX = 70;
+  const stepW = 85;
+
+  const createPath = (vals, yHigh, yLow) => {
+    let d = `M ${startX} ${vals[0] ? yHigh : yLow}`;
+    vals.forEach((v, i) => {
+      const xStart = startX + i * stepW;
+      const xEnd = xStart + stepW;
+      const yVal = v ? yHigh : yLow;
+      d += ` L ${xStart} ${yVal} L ${xEnd} ${yVal}`;
+      if (i < vals.length - 1) {
+        const nextY = vals[i+1] ? yHigh : yLow;
+        d += ` L ${xEnd} ${nextY}`;
+      }
+    });
+    return d;
+  };
+
+  return (
+    <svg viewBox="0 0 440 160" className="w-full h-auto drop-shadow-md overflow-visible">
+      <defs>
+        <filter id="activeGlow">
+          <feGaussianBlur stdDeviation="3" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+
+      {/* 현재 선택된 타임슬롯 하이라이트 패널 */}
+      {activeIdx >= 0 && (
+        <rect
+          x={startX + activeIdx * stepW}
+          y="10"
+          width={stepW}
+          height="140"
+          fill="rgba(6, 182, 212, 0.15)"
+          stroke="#06b6d4"
+          strokeWidth="1.5"
+          strokeDasharray="4 2"
+          rx="6"
+        />
+      )}
+
+      {/* 타임라인 점선 격자 */}
+      {cycles.map((c, i) => {
+        const xPos = startX + i * stepW;
+        return (
+          <g key={i}>
+            <line x1={xPos} y1="15" x2={xPos} y2="145" stroke="#334155" strokeWidth="1" strokeDasharray="2 2" />
+            <text x={xPos + stepW / 2} y="22" textAnchor="middle" fill={i === activeIdx ? "#38bdf8" : "#64748b"} fontSize="10" fontWeight="bold" fontFamily="monospace">
+              {c.label}
+            </text>
+          </g>
+        );
+      })}
+      <line x1={startX + 4 * stepW} y1="15" x2={startX + 4 * stepW} y2="145" stroke="#334155" strokeWidth="1" strokeDasharray="2 2" />
+
+      {/* In A 파형 */}
+      <text x="15" y="48" fill="#38bdf8" fontSize="11" fontWeight="bold" fontFamily="monospace">In A</text>
+      <path d={createPath(valsA, 35, 55)} fill="none" stroke="#06b6d4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+
+      {/* In B 파형 */}
+      {!isSingleInput && (
+        <>
+          <text x="15" y="88" fill="#38bdf8" fontSize="11" fontWeight="bold" fontFamily="monospace">In B</text>
+          <path d={createPath(valsB, 75, 95)} fill="none" stroke="#38bdf8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        </>
+      )}
+
+      {/* Out Y 파형 */}
+      <text x="15" y="133" fill="#10b981" fontSize="11" fontWeight="bold" fontFamily="monospace">Out Y</text>
+      <line x1="10" y1="112" x2="425" y2="112" stroke="#1e293b" strokeWidth="1" />
+      <path d={createPath(valsY, 120, 140)} fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" filter="url(#activeGlow)" />
+    </svg>
+  );
+}
+
+// ==========================================
+// 4. 합성된 논리회로도 뷰어 컴포넌트 (확대/축소/팬)
+// ==========================================
+function SynthesizedCircuitViewer({ kmapSolution, kmapVarCount }) {
+  const [scale, setScale] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const resetView = () => {
+    setScale(1);
+    setPan({ x: 0, y: 0 });
+  };
+
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const zoomIn = () => setScale(prev => Math.min(prev + 0.25, 2.5));
+  const zoomOut = () => setScale(prev => Math.max(prev - 0.25, 0.5));
+  const movePan = (dx, dy) => setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+
+  const groups = kmapSolution.groups || [];
+  const varNames = ['A', 'B', 'C', 'D'].slice(0, kmapVarCount);
+  
+  const groupCount = groups.length;
+  const svgWidth = 720;
+  const svgHeight = Math.max(260, 70 + groupCount * 65);
+
+  return (
+    <div className="space-y-3">
+      {/* 화면 조작 툴바 */}
+      <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="text-slate-400 font-semibold flex items-center gap-1">
+            <Move className="w-3.5 h-3.5 text-cyan-400" /> 화면 조작:
+          </span>
+          <button
+            onClick={zoomOut}
+            className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition"
+            title="축소"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </button>
+          <span className="font-mono text-cyan-400 font-bold px-1.5 min-w-[48px] text-center">
+            {Math.round(scale * 100)}%
+          </span>
+          <button
+            onClick={zoomIn}
+            className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition"
+            title="확대"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </button>
+          <button
+            onClick={resetView}
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition ml-1"
+            title="초기화"
+          >
+            <RotateCcw className="w-3.5 h-3.5" /> 위치 초기화
+          </button>
+        </div>
+
+        {/* 방향키 버튼 */}
+        <div className="flex items-center gap-1">
+          <span className="text-[11px] text-slate-500 mr-1 hidden sm:inline">이동:</span>
+          <button onClick={() => movePan(0, 40)} className="p-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700"><ArrowUp className="w-3.5 h-3.5" /></button>
+          <button onClick={() => movePan(0, -40)} className="p-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700"><ArrowDown className="w-3.5 h-3.5" /></button>
+          <button onClick={() => movePan(40, 0)} className="p-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700"><ArrowLeft className="w-3.5 h-3.5" /></button>
+          <button onClick={() => movePan(-40, 0)} className="p-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700"><ArrowRight className="w-3.5 h-3.5" /></button>
+        </div>
+      </div>
+
+      {/* 캔버스 뷰포트 영역 (드래그 & 줌 지원) */}
+      <div 
+        className="relative bg-slate-950 rounded-xl border border-slate-800 min-h-[260px] max-h-[500px] overflow-hidden cursor-grab active:cursor-grabbing select-none"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
+        <div 
+          className="w-full h-full flex items-center justify-center p-4 transition-transform duration-75 origin-center"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`
+          }}
+        >
+          {kmapSolution.expression === '0' ? (
+            <div className="text-slate-500 font-mono text-xs p-8 text-center">
+              출력이 항상 0인 회로입니다 (GND 연결)
+            </div>
+          ) : kmapSolution.expression === '1' ? (
+            <div className="text-emerald-400 font-mono text-xs font-bold p-8 text-center">
+              출력이 항상 1인 회로입니다 (VCC 연결)
+            </div>
+          ) : (
+            /* 합성 회로 스키매틱 SVG */
+            <svg 
+              viewBox={`0 0 ${svgWidth} ${svgHeight}`} 
+              className="w-full h-auto min-w-[650px] drop-shadow-lg overflow-visible"
+            >
+              <defs>
+                <filter id="circuitGlow">
+                  <feGaussianBlur stdDeviation="2" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+
+              {/* 입력 변수 및 세로 버스 라인 */}
+              {varNames.map((vName, vIdx) => {
+                const busX = 50 + vIdx * 50;
+                return (
+                  <g key={vName} id={`bus-${vName}`}>
+                    <rect x={busX - 15} y="10" width="30" height="20" rx="4" fill="#0f172a" stroke="#38bdf8" strokeWidth="1.5" />
+                    <text x={busX} y="24" textAnchor="middle" fill="#38bdf8" fontSize="11" fontWeight="bold" fontFamily="monospace">{vName}</text>
+                    <line x1={busX} y1="30" x2={busX} y2={svgHeight - 20} stroke="#38bdf8" strokeWidth="2" opacity="0.8" />
+                  </g>
+                );
+              })}
+
+              {/* 각 곱의 항에 해당하는 AND 게이트 및 신호 연결선 */}
+              {groups.map((g, gIdx) => {
+                const andX = 320;
+                const andY = 60 + gIdx * 65;
+                const mask = g.mask;
+
+                return (
+                  <g key={gIdx}>
+                    {/* 버스선에서 AND 게이트로 연결되는 인버터 및 와이어 */}
+                    {varNames.map((vName, vIdx) => {
+                      const char = mask[vIdx];
+                      if (char === '-') return null;
+
+                      const busX = 50 + vIdx * 50;
+                      const wireY = andY - 10 + (vIdx * 6);
+
+                      return (
+                        <g key={vIdx}>
+                          <circle cx={busX} cy={wireY} r="3" fill="#06b6d4" />
+                          {char === '0' ? (
+                            <>
+                              <line x1={busX} y1={wireY} x2={busX + 20} y2={wireY} stroke="#f43f5e" strokeWidth="1.5" />
+                              <polygon points={`${busX + 20},${wireY - 4} ${busX + 28},${wireY} ${busX + 20},${wireY + 4}`} fill="#1e293b" stroke="#f43f5e" strokeWidth="1" />
+                              <circle cx={busX + 30} cy={wireY} r="2" fill="#1e293b" stroke="#f43f5e" strokeWidth="1" />
+                              <line x1={busX + 32} y1={wireY} x2={andX} y2={wireY} stroke="#f43f5e" strokeWidth="1.5" />
+                            </>
+                          ) : (
+                            <line x1={busX} y1={wireY} x2={andX} y2={wireY} stroke="#06b6d4" strokeWidth="1.5" />
+                          )}
+                        </g>
+                      );
+                    })}
+
+                    {/* AND 게이트 심볼 */}
+                    <path 
+                      d={`M ${andX},${andY - 20} L ${andX + 25},${andY - 20} C 345,${andY - 20} 350,${andY} 350,${andY} C 350,${andY} 345,${andY + 20} ${andX + 25},${andY + 20} L ${andX},${andY + 20} Z`}
+                      fill="#1e293b" 
+                      stroke="#38bdf8" 
+                      strokeWidth="2" 
+                    />
+                    
+                    {/* AND 게이트 출력선 */}
+                    <line x1={andX + 30} y1={andY} x2={520} y2={andY} stroke="#10b981" strokeWidth="2" />
+                    
+                    {/* 항 라벨 */}
+                    <text x={andX + 5} y={andY - 24} fill="#a7f3d0" fontSize="10" fontWeight="bold" fontFamily="monospace">
+                      {g.termStr}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {/* 최종 OR 게이트 */}
+              {(() => {
+                const orX = 520;
+                const firstY = 60;
+                const lastY = 60 + (groups.length - 1) * 65;
+                const orY = groups.length === 1 ? firstY : (firstY + lastY) / 2;
+
+                return (
+                  <g transform={`translate(${orX}, ${orY - 30})`}>
+                    <path 
+                      d="M 0,0 C 20,0 45,8 70,30 C 45,52 20,60 0,60 C 12,42 12,18 0,0 Z" 
+                      fill="#1e293b" 
+                      stroke="#10b981" 
+                      strokeWidth="2.5" 
+                      filter="url(#circuitGlow)"
+                    />
+                    <line x1="70" y1="30" x2="110" y2="30" stroke="#10b981" strokeWidth="3" />
+                    <circle cx="115" cy="30" r="5" fill="#10b981" />
+                    <text x="126" y="34" fill="#10b981" fontSize="15" fontWeight="black" fontFamily="monospace">Y</text>
+                  </g>
+                );
+              })()}
+
+            </svg>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// 5. Quine-McCluskey K-Map Solver 알고리즘
+// ==========================================
+function solveKMap(varCount, outputs) {
+  const vars = ['A', 'B', 'C', 'D'].slice(0, varCount);
+  const mintermIndices = [];
+  const dontCareIndices = [];
+
+  outputs.forEach((val, idx) => {
+    if (val === 1) mintermIndices.push(idx);
+    else if (val === 'X') dontCareIndices.push(idx);
+  });
+
+  if (mintermIndices.length === 0) {
+    return { expression: '0', minterms: [], groups: [], termStrings: [] };
+  }
+
+  const totalPossible = Math.pow(2, varCount);
+  if (mintermIndices.length + dontCareIndices.length === totalPossible) {
+    return { expression: '1', minterms: mintermIndices, groups: [{ termStr: '1', covers: Array.from({length: totalPossible}, (_, i) => i) }], termStrings: ['1'] };
+  }
+
+  const allTerms = [...mintermIndices, ...dontCareIndices];
+  const toBin = (num) => num.toString(2).padStart(varCount, '0');
+
+  let currentGroup = allTerms.map(idx => ({
+    mask: toBin(idx),
+    covers: [idx],
+    combined: false
+  }));
+
+  const primeImplicants = [];
+
+  while (currentGroup.length > 0) {
+    const nextGroup = [];
+
+    for (let i = 0; i < currentGroup.length; i++) {
+      for (let j = i + 1; j < currentGroup.length; j++) {
+        const t1 = currentGroup[i];
+        const t2 = currentGroup[j];
+
+        let diffCount = 0;
+        let diffIdx = -1;
+        for (let k = 0; k < varCount; k++) {
+          if (t1.mask[k] !== t2.mask[k]) {
+            diffCount++;
+            diffIdx = k;
+          }
+        }
+
+        if (diffCount === 1) {
+          t1.combined = true;
+          t2.combined = true;
+
+          const newMask = t1.mask.substring(0, diffIdx) + '-' + t1.mask.substring(diffIdx + 1);
+          const newCovers = Array.from(new Set([...t1.covers, ...t2.covers])).sort((a, b) => a - b);
+
+          if (!nextGroup.some(item => item.mask === newMask)) {
+            nextGroup.push({ mask: newMask, covers: newCovers, combined: false });
+          }
+        }
+      }
+    }
+
+    currentGroup.forEach(t => {
+      if (!t.combined) {
+        if (!primeImplicants.some(pi => pi.mask === t.mask)) {
+          primeImplicants.push(t);
+        }
+      }
+    });
+
+    currentGroup = nextGroup;
+  }
+
+  const uncovered = new Set(mintermIndices);
+  const selectedPIs = [];
+
+  mintermIndices.forEach(m => {
+    const coveringPIs = primeImplicants.filter(pi => pi.covers.includes(m));
+    if (coveringPIs.length === 1) {
+      const epi = coveringPIs[0];
+      if (!selectedPIs.includes(epi)) {
+        selectedPIs.push(epi);
+        epi.covers.forEach(cov => uncovered.delete(cov));
+      }
+    }
+  });
+
+  while (uncovered.size > 0) {
+    let bestPI = null;
+    let maxCover = -1;
+
+    primeImplicants.forEach(pi => {
+      if (!selectedPIs.includes(pi)) {
+        const count = pi.covers.filter(c => uncovered.has(c)).length;
+        if (count > maxCover) {
+          maxCover = count;
+          bestPI = pi;
+        }
+      }
+    });
+
+    if (bestPI && maxCover > 0) {
+      selectedPIs.push(bestPI);
+      bestPI.covers.forEach(cov => uncovered.delete(cov));
+    } else {
+      break;
+    }
+  }
+
+  const termToString = (mask) => {
+    let res = '';
+    for (let i = 0; i < varCount; i++) {
+      if (mask[i] === '1') res += vars[i];
+      else if (mask[i] === '0') res += vars[i] + '\'';
+    }
+    return res || '1';
+  };
+
+  const groupColors = [
+    'rgba(56, 189, 248, 0.4)',
+    'rgba(16, 185, 129, 0.4)',
+    'rgba(245, 158, 11, 0.4)',
+    'rgba(236, 72, 153, 0.4)',
+    'rgba(139, 92, 246, 0.4)',
+  ];
+
+  const resultGroups = selectedPIs.map((pi, idx) => ({
+    mask: pi.mask,
+    termStr: termToString(pi.mask),
+    covers: pi.covers,
+    color: groupColors[idx % groupColors.length]
+  }));
+
+  const expression = resultGroups.map(g => g.termStr).join(' + ') || '0';
+
+  return {
+    expression,
+    minterms: mintermIndices,
+    dontCares: dontCareIndices,
+    groups: resultGroups,
+    termStrings: resultGroups.map(g => g.termStr)
+  };
+}
+
+// ==========================================
+// 6. 메인 애플리케이션 컴포넌트
+// ==========================================
+export default function App() {
+  const [activeTab, setActiveTab] = useState('explorer'); // 'explorer' | 'kmap' | 'simulator'
+  
+  // Tab 1 State
+  const [selectedGate, setSelectedGate] = useState('AND');
+  const [explorerInputA, setExplorerInputA] = useState(0);
+  const [explorerInputB, setExplorerInputB] = useState(0);
+
+  // Tab 2 State
+  const [kmapVarCount, setKmapVarCount] = useState(3);
+  const [kmapOutputs, setKmapOutputs] = useState([0, 1, 0, 1, 1, 1, 0, 0]);
+
+  useEffect(() => {
+    if (kmapVarCount === 2) setKmapOutputs([0, 1, 1, 0]);
+    else if (kmapVarCount === 3) setKmapOutputs([0, 1, 1, 0, 1, 0, 1, 1]);
+    else setKmapOutputs([1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 1]);
+  }, [kmapVarCount]);
+
+  const kmapSolution = useMemo(() => {
+    return solveKMap(kmapVarCount, kmapOutputs);
+  }, [kmapVarCount, kmapOutputs]);
+
+  // Tab 3 State
+  const [simInputs, setSimInputs] = useState({ A: 0, B: 1, C: 0, D: 0 });
+  const [simCircuitNodes, setSimCircuitNodes] = useState([
+    { id: 'g1', type: 'AND', in1: 'A', in2: 'B' },
+    { id: 'g2', type: 'XOR', in1: 'A', in2: 'B' },
+    { id: 'g3', type: 'OR', in1: 'g1', in2: 'C' }
+  ]);
+
+  const loadSimulatorPreset = (presetName) => {
+    if (presetName === 'halfAdder') {
+      setSimCircuitNodes([
+        { id: 'sum', type: 'XOR', in1: 'A', in2: 'B' },
+        { id: 'carry', type: 'AND', in1: 'A', in2: 'B' }
+      ]);
+    } else if (presetName === 'fullAdder') {
+      setSimCircuitNodes([
+        { id: 'xor1', type: 'XOR', in1: 'A', in2: 'B' },
+        { id: 'sum', type: 'XOR', in1: 'xor1', in2: 'C' },
+        { id: 'and1', type: 'AND', in1: 'A', in2: 'B' },
+        { id: 'and2', type: 'AND', in1: 'xor1', in2: 'C' },
+        { id: 'carry', type: 'OR', in1: 'and1', in2: 'and2' }
+      ]);
+    } else if (presetName === 'mux21') {
+      setSimCircuitNodes([
+        { id: 'notS', type: 'NOT', in1: 'C', in2: null },
+        { id: 'and1', type: 'AND', in1: 'A', in2: 'notS' },
+        { id: 'and2', type: 'AND', in1: 'B', in2: 'C' },
+        { id: 'out', type: 'OR', in1: 'and1', in2: 'and2' }
+      ]);
+    }
+  };
+
+  const simEvaluation = useMemo(() => {
+    const nodeOutputs = { ...simInputs };
+    for (let pass = 0; pass < 5; pass++) {
+      simCircuitNodes.forEach(node => {
+        const val1 = nodeOutputs[node.in1] ?? 0;
+        const val2 = nodeOutputs[node.in2] ?? 0;
+        const gateFn = GATES_DATA[node.type]?.fn;
+        if (gateFn) {
+          nodeOutputs[node.id] = gateFn(val1, val2);
+        }
+      });
+    }
+    return nodeOutputs;
+  }, [simInputs, simCircuitNodes]);
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-white">
+      
+      {/* Header Bar */}
+      <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-xl shadow-lg shadow-cyan-500/20 text-white">
+              <Zap className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="font-bold text-lg md:text-xl text-white flex items-center gap-2">
+                디지털 논리회로 & K-Map 시뮬레이터
+                <span className="text-xs font-normal px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800">
+                  v2.6
+                </span>
+              </h1>
+              <p className="text-xs text-slate-400">게이트 심볼, IC배치도, 카르노맵 최소화 및 대화형 회로 합성</p>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <div className="flex items-center p-1 bg-slate-800/80 rounded-xl border border-slate-700/60">
+            <button
+              onClick={() => setActiveTab('explorer')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all ${
+                activeTab === 'explorer'
+                  ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              <Cpu className="w-4 h-4" />
+              게이트 백과사전
+            </button>
+            <button
+              onClick={() => setActiveTab('kmap')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all ${
+                activeTab === 'kmap'
+                  ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              <Grid className="w-4 h-4" />
+              카르노맵 회로 합성
+            </button>
+            <button
+              onClick={() => setActiveTab('simulator')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all ${
+                activeTab === 'simulator'
+                  ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              <Activity className="w-4 h-4" />
+              회로 시뮬레이터
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 space-y-6">
+
+        {/* TAB 1: 논리 게이트 탐색기 */}
+        {activeTab === 'explorer' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+              {Object.keys(GATES_DATA).map(gateKey => {
+                const g = GATES_DATA[gateKey];
+                const isSelected = selectedGate === gateKey;
+                return (
+                  <button
+                    key={gateKey}
+                    onClick={() => setSelectedGate(gateKey)}
+                    className={`p-3 rounded-2xl border text-center transition-all ${
+                      isSelected
+                        ? 'bg-cyan-950/80 border-cyan-400 text-white shadow-lg shadow-cyan-500/10 ring-1 ring-cyan-400'
+                        : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:bg-slate-800/50'
+                    }`}
+                  >
+                    <div className="font-extrabold text-sm text-cyan-300">{gateKey}</div>
+                    <div className="text-[10px] text-slate-400 mt-1 truncate">{g.symbol}</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {(() => {
+              const currentG = GATES_DATA[selectedGate];
+              const gateOutput = currentG.fn(explorerInputA, explorerInputB);
+
+              return (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2 bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-6">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                      <div>
+                        <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
+                          {currentG.name}
+                          <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-cyan-300 font-mono border border-slate-700">
+                            {currentG.symbol}
+                          </span>
+                        </h2>
+                        <p className="text-xs text-slate-400 mt-1">{currentG.desc}</p>
+                      </div>
+                      <span className="text-xs font-mono font-bold px-3 py-1 bg-slate-800 rounded-lg text-emerald-400 border border-slate-700">
+                        IC: {currentG.ic}
+                      </span>
+                    </div>
+
+                    <div className="bg-slate-950 rounded-2xl p-6 border border-slate-800 flex flex-col md:flex-row items-center justify-around gap-6 min-h-[200px]">
+                      <div className="flex flex-col gap-3">
+                        <span className="text-xs font-semibold text-slate-400">입력 신호 테스트:</span>
+                        <button
+                          onClick={() => setExplorerInputA(explorerInputA ? 0 : 1)}
+                          className={`flex items-center gap-3 px-4 py-2 rounded-xl border text-xs font-mono font-bold transition ${
+                            explorerInputA 
+                              ? 'bg-cyan-500 text-white border-cyan-400 shadow-lg shadow-cyan-500/20' 
+                              : 'bg-slate-900 text-slate-400 border-slate-800'
+                          }`}
+                        >
+                          입력 A: <span className="text-sm">{explorerInputA}</span>
+                        </button>
+
+                        {currentG.inputs === 2 && (
+                          <button
+                            onClick={() => setExplorerInputB(explorerInputB ? 0 : 1)}
+                            className={`flex items-center gap-3 px-4 py-2 rounded-xl border text-xs font-mono font-bold transition ${
+                              explorerInputB 
+                                ? 'bg-cyan-500 text-white border-cyan-400 shadow-lg shadow-cyan-500/20' 
+                                : 'bg-slate-900 text-slate-400 border-slate-800'
+                            }`}
+                          >
+                            입력 B: <span className="text-sm">{explorerInputB}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col items-center gap-2">
+                        <LogicGateSVG
+                          type={selectedGate}
+                          width={160}
+                          height={90}
+                          inputA={explorerInputA}
+                          inputB={explorerInputB}
+                          output={gateOutput}
+                        />
+                        <span className="text-[11px] text-slate-500 font-mono">실시간 논리 신호 흐름</span>
+                      </div>
+
+                      <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-900 border border-slate-800 min-w-[100px]">
+                        <span className="text-xs text-slate-400 mb-1">최종 출력 (Y)</span>
+                        <span className={`text-3xl font-black font-mono ${gateOutput ? 'text-emerald-400' : 'text-slate-600'}`}>
+                          {gateOutput}
+                        </span>
+                        <span className={`text-[10px] mt-1 font-bold ${gateOutput ? 'text-emerald-500' : 'text-slate-500'}`}>
+                          {gateOutput ? 'HIGH (1)' : 'LOW (0)'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 실시간 SVG 동작 파형 그래프 */}
+                    <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                          <Activity className="w-4 h-4 text-cyan-400" />
+                          실시간 동작 파형 그래프 (Timing Waveform Diagram)
+                        </span>
+                        <span className="text-[10px] text-slate-500">사이클별 디지털 신호 표기</span>
+                      </div>
+
+                      <TimingWaveformSVG
+                        type={selectedGate}
+                        gateFn={currentG.fn}
+                        inputA={explorerInputA}
+                        inputB={explorerInputB}
+                      />
+                    </div>
+
+                  </div>
+
+                  <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-6">
+                    <div>
+                      <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                        <Grid className="w-4 h-4 text-cyan-400" />
+                        진리표 (Truth Table)
+                      </h3>
+
+                      <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
+                        <table className="w-full text-xs text-center font-mono">
+                          <thead className="bg-slate-800 text-slate-300 border-b border-slate-700">
+                            <tr>
+                              <th className="py-2.5">A</th>
+                              {currentG.inputs === 2 && <th className="py-2.5">B</th>}
+                              <th className="py-2.5 text-emerald-400">Y (출력)</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                            {currentG.truthTable.map((row, idx) => {
+                              const isActiveRow = explorerInputA === row.a && (currentG.inputs === 1 || explorerInputB === row.b);
+                              return (
+                                <tr key={idx} className={isActiveRow ? 'bg-cyan-950/70 text-cyan-300 font-bold' : ''}>
+                                  <td className="py-2">{row.a}</td>
+                                  {currentG.inputs === 2 && <td className="py-2">{row.b}</td>}
+                                  <td className="py-2 font-bold text-emerald-400">{row.y}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                        <Layers className="w-4 h-4 text-emerald-400" />
+                        74xx IC 칩 핀배치도 ({currentG.ic.split(' ')[0]})
+                      </h3>
+
+                      <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col items-center">
+                        <div className="w-32 h-44 bg-slate-900 border-2 border-slate-700 rounded-lg relative flex flex-col justify-between py-3 px-2 shadow-inner">
+                          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-2 bg-slate-950 rounded-b-md border-b border-slate-700" />
+                          <span className="text-[10px] text-slate-500 font-mono self-center mt-1">DIP-14</span>
+
+                          <div className="flex justify-between w-full text-[9px] font-mono">
+                            <div className="space-y-1 text-slate-400">
+                              {currentG.icPins.slice(0, 7).map(p => (
+                                <div key={p.pin} className="flex items-center gap-1">
+                                  <span className="w-2.5 h-1 bg-amber-600 rounded-sm inline-block" />
+                                  <span>{p.pin}:{p.name}</span>
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="space-y-1 text-right text-slate-400">
+                              {currentG.icPins.slice(7, 14).reverse().map(p => (
+                                <div key={p.pin} className="flex items-center justify-end gap-1">
+                                  <span>{p.pin}:{p.name}</span>
+                                  <span className="w-2.5 h-1 bg-amber-600 rounded-sm inline-block" />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* TAB 2: 카르노맵 회로 합성기 */}
+        {activeTab === 'kmap' && (
+          <div className="space-y-6">
+            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-slate-400">입력 변수 개수 선택:</span>
+                <div className="inline-flex p-1 bg-slate-950 rounded-lg border border-slate-800">
+                  {[2, 3, 4].map(count => (
+                    <button
+                      key={count}
+                      onClick={() => setKmapVarCount(count)}
+                      className={`px-3.5 py-1 rounded-md text-xs font-bold transition ${
+                        kmapVarCount === count
+                          ? 'bg-cyan-500 text-white shadow'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {count} 변수 ({['A,B', 'A,B,C', 'A,B,C,D'][count - 2]})
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-slate-400">빠른 설정:</span>
+                <button
+                  onClick={() => setKmapOutputs(kmapOutputs.map(() => 0))}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700"
+                >
+                  모두 0
+                </button>
+                <button
+                  onClick={() => setKmapOutputs(kmapOutputs.map(() => 1))}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700"
+                >
+                  모두 1
+                </button>
+                <button
+                  onClick={() => setKmapOutputs(kmapOutputs.map(() => Math.random() > 0.5 ? 1 : 0))}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded-lg border border-slate-700"
+                >
+                  랜덤 생성
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-4">
+                <div className="border-b border-slate-800 pb-3 flex items-center justify-between">
+                  <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                    <Grid className="w-4 h-4 text-cyan-400" />
+                    진리표 설정
+                  </h3>
+                  <span className="text-[11px] text-slate-400">셀 클릭시 (0 → 1 → X)</span>
+                </div>
+
+                <div className="max-h-[420px] overflow-y-auto rounded-xl border border-slate-800 bg-slate-950">
+                  <table className="w-full text-xs text-center font-mono">
+                    <thead className="bg-slate-800 text-slate-300 sticky top-0 border-b border-slate-700">
+                      <tr>
+                        <th className="py-2">m</th>
+                        {['A', 'B', 'C', 'D'].slice(0, kmapVarCount).map(v => (
+                          <th key={v} className="py-2">{v}</th>
+                        ))}
+                        <th className="py-2 text-cyan-400">출력 (Y)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                      {kmapOutputs.map((outVal, idx) => {
+                        const binStr = idx.toString(2).padStart(kmapVarCount, '0');
+                        return (
+                          <tr key={idx} className="hover:bg-slate-900/80 transition">
+                            <td className="py-1.5 text-slate-500">{idx}</td>
+                            {binStr.split('').map((bit, bIdx) => (
+                              <td key={bIdx} className="py-1.5">{bit}</td>
+                            ))}
+                            <td className="py-1.5">
+                              <button
+                                onClick={() => {
+                                  const nextVal = outVal === 0 ? 1 : outVal === 1 ? 'X' : 0;
+                                  const updated = [...kmapOutputs];
+                                  updated[idx] = nextVal;
+                                  setKmapOutputs(updated);
+                                }}
+                                className={`w-8 h-6 rounded font-bold transition ${
+                                  outVal === 1
+                                    ? 'bg-emerald-500 text-white shadow'
+                                    : outVal === 'X'
+                                      ? 'bg-amber-600 text-white'
+                                      : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                                }`}
+                              >
+                                {outVal}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs text-slate-400 space-y-1">
+                  <div>· 최소항 (Minterm): <span className="font-mono text-cyan-300 font-bold">Σm({kmapSolution.minterms.join(', ')})</span></div>
+                  {kmapSolution.dontCares.length > 0 && (
+                    <div>· Don't Care: <span className="font-mono text-amber-300 font-bold">d({kmapSolution.dontCares.join(', ')})</span></div>
+                  )}
+                </div>
+              </div>
+
+              <div className="lg:col-span-2 space-y-6">
+                <div className="bg-gradient-to-r from-slate-900 via-cyan-950/40 to-slate-900 border border-cyan-800/50 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div>
+                    <span className="text-xs font-semibold text-cyan-400 uppercase tracking-wider block mb-1">
+                      최소화된 논리식 (Minimized SOP)
+                    </span>
+                    <div className="text-2xl md:text-3xl font-black font-mono text-white tracking-wide">
+                      Y = {kmapSolution.expression}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 flex-wrap">
+                    {kmapSolution.groups.map((g, i) => (
+                      <span key={i} className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-slate-800 text-cyan-300 border border-slate-700">
+                        {g.termStr}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Karnaugh Map Grid */}
+                <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+                  <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                    <Grid className="w-4 h-4 text-emerald-400" />
+                    카르노맵 (Karnaugh Map) 시각화
+                  </h3>
+
+                  <div className="overflow-x-auto">
+                    {(() => {
+                      let rowLabels = [];
+                      let colLabels = [];
+                      let mapGrid = [];
+
+                      if (kmapVarCount === 2) {
+                        rowLabels = ['A=0', 'A=1'];
+                        colLabels = ['B=0', 'B=1'];
+                        mapGrid = [
+                          [0, 1],
+                          [2, 3]
+                        ];
+                      } else if (kmapVarCount === 3) {
+                        rowLabels = ['A=0', 'A=1'];
+                        colLabels = ['BC=00', 'BC=01', 'BC=11', 'BC=10'];
+                        mapGrid = [
+                          [0, 1, 3, 2],
+                          [4, 5, 7, 6]
+                        ];
+                      } else {
+                        rowLabels = ['AB=00', 'AB=01', 'AB=11', 'AB=10'];
+                        colLabels = ['CD=00', 'CD=01', 'CD=11', 'CD=10'];
+                        mapGrid = [
+                          [0, 1, 3, 2],
+                          [4, 5, 7, 6],
+                          [12, 13, 15, 14],
+                          [8, 9, 11, 10]
+                        ];
+                      }
+
+                      return (
+                        <table className="w-full max-w-md mx-auto border-collapse font-mono text-center">
+                          <thead>
+                            <tr>
+                              <th className="p-3 bg-slate-950 text-slate-500 text-xs border border-slate-800">
+                                {kmapVarCount === 2 ? 'A \\ B' : kmapVarCount === 3 ? 'A \\ BC' : 'AB \\ CD'}
+                              </th>
+                              {colLabels.map((cl, i) => (
+                                <th key={i} className="p-2.5 bg-slate-950 text-slate-300 text-xs border border-slate-800 font-bold">
+                                  {cl}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {mapGrid.map((rowArr, rIdx) => (
+                              <tr key={rIdx}>
+                                <th className="p-2.5 bg-slate-950 text-slate-300 text-xs border border-slate-800 font-bold">
+                                  {rowLabels[rIdx]}
+                                </th>
+                                {rowArr.map((cellMinterm, cIdx) => {
+                                  const cellVal = kmapOutputs[cellMinterm];
+                                  const coveringGroups = kmapSolution.groups.filter(g => g.covers.includes(cellMinterm));
+
+                                  return (
+                                    <td
+                                      key={cIdx}
+                                      className="p-4 border border-slate-800 relative bg-slate-950 text-base font-bold transition-all"
+                                      style={{
+                                        backgroundColor: coveringGroups.length > 0 ? coveringGroups[0].color : undefined
+                                      }}
+                                    >
+                                      <span className={cellVal === 1 ? 'text-emerald-400' : cellVal === 'X' ? 'text-amber-400' : 'text-slate-600'}>
+                                        {cellVal}
+                                      </span>
+                                      <span className="absolute bottom-1 right-1.5 text-[9px] text-slate-600">
+                                        m{cellMinterm}
+                                      </span>
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* 대화형 이동/확대/축소 지원 합성 논리회로도 */}
+                <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+                  <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-cyan-400" />
+                    합성된 논리회로도 (Synthesized Circuit Diagram)
+                  </h3>
+
+                  <SynthesizedCircuitViewer 
+                    kmapSolution={kmapSolution} 
+                    kmapVarCount={kmapVarCount} 
+                  />
+                </div>
+
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: 대화형 논리회로 시뮬레이터 */}
+        {activeTab === 'simulator' && (
+          <div className="space-y-6">
+            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-400">프리셋 회로 불러오기:</span>
+                <button
+                  onClick={() => loadSimulatorPreset('halfAdder')}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded-xl text-xs font-semibold border border-slate-700"
+                >
+                  반가산기 (Half Adder)
+                </button>
+                <button
+                  onClick={() => loadSimulatorPreset('fullAdder')}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded-xl text-xs font-semibold border border-slate-700"
+                >
+                  전가산기 (Full Adder)
+                </button>
+                <button
+                  onClick={() => loadSimulatorPreset('mux21')}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded-xl text-xs font-semibold border border-slate-700"
+                >
+                  2:1 MUX (멀티플렉서)
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const newId = `g${simCircuitNodes.length + 1}`;
+                    setSimCircuitNodes([...simCircuitNodes, { id: newId, type: 'AND', in1: 'A', in2: 'B' }]);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-white rounded-xl text-xs font-bold transition shadow"
+                >
+                  <Plus className="w-4 h-4" /> 게이트 노드 추가
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-4">
+                <h3 className="font-bold text-sm text-white flex items-center gap-2 border-b border-slate-800 pb-3">
+                  <Sliders className="w-4 h-4 text-cyan-400" />
+                  주 입력 신호 스위치 (Primary Inputs)
+                </h3>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {['A', 'B', 'C', 'D'].map(key => (
+                    <div key={key} className="p-3 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between">
+                      <span className="font-bold text-sm text-cyan-300">신호 {key}</span>
+                      <button
+                        onClick={() => setSimInputs(prev => ({ ...prev, [key]: prev[key] ? 0 : 1 }))}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold font-mono transition ${
+                          simInputs[key]
+                            ? 'bg-emerald-500 text-white shadow'
+                            : 'bg-slate-800 text-slate-400'
+                        }`}
+                      >
+                        {simInputs[key] ? 'HIGH (1)' : 'LOW (0)'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pt-2 border-t border-slate-800">
+                  <span className="text-xs font-semibold text-slate-400 block mb-2">노드별 실시간 출력 상태:</span>
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {Object.entries(simEvaluation).map(([nodeId, val]) => (
+                      <div key={nodeId} className="flex justify-between items-center text-xs font-mono p-2 bg-slate-950 rounded-lg border border-slate-800">
+                        <span className="text-slate-300 font-bold">{nodeId}</span>
+                        <span className={val ? 'text-emerald-400 font-bold' : 'text-slate-500'}>
+                          {val ? '1 (HIGH)' : '0 (LOW)'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="lg:col-span-2 bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+                <h3 className="font-bold text-sm text-white flex items-center gap-2 border-b border-slate-800 pb-3">
+                  <Activity className="w-4 h-4 text-emerald-400" />
+                  연결된 논리회로 노드 구성
+                </h3>
+
+                <div className="space-y-3">
+                  {simCircuitNodes.map((node, idx) => {
+                    const outVal = simEvaluation[node.id] ?? 0;
+                    const availableSources = ['A', 'B', 'C', 'D', ...simCircuitNodes.map(n => n.id).filter(id => id !== node.id)];
+
+                    return (
+                      <div key={node.id} className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-bold font-mono px-2.5 py-1 bg-slate-800 rounded-lg text-cyan-400 border border-slate-700">
+                            {node.id}
+                          </span>
+                          <select
+                            value={node.type}
+                            onChange={(e) => {
+                              const updated = [...simCircuitNodes];
+                              updated[idx].type = e.target.value;
+                              setSimCircuitNodes(updated);
+                            }}
+                            className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs font-bold text-white focus:outline-none"
+                          >
+                            {Object.keys(GATES_DATA).map(gKey => (
+                              <option key={gKey} value={gKey}>{gKey} 게이트</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="flex items-center gap-3 text-xs font-mono">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-slate-500">In1:</span>
+                            <select
+                              value={node.in1}
+                              onChange={(e) => {
+                                const updated = [...simCircuitNodes];
+                                updated[idx].in1 = e.target.value;
+                                setSimCircuitNodes(updated);
+                              }}
+                              className="bg-slate-900 border border-slate-700 rounded px-2 py-0.5 text-cyan-300"
+                            >
+                              {availableSources.map(src => (
+                                <option key={src} value={src}>{src}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {node.type !== 'NOT' && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-slate-500">In2:</span>
+                              <select
+                                value={node.in2 || 'B'}
+                                onChange={(e) => {
+                                  const updated = [...simCircuitNodes];
+                                  updated[idx].in2 = e.target.value;
+                                  setSimCircuitNodes(updated);
+                                }}
+                                className="bg-slate-900 border border-slate-700 rounded px-2 py-0.5 text-cyan-300"
+                              >
+                                {availableSources.map(src => (
+                                  <option key={src} value={src}>{src}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="scale-75 origin-center">
+                          <LogicGateSVG
+                            type={node.type}
+                            width={90}
+                            height={50}
+                            inputA={simEvaluation[node.in1] ?? 0}
+                            inputB={simEvaluation[node.in2] ?? 0}
+                            output={outVal}
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <span className={`text-base font-black font-mono px-3 py-1 rounded-lg ${outVal ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-900 text-slate-500'}`}>
+                            Y = {outVal}
+                          </span>
+                          <button
+                            onClick={() => setSimCircuitNodes(simCircuitNodes.filter(n => n.id !== node.id))}
+                            className="p-1.5 text-slate-500 hover:text-rose-400 bg-slate-900 rounded-lg border border-slate-800 transition"
+                            title="노드 삭제"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-slate-800 bg-slate-950 py-4 mt-8 text-center text-xs text-slate-500">
+        <p>디지털 논리회로 & 카르노맵 최소화 시뮬레이터 · IEEE / IEC 논리 기호 규격 준수</p>
+      </footer>
+
+    </div>
+  );
+}
+
+import { createRoot } from 'react-dom/client';
+const bootEl = document.getElementById('boot');
+if (bootEl) bootEl.remove();
+createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+</body>
+</html>

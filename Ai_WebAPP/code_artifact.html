@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>기능사 이론 도우미 · 김쌔미앙tv</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  body { background: #0F172A; background-image:none; }
+  #root { min-height:100vh; }
+  #boot {
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:#0F172A; color:#8FA79B; font-family:'JetBrains Mono',monospace; font-size:0.85rem;
+    letter-spacing:0.05em; z-index:1;
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.383.0?external=react"
+  }
+}
+</script>
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+</head>
+<body>
+
+<a class="back-link" href="../">← 학습 도구 모음으로</a>
+
+<div id="boot">초기화 중...</div>
+<div id="root"></div>
+
+<script type="text/babel" data-type="module">
+import React, { useState, useEffect } from 'react';
+import {
+  BookOpen,
+  CheckCircle2,
+  HelpCircle,
+  Zap,
+  RotateCcw,
+  Cpu,
+  Layers,
+  Award,
+  ChevronRight,
+  Maximize2,
+  X,
+  Image as ImageIcon
+} from 'lucide-react';
+
+function App() {
+  const [activeTab, setActiveTab] = useState('principles'); // 'principles' | 'pinout' | 'quiz'
+  const [selectedDevice, setSelectedDevice] = useState('timer8');
+  const [selectedPin, setSelectedPin] = useState(null);
+
+  // 시뮬레이터 상태
+  const [shPb1, setShPb1] = useState(false);
+  const [shPb2, setShPb2] = useState(false);
+  const [shSelf, setShSelf] = useState(false);
+
+  const [ilPb1, setIlPb1] = useState(false);
+  const [ilPb2, setIlPb2] = useState(false);
+  const [mc1State, setMc1State] = useState(false);
+  const [mc2State, setMc2State] = useState(false);
+  const [ilWarning, setIlWarning] = useState('');
+
+  // Y-Delta 타이머 상태
+  const [ydStart, setYdStart] = useState(false);
+  const [ydTimerSec, setYdTimerSec] = useState(3);
+  const [ydCurrentSec, setYdCurrentSec] = useState(0);
+  const [ydMcMain, setYdMcMain] = useState(false);
+  const [ydMcY, setYdMcY] = useState(false);
+  const [ydMcDelta, setYdMcDelta] = useState(false);
+
+  // EOCR 상태
+  const [eocrOvercurrent, setEocrOvercurrent] = useState(false);
+  const [eocrTrip, setEocrTrip] = useState(false);
+
+  // 퀴즈 상태
+  const [quizAnswers, setQuizAnswers] = useState({});
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
+
+  // 이미지 모달 팝업 상태
+  const [modalImage, setModalImage] = useState(null);
+
+  // 자기유지 처리
+  useEffect(() => {
+    if (shPb1) {
+      setShSelf(true);
+    }
+    if (shPb2) {
+      setShSelf(false);
+    }
+  }, [shPb1, shPb2]);
+
+  // 인터록 처리
+  useEffect(() => {
+    if (ilPb1 && !mc2State) {
+      setMc1State(true);
+      setIlWarning('');
+    } else if (ilPb1 && mc2State) {
+      setIlWarning('인터록 차단! MC2가 동작 중이므로 MC1 전원이 차단되었습니다.');
+    } else if (!ilPb1) {
+      setMc1State(false);
+    }
+
+    if (ilPb2 && !mc1State) {
+      setMc2State(true);
+      setIlWarning('');
+    } else if (ilPb2 && mc1State) {
+      setIlWarning('인터록 차단! MC1이 동작 중이므로 MC2 전원이 차단되었습니다.');
+    } else if (!ilPb2) {
+      setMc2State(false);
+    }
+  }, [ilPb1, ilPb2, mc1State, mc2State]);
+
+  // Y-Delta 타이머
+  useEffect(() => {
+    let timerId;
+    if (ydStart) {
+      setYdMcMain(true);
+      setYdMcY(true);
+      setYdMcDelta(false);
+      setYdCurrentSec(0);
+
+      timerId = setInterval(() => {
+        setYdCurrentSec((prev) => {
+          if (prev + 1 >= ydTimerSec) {
+            setYdMcY(false);
+            setYdMcDelta(true);
+            clearInterval(timerId);
+            return ydTimerSec;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+    } else {
+      setYdMcMain(false);
+      setYdMcY(false);
+      setYdMcDelta(false);
+      setYdCurrentSec(0);
+    }
+    return () => clearInterval(timerId);
+  }, [ydStart, ydTimerSec]);
+
+  // EOCR 트립
+  useEffect(() => {
+    if (eocrOvercurrent) {
+      setEocrTrip(true);
+    }
+  }, [eocrOvercurrent]);
+
+  const deviceData = {
+    timer8: {
+      name: '8핀 타이머 (Timer / T)',
+      socketType: '8핀 소켓 (timer8_schematic.png 반영)',
+      schematicImg: './public/images/schematics/timer8_schematic.png',
+      layoutGrid: {
+        top: [
+          { pin: 6, name: '한시A', type: 'Delay NO' },
+          { pin: 5, name: '한시B', type: 'Delay NC' },
+          { pin: 4, name: 'X', type: '공핀' },
+          { pin: 3, name: '순시A', type: 'Instant NO' }
+        ],
+        bottom: [
+          { pin: 7, name: '전원', type: 'Power' },
+          { pin: 8, name: '한시C', type: 'Delay Common' },
+          { pin: 1, name: '순시C', type: 'Instant Common' },
+          { pin: 2, name: '전원', type: 'Power' }
+        ],
+        connections: [
+          { from: 1, to: 3, label: '순시 A접점 (전원 ON 즉시 통전)', color: 'text-amber-400' },
+          { from: 8, to: 5, label: '한시 B접점 (설정시간 후 OFF)', color: 'text-rose-400' },
+          { from: 8, to: 6, label: '한시 A접점 (설정시간 후 ON)', color: 'text-emerald-400' }
+        ]
+      },
+      pins: [
+        { num: 1, label: '순시 공통 (C)', desc: '전원 공급 시 즉시 동작하는 순시 접점 공통 단자' },
+        { num: 2, label: '전원 (N/L2)', desc: '타이머 구동 전원 입력 단자' },
+        { num: 3, label: '순시 A접점 (NO)', desc: '전원 공급 시 즉시 닫히는 a접점 (1번과 세트)' },
+        { num: 4, label: 'NC 미사용 (공핀)', desc: '8핀 타이머에서는 사용하지 않음' },
+        { num: 5, label: '한시 B접점 (NC)', desc: '설정 시간 경과 후 열리는 b접점 (8번과 연결)' },
+        { num: 6, label: '한시 A접점 (NO)', desc: '설정 시간 경과 후 닫히는 a접점 (8번과 연결)' },
+        { num: 7, label: '전원 (L/L1)', desc: '타이머 구동 전원 입력 단자' },
+        { num: 8, label: '한시 공통 (C)', desc: '설정 시간에 따라 제어되는 한시 C단자 (5번, 6번과 연결)' }
+      ],
+      powerPins: [2, 7],
+      usage: '설정된 시간이 지난 후 접점이 닫히거나 열리는 한시 동작을 제어하며, Y-Δ 기동 회로 등에 필수적입니다.',
+      tip: '타이머 소켓 번호는 상단 6,5,4,3 / 하단 7,8,1,2 배열 구조를 가집니다.'
+    },
+    relay8: {
+      name: '8핀 릴레이 (Relay / X / R)',
+      socketType: '8핀 소켓 (relay8_schematic.png 반영)',
+      schematicImg: './public/images/schematics/relay8_schematic.png',
+      layoutGrid: {
+        top: [
+          { pin: 6, name: 'A접점2', type: 'NO2' },
+          { pin: 5, name: 'B접점2', type: 'NC2' },
+          { pin: 4, name: 'B접점1', type: 'NC1' },
+          { pin: 3, name: 'A접점1', type: 'NO1' }
+        ],
+        bottom: [
+          { pin: 7, name: '전원', type: 'Power' },
+          { pin: 8, name: '공통2', type: 'Common 2' },
+          { pin: 1, name: '공통1', type: 'Common 1' },
+          { pin: 2, name: '전원', type: 'Power' }
+        ],
+        connections: [
+          { from: 1, to: 4, label: '1세트 B접점 (NC1)', color: 'text-rose-400' },
+          { from: 1, to: 3, label: '1세트 A접점 (NO1)', color: 'text-amber-400' },
+          { from: 8, to: 5, label: '2세트 B접점 (NC2)', color: 'text-rose-400' },
+          { from: 8, to: 6, label: '2세트 A접점 (NO2)', color: 'text-amber-400' }
+        ]
+      },
+      pins: [
+        { num: 1, label: '공통 1 (C1)', desc: '첫 번째 접점 세트 공통 단자 (3번, 4번과 세트)' },
+        { num: 2, label: '전원 (N/L2)', desc: '릴레이 코일 구동 전원 입력 단자' },
+        { num: 3, label: 'A접점 1 (NO1)', desc: '코일 여자 시 닫히는 첫 번째 a접점' },
+        { num: 4, label: 'B접점 1 (NC1)', desc: '코일 여자 시 열리는 첫 번째 b접점' },
+        { num: 5, label: 'B접점 2 (NC2)', desc: '코일 여자 시 열리는 두 번째 b접점' },
+        { num: 6, label: 'A접점 2 (NO2)', desc: '코일 여자 시 닫히는 두 번째 a접점' },
+        { num: 7, label: '전원 (L/L1)', desc: '릴레이 코일 구동 전원 입력 단자' },
+        { num: 8, label: '공통 2 (C2)', desc: '두 번째 접점 세트 공통 단자 (5번, 6번과 세트)' }
+      ],
+      powerPins: [2, 7],
+      usage: '전자기력을 이용해 전기 신호를 중계 및 증폭하며 독립된 2개의 C접점을 보유합니다.',
+      tip: '8핀 릴레이는 (1-3-4) 세트와 (8-6-5) 세트 2개의 독립된 C접점으로 구성됩니다.'
+    },
+    flicker8: {
+      name: '8핀 플리커 릴레이 (Flicker / FR)',
+      socketType: '8핀 소켓 (flicker8_schematic.png 반영)',
+      schematicImg: './public/images/schematics/flicker8_schematic.png',
+      layoutGrid: {
+        top: [
+          { pin: 6, name: '플리커A', type: 'FL-NO' },
+          { pin: 5, name: '플리커B', type: 'FL-NC' },
+          { pin: 4, name: 'X', type: '공핀' },
+          { pin: 3, name: 'X', type: '공핀' }
+        ],
+        bottom: [
+          { pin: 7, name: '전원', type: 'Power' },
+          { pin: 8, name: '플리커C', type: 'Common' },
+          { pin: 1, name: 'X', type: '공핀' },
+          { pin: 2, name: '전원', type: 'Power' }
+        ],
+        connections: [
+          { from: 8, to: 5, label: '플리커 B접점 (NC)', color: 'text-rose-400' },
+          { from: 8, to: 6, label: '플리커 A접점 (NO)', color: 'text-amber-400' }
+        ]
+      },
+      pins: [
+        { num: 1, label: 'NC 미사용', desc: '플리커 릴레이 내부 미연결' },
+        { num: 2, label: '전원 (N)', desc: '플리커 릴레이 동작 전원 단자' },
+        { num: 3, label: 'NC 미사용', desc: '플리커 릴레이 내부 미연결' },
+        { num: 4, label: 'NC 미사용', desc: '플리커 릴레이 내부 미연결' },
+        { num: 5, label: '플리커 B접점', desc: '교대 점등 B접점 (8번 공통)' },
+        { num: 6, label: '플리커 A접점', desc: '교대 점등 A접점 (8번 공통)' },
+        { num: 7, label: '전원 (L)', desc: '플리커 릴레이 동작 전원 단자' },
+        { num: 8, label: '플리커 공통 (C)', desc: '교대 접점 C단자 (5번, 6번과 연결)' }
+      ],
+      powerPins: [2, 7],
+      usage: '경보등(YL)과 부저(BZ)를 설정된 시간 간격으로 교대로 깜빡이게 제어하는 계전기입니다.',
+      tip: '플리커 릴레이는 8번 C단자를 기준으로 5번(b접점)과 6번(a접점)이 번갈아 통전됩니다.'
+    },
+    fls8: {
+      name: '8핀 플로트레스 스위치 (FLS)',
+      socketType: '8핀 소켓 (fls8_schematic.png 반영)',
+      schematicImg: './public/images/schematics/fls8_schematic.png',
+      layoutGrid: {
+        top: [
+          { pin: 6, name: 'E2(중)', type: 'Mid' },
+          { pin: 5, name: 'E1(고)', type: 'High' },
+          { pin: 4, name: '접점C', type: 'Common' },
+          { pin: 3, name: '접점A', type: 'NO' }
+        ],
+        bottom: [
+          { pin: 7, name: '전원', type: 'Power' },
+          { pin: 8, name: '전극내부', type: 'E2 internal' },
+          { pin: 1, name: 'E3(저)', type: 'Low' },
+          { pin: 2, name: '전원/b접', type: 'Power/NC' }
+        ],
+        connections: [
+          { from: 4, to: 2, label: '급수용 b접점 (평상시 ON)', color: 'text-rose-400' },
+          { from: 4, to: 3, label: '배수용 a접점 (수위 상승 시 ON)', color: 'text-amber-400' },
+          { from: 1, to: 8, label: '전극봉 E3(저/접지) - E2(중)', color: 'text-sky-400' }
+        ]
+      },
+      pins: [
+        { num: 1, label: '전극봉 E3 (저수위/접지)', desc: '가장 긴 전극봉 단자 (수조 접지)' },
+        { num: 2, label: 'b접점 / 전원공통', desc: '급수 제어용 b접점' },
+        { num: 3, label: 'a접점 (NO)', desc: '배수 제어용 a접점 (수위 가득 찰 때 닫힘)' },
+        { num: 4, label: '제어 접점 공통 (C)', desc: '스위치 제어 출력 공통 단자' },
+        { num: 5, label: '전극봉 E1 (고수위)', desc: '가장 짧은 전극봉 단자 (동작 감지)' },
+        { num: 6, label: '전극봉 E2 (중수위)', desc: '중간 길의 전극봉 단자' },
+        { num: 7, label: '전원 (L)', desc: 'FLS 액체 수위 계전기 동작 전원' },
+        { num: 8, label: '전극봉 E2 내부 연동', desc: 'E2 전극용 내부 회로 단자' }
+      ],
+      powerPins: [5, 6],
+      usage: '수조의 물 높이(수위)를 전극봉 E1, E2, E3의 통전 상태로 감지하여 급수 또는 배수 펌프를 자동으로 제어합니다.',
+      tip: 'FLS 시험 실기 시 전극봉 연결 번호는 E1=5번, E2=6번, E3=1번입니다.'
+    },
+    eocr12: {
+      name: '12핀 EOCR (전자식 과전류 계전기)',
+      socketType: '12핀 소켓 (eocr12_schematic.png 반영)',
+      schematicImg: './public/images/schematics/eocr12_schematic.png',
+      layoutGrid: {
+        top: [
+          { pin: 1, name: 'R인', type: 'Main In' },
+          { pin: 2, name: 'S인', type: 'Main In' },
+          { pin: 3, name: 'T인', type: 'Main In' },
+          { pin: 4, name: '96(B)', type: 'NC (4)' },
+          { pin: 5, name: '98(A)', type: 'NO (5)' },
+          { pin: 6, name: '전원', type: 'Power (6)' }
+        ],
+        bottom: [
+          { pin: 7, name: 'T1아웃', type: 'Main Out' },
+          { pin: 8, name: 'T2아웃', type: 'Main Out' },
+          { pin: 9, name: 'T3아웃', type: 'Main Out' },
+          { pin: 10, name: '95(C)', type: 'Common (10)' },
+          { pin: 11, name: '97', type: 'Aux' },
+          { pin: 12, name: '전원', type: 'Power (12)' }
+        ],
+        connections: [
+          { from: 10, to: 4, label: 'EOCR b접점 (정상운전 통전 / 10-4)', color: 'text-emerald-400' },
+          { from: 10, to: 5, label: 'EOCR a접점 (과전류 트립 경보 / 10-5)', color: 'text-amber-400' }
+        ]
+      },
+      pins: [
+        { num: 1, label: '주회로 L1 (R) 입력', desc: '전원측 주회로 R상 입력 단자' },
+        { num: 2, label: '주회로 L2 (S) 입력', desc: '전원측 주회로 S상 입력 단자' },
+        { num: 3, label: '주회로 L3 (T) 입력', desc: '전원측 주회로 T상 입력 단자' },
+        { num: 4, label: '보조 B접점 96번 (NC)', desc: '정상 상태에서 닫혀 있는 b접점 (10번 공통과 연결)' },
+        { num: 5, label: '보조 A접점 98번 (NO)', desc: '과전류 트립 시 닫히는 a접점 경보 출력 (10번 공통과 연결)' },
+        { num: 6, label: '전원 단자 (L1)', desc: 'EOCR 전자식 제어회로 전원 단자' },
+        { num: 7, label: '주회로 U (T1) 출력', desc: '부하측 모터 U상 출력 단자' },
+        { num: 8, label: '주회로 V (T2) 출력', desc: '부하측 모터 V상 출력 단자' },
+        { num: 9, label: '주회로 W (T3) 출력', desc: '부하측 모터 W상 출력 단자' },
+        { num: 10, label: '제어 접점 공통 95번 (C)', desc: 'EOCR 제어 접점 공통 단자 (4번 및 5번과 세트)' },
+        { num: 11, label: '97번 보조 단자', desc: '독립 보조 단자 (실기 시 미사용 또는 95번 공통 분기)' },
+        { num: 12, label: '전원 단자 (L2)', desc: 'EOCR 전자식 제어회로 전원 단자' }
+      ],
+      powerPins: [6, 12],
+      usage: '모터에 과전류가 흐르면 이를 감지하여 제어 전원을 차단(10-4 열림)하고 경보등(10-5 닫힘)을 점등시키는 모터 보호 계전기입니다.',
+      tip: 'EOCR 결선도와 같이 95번(10번) 공통에서 96번(4번 B접점) 및 98번(5번 A접점)으로 연결됩니다.'
+    },
+    mc12: {
+      name: '12핀 MC (전자개폐기)',
+      socketType: '12핀 소켓 (mc12_schematic.png 반영)',
+      schematicImg: './public/images/schematics/mc12_schematic.png',
+      layoutGrid: {
+        top: [
+          { pin: 1, name: 'R(1)', type: 'Main In' },
+          { pin: 2, name: 'S(2)', type: 'Main In' },
+          { pin: 3, name: 'T(3)', type: 'Main In' },
+          { pin: 4, name: 'a1(4)', type: 'Aux NO' },
+          { pin: 5, name: 'b1(5)', type: 'Aux NC' },
+          { pin: 6, name: 's1(6)', type: 'Coil' }
+        ],
+        bottom: [
+          { pin: 7, name: 'U(7)', type: 'Main Out' },
+          { pin: 8, name: 'V(8)', type: 'Main Out' },
+          { pin: 9, name: 'W(9)', type: 'Main Out' },
+          { pin: 10, name: 'a2(10)', type: 'Aux NO' },
+          { pin: 11, name: 'b2(11)', type: 'Aux NC' },
+          { pin: 12, name: 'c2(12)', type: 'Coil' }
+        ],
+        connections: [
+          { from: 1, to: 7, label: '주회로 L1(R) - U', color: 'text-sky-400' },
+          { from: 2, to: 8, label: '주회로 L2(S) - V', color: 'text-sky-400' },
+          { from: 3, to: 9, label: '주회로 L3(T) - W', color: 'text-sky-400' },
+          { from: 4, to: 10, label: '보조 a접점 (NO: 4 - 10)', color: 'text-amber-400' },
+          { from: 5, to: 11, label: '보조 b접점 (NC: 5 - 11)', color: 'text-rose-400' }
+        ]
+      },
+      pins: [
+        { num: 1, label: '주회로 L1 (R) 입력', desc: '주회로 입력 1번 단자' },
+        { num: 2, label: '주회로 L2 (S) 입력', desc: '주회로 입력 2번 단자' },
+        { num: 3, label: '주회로 L3 (T) 입력', desc: '주회로 입력 3번 단자' },
+        { num: 4, label: '보조 A접점 입력 (a1)', desc: '자기유지 등에 사용하는 보조 a접점 단자 (10번과 세트)' },
+        { num: 5, label: '보조 B접점 입력 (b1)', desc: '인터록 등에 사용하는 보조 b접점 단자 (11번과 세트)' },
+        { num: 6, label: '전자 코일 전원 (s1)', desc: 'MC 구동 코일 입력 6번' },
+        { num: 7, label: '주회로 U (T1) 출력', desc: '모터 접속 출력 7번 단자' },
+        { num: 8, label: '주회로 V (T2) 출력', desc: '모터 접속 출력 8번 단자' },
+        { num: 9, label: '주회로 W (T3) 출력', desc: '모터 접속 출력 9번 단자' },
+        { num: 10, label: '보조 A접점 출력 (a2)', desc: '보조 a접점 출력을 담당 (4번과 연결)' },
+        { num: 11, label: '보조 B접점 출력 (b2)', desc: '보조 b접점 출력을 담당 (5번과 연결)' },
+        { num: 12, label: '전자 코일 전원 (c2)', desc: 'MC 구동 코일 입력 12번' }
+      ],
+      powerPins: [6, 12],
+      usage: '전원 코일(6-12번)에 전기가 통하면 주회로 3상(1-7, 2-8, 3-9) 접점을 연결하여 대용량 모터를 직접 구동시킵니다.',
+      tip: '12핀 MC 결선도 따라 주회로(1-7, 2-8, 3-9), 보조접점 a1-a2(4-10), b1-b2(5-11), 코일 s1-c2(6-12) 구조를 따릅니다.'
+    }
+  };
+
+  const quizQuestions = [
+    { id: 1, question: '8핀 릴레이(Relay)의 코일 제어 전원 핀 번호는 몇 번인가요?', options: ['① 1, 8번', '② 2, 7번', '③ 3, 6번', '④ 4, 5번'], correct: 1, explanation: '8핀 릴레이, 타이머, 플리커 릴레이, FLS의 제어 전원 핀은 모두 2번과 7번입니다.' },
+    { id: 2, question: '12핀 EOCR의 제어 접점 공통(C) 핀 번호와 B접점(정상시 닫힘) 핀 번호 조합은?', options: ['① 공통 10번 - B접점 4번', '② 공통 10번 - B접점 5번', '③ 공통 6번 - B접점 12번', '④ 공통 1번 - B접점 7번'], correct: 0, explanation: 'EOCR의 C단자는 10번이며, 4번은 B접점(NC - 정상 운전), 5번은 A접점(NO - 트립 경보)입니다.' },
+    { id: 3, question: '8핀 타이머에서 전원이 공급되자마자 즉시 붙는 [순시 a접점]의 핀 번호는?', options: ['① 8번 - 6번', '② 8번 - 5번', '③ 1번 - 3번', '④ 2번 - 7번'], correct: 2, explanation: '타이머의 1번-3번은 전원이 켜지자마자 작동하는 순시 a접점입니다. (8-6은 한시 a접점)' },
+    { id: 4, question: 'MC(전자개폐기) 12핀 소켓의 보조 A접점 핀 번호 조합은?', options: ['① 4번 - 10번', '② 5번 - 11번', '③ 6번 - 12번', '④ 1번 - 7번'], correct: 0, explanation: '12핀 MC에서 보조 A접점은 4-10번, 보조 B접점은 5-11번, 코일전원은 6-12번입니다.' }
+  ];
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
+      {/* 헤더 */}
+      <header className="bg-slate-950 border-b border-slate-800 sticky top-0 z-40 shadow-xl">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-amber-500/20">
+              <Zap className="w-5 h-5 fill-current" />
+            </div>
+            <div>
+              <h1 className="text-base font-extrabold text-white tracking-tight flex items-center gap-2">
+                <span>전기기능사 실기 마스터 PRO</span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                  v2.5
+                </span>
+              </h1>
+              <p className="text-[11px] text-slate-400">시퀀스 제어 이론 · 핀배치도 · 동작 시뮬레이션</p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+            <button
+              onClick={() => setActiveTab('principles')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 ${
+                activeTab === 'principles' ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>기본이론 & 회로도</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('pinout')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 ${
+                activeTab === 'pinout' ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Cpu className="w-3.5 h-3.5" />
+              <span>기구 핀 배치도</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('quiz')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 ${
+                activeTab === 'quiz' ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span>실기 핵심 퀴즈</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* 메인 콘텐츠 */}
+      <main className="flex-1 max-w-6xl w-full mx-auto p-4 md:p-6 space-y-6">
+        {/* TAB 1: 기본 이론 & 회로 시뮬레이터 */}
+        {activeTab === 'principles' && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* 1. a접점 vs b접점 */}
+            <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700 space-y-4">
+              <h2 className="text-sm font-bold text-amber-400 flex items-center space-x-2">
+                <Layers className="w-4 h-4" />
+                <span>1. 접점의 기본 개념 (a접점 / b접점 / c접점)</span>
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-700/80 space-y-2">
+                  <div className="font-extrabold text-emerald-400 text-sm">a접점 (NO: Normally Open)</div>
+                  <p className="text-slate-300 leading-relaxed">
+                    평상시에는 <strong>열려(OFF)</strong> 있다가, 버튼을 누르거나 코일에 전원이 들어가면 <strong>닫히는(ON)</strong> 접점입니다. (기동용 스위치)
+                  </p>
+                </div>
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-700/80 space-y-2">
+                  <div className="font-extrabold text-rose-400 text-sm">b접점 (NC: Normally Closed)</div>
+                  <p className="text-slate-300 leading-relaxed">
+                    평상시에는 닫혀(ON) 전류가 흐르다가, 조작 시 <strong>열리는(OFF)</strong> 접점입니다. (정지용 스위치, 인터록)
+                  </p>
+                </div>
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-700/80 space-y-2">
+                  <div className="font-extrabold text-sky-400 text-sm">c접점 (Change-over Contact)</div>
+                  <p className="text-slate-300 leading-relaxed">
+                    공통(C) 단자를 중심으로 a접점과 b접점을 동시에 가져, 상황에 따라 회로를 전환하는 접점입니다.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. 자기유지 회로 시뮬레이터 */}
+            <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold text-amber-400 flex items-center space-x-2">
+                  <Zap className="w-4 h-4" />
+                  <span>2. 자기유지 회로 (Self-Holding Circuit) 실시간 테스트</span>
+                </h2>
+                <button
+                  onClick={() => { setShPb1(false); setShPb2(false); setShSelf(false); }}
+                  className="text-xs px-2.5 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg text-slate-300 flex items-center space-x-1"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>리셋</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                <div className="md:col-span-5 space-y-3">
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    푸시버튼 PB1(a접점)을 한 번 손으로 눌렀다 떼어도, 릴레이 보조 a접점을 통해 <strong>전원이 지속해서 공급(자기유지)</strong>되는 회로입니다. PB2(b접점)를 눌러야 전원이 차단됩니다.
+                  </p>
+                  <div className="flex space-x-2">
+                    <button
+                      onMouseDown={() => setShPb1(true)}
+                      onMouseUp={() => setShPb1(false)}
+                      className={`flex-1 py-3 px-4 rounded-xl font-extrabold text-xs transition-all shadow ${
+                        shPb1 ? 'bg-amber-400 text-slate-950 scale-95' : 'bg-slate-700 text-amber-300 border border-amber-500/30 hover:bg-slate-650'
+                      }`}
+                    >
+                      PB1 누르기 (기동 a접점)
+                    </button>
+                    <button
+                      onMouseDown={() => setShPb2(true)}
+                      onMouseUp={() => setShPb2(false)}
+                      className={`flex-1 py-3 px-4 rounded-xl font-extrabold text-xs transition-all shadow ${
+                        shPb2 ? 'bg-rose-500 text-white scale-95' : 'bg-slate-700 text-rose-300 border border-rose-500/30 hover:bg-slate-650'
+                      }`}
+                    >
+                      PB2 누르기 (정지 b접점)
+                    </button>
+                  </div>
+                </div>
+
+                <div className="md:col-span-7 bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center space-y-3">
+                  <span className="text-xs font-bold text-slate-400">실시간 회로 통전 스키매틱</span>
+                  <div className="w-full max-w-sm flex items-center justify-around py-3">
+                    <div className={`p-3 rounded-xl border-2 text-center transition-all ${
+                      shSelf ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-lg shadow-emerald-500/10' : 'bg-slate-900 border-slate-800 text-slate-500'
+                    }`}>
+                      <div className="text-xs font-bold">릴레이 (R1) 코일</div>
+                      <div className="text-[10px] mt-1">{shSelf ? '● 여자됨 (ON)' : '○ 소자됨 (OFF)'}</div>
+                    </div>
+                    <div className="h-0.5 w-12 bg-slate-700 relative">
+                      <div className={`absolute inset-0 bg-amber-400 transition-all ${shSelf ? 'opacity-100' : 'opacity-0'}`} />
+                    </div>
+                    <div className={`p-3 rounded-xl border-2 text-center transition-all ${
+                      shSelf ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-lg shadow-amber-500/10' : 'bg-slate-900 border-slate-800 text-slate-500'
+                    }`}>
+                      <div className="text-xs font-bold">출력 램프 (RL)</div>
+                      <div className="text-[10px] mt-1">{shSelf ? '★ 점등 (LIGHT ON)' : '☆ 소등 (OFF)'}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. 인터록 회로 시뮬레이터 */}
+            <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700 space-y-4">
+              <h2 className="text-sm font-bold text-amber-400 flex items-center space-x-2">
+                <Zap className="w-4 h-4" />
+                <span>3. 동시 동작 방지 인터록 회로 (Interlock Circuit)</span>
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                <div className="md:col-span-5 space-y-3">
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    정회전(MC1)과 역회전(MC2) 회로처럼 <strong>두 기구가 동시에 켜져 전원 단락(합선)이 발생하는 것을 막기 위해</strong> 상대방의 b접점을 서로 걸어주는 보호 회로입니다.
+                  </p>
+                  <div className="flex space-x-2">
+                    <button
+                      onMouseDown={() => setIlPb1(true)}
+                      onMouseUp={() => setIlPb1(false)}
+                      className="flex-1 py-2.5 px-3 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl"
+                    >
+                      PB1 (MC1 켜기)
+                    </button>
+                    <button
+                      onMouseDown={() => setIlPb2(true)}
+                      onMouseUp={() => setIlPb2(false)}
+                      className="flex-1 py-2.5 px-3 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl"
+                    >
+                      PB2 (MC2 켜기)
+                    </button>
+                  </div>
+                  {ilWarning && (
+                    <div className="p-2.5 bg-rose-500/20 border border-rose-500/40 rounded-xl text-rose-300 text-[11px] font-bold animate-bounce">
+                      {ilWarning}
+                    </div>
+                  )}
+                </div>
+
+                <div className="md:col-span-7 bg-slate-950 p-4 rounded-xl border border-slate-800 flex justify-around">
+                  <div className={`p-4 rounded-xl border-2 text-center transition-all ${
+                    mc1State ? 'bg-sky-500/20 border-sky-400 text-sky-300' : 'bg-slate-900 border-slate-800 text-slate-600'
+                  }`}>
+                    <div className="text-xs font-bold">MC1 (정회전)</div>
+                    <div className="text-[10px] mt-1">{mc1State ? '작동 중 (ON)' : '정지 (OFF)'}</div>
+                  </div>
+                  <div className={`p-4 rounded-xl border-2 text-center transition-all ${
+                    mc2State ? 'bg-purple-500/20 border-purple-400 text-purple-300' : 'bg-slate-900 border-slate-800 text-slate-600'
+                  }`}>
+                    <div className="text-xs font-bold">MC2 (역회전)</div>
+                    <div className="text-[10px] mt-1">{mc2State ? '작동 중 (ON)' : '정지 (OFF)'}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: 전기기구 & 핀배치도 */}
+        {activeTab === 'pinout' && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* 기구 선택 탭 */}
+            <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center space-x-2 text-slate-200 font-bold">
+                <Cpu className="w-5 h-5 text-amber-400" />
+                <span>전기기구 소켓 선택:</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {Object.keys(deviceData).map((key) => (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      setSelectedDevice(key);
+                      setSelectedPin(null);
+                    }}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                      selectedDevice === key ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                    }`}
+                  >
+                    {deviceData[key].name.split('(')[0]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {deviceData[selectedDevice] && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div className="lg:col-span-7 bg-slate-950 rounded-2xl border border-slate-800 p-5 space-y-6">
+                  {/* Part A: 사각 소켓 번호표 */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                      <h3 className="text-sm font-bold text-amber-400 flex items-center space-x-1.5">
+                        <Layers className="w-4 h-4" />
+                        <span>소켓 내부 접점 및 번호 매핑 표</span>
+                      </h3>
+                      <span className="text-[11px] text-slate-400">{deviceData[selectedDevice].socketType}</span>
+                    </div>
+
+                    <div className="bg-slate-900 border-2 border-slate-700 rounded-xl p-4 space-y-6">
+                      <div className="grid grid-cols-4 gap-2 text-center">
+                        {deviceData[selectedDevice].layoutGrid.top.map((item, i) => (
+                          <div
+                            key={i}
+                            onClick={() => setSelectedPin(item.pin)}
+                            className={`p-2.5 rounded-lg border cursor-pointer transition-all ${
+                              selectedPin === item.pin ? 'bg-amber-500 text-slate-950 border-white font-extrabold scale-105' : 'bg-slate-800 border-slate-700 hover:border-amber-400'
+                            }`}
+                          >
+                            <div className="text-base font-extrabold">{item.pin}</div>
+                            <div className="text-[10px] opacity-80">{item.name}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center justify-between px-6 py-2 bg-slate-950/80 rounded-lg border border-slate-800 text-xs">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 rounded-full border-2 border-slate-600 flex items-center justify-center text-[10px] text-slate-400 font-mono">
+                            홈
+                          </div>
+                          <span className="text-slate-400 text-[11px]">하단 Notch 기준</span>
+                        </div>
+                        <div className="space-y-0.5 text-right">
+                          {deviceData[selectedDevice].layoutGrid.connections.map((c, i) => (
+                            <div key={i} className={`text-[11px] font-bold ${c.color}`}>
+                              • {c.from}번 ↔ {c.to}번 : {c.label}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-2 text-center">
+                        {deviceData[selectedDevice].layoutGrid.bottom.map((item, i) => (
+                          <div
+                            key={i}
+                            onClick={() => setSelectedPin(item.pin)}
+                            className={`p-2.5 rounded-lg border cursor-pointer transition-all ${
+                              selectedPin === item.pin ? 'bg-amber-500 text-slate-950 border-white font-extrabold scale-105' : 'bg-slate-800 border-slate-700 hover:border-amber-400'
+                            }`}
+                          >
+                            <div className="text-base font-extrabold">{item.pin}</div>
+                            <div className="text-[10px] opacity-80">{item.name}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Part B: 원형 소켓 도면 */}
+                  <div className="flex flex-col items-center justify-center space-y-3 pt-2 border-t border-slate-800">
+                    <span className="text-xs text-slate-400 font-semibold">실물 원형 소켓 핀배치도</span>
+                    <div className="relative w-52 h-52 bg-slate-900 rounded-full border-4 border-slate-700 flex items-center justify-center shadow-inner">
+                      <div className="w-10 h-10 rounded-full bg-slate-950 border-2 border-slate-800 flex items-center justify-center text-[9px] text-slate-500 font-mono">
+                        Notch
+                      </div>
+                      {deviceData[selectedDevice].pins.map((pin, idx, arr) => {
+                        const total = arr.length;
+                        const angle = (idx * (360 / total) + 90) * (Math.PI / 180);
+                        const radius = 72;
+                        const x = Math.cos(angle) * radius;
+                        const y = Math.sin(angle) * radius;
+
+                        const isSelected = selectedPin === pin.num;
+                        const isPower = deviceData[selectedDevice].powerPins?.includes(pin.num);
+
+                        return (
+                          <button
+                            key={pin.num}
+                            onClick={() => setSelectedPin(pin.num)}
+                            style={{ transform: `translate(${x}px, ${y}px)` }}
+                            className={`absolute w-9 h-9 rounded-full font-extrabold text-xs flex items-center justify-center border-2 transition-all shadow ${
+                              isSelected
+                                ? 'bg-amber-400 text-slate-950 border-white scale-125 z-10'
+                                : isPower
+                                ? 'bg-sky-950 text-sky-400 border-sky-500'
+                                : 'bg-slate-800 text-slate-200 border-slate-600 hover:border-amber-400'
+                            }`}
+                          >
+                            {pin.num}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Part C: 실제 전기기구 내부결선도 (실물 도면 사진 및 SVG 추가) */}
+                  <div className="border-t border-slate-800 pt-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-amber-400 flex items-center space-x-1.5">
+                        <ImageIcon className="w-4 h-4" />
+                        <span>실제 전기기구 내부결선도 (실물 사진/도면)</span>
+                      </span>
+                      <button
+                        onClick={() => setModalImage(deviceData[selectedDevice].schematicImg)}
+                        className="text-[11px] text-amber-400 hover:text-amber-300 flex items-center space-x-1 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/30"
+                      >
+                        <Maximize2 className="w-3 h-3" />
+                        <span>사진 크게 보기</span>
+                      </button>
+                    </div>
+
+                    {/* 실제 첨부된 기구 도면 사진 연동 */}
+                    <div className="bg-slate-900 rounded-xl border border-slate-800 p-3 flex flex-col items-center justify-center overflow-hidden">
+                      <img
+                        src={deviceData[selectedDevice].schematicImg}
+                        alt={`${deviceData[selectedDevice].name} 내부결선도`}
+                        className="max-h-64 object-contain rounded-lg border border-slate-700/60 shadow cursor-pointer hover:opacity-95 transition-all"
+                        onClick={() => setModalImage(deviceData[selectedDevice].schematicImg)}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.style.display = 'none';
+                          document.getElementById(`fallback-${selectedDevice}`).style.display = 'flex';
+                        }}
+                      />
+                      {/* 이미지 로드 실패 시 대체 대체 안내 카드 */}
+                      <div
+                        id={`fallback-${selectedDevice}`}
+                        className="hidden flex-col items-center justify-center p-6 text-center space-y-2 bg-slate-950 rounded-xl border border-dashed border-slate-700 text-slate-400 w-full"
+                      >
+                        <ImageIcon className="w-8 h-8 text-slate-500 mb-1" />
+                        <p className="text-xs font-bold text-slate-300">
+                          {deviceData[selectedDevice].name} 실제 결선도 이미지 준비 중
+                        </p>
+                        <p className="text-[11px] text-slate-500">
+                          경로: <code className="text-amber-400">{deviceData[selectedDevice].schematicImg}</code>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 정밀 벡터 SVG 회로도 */}
+                    <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center space-y-2">
+                      <span className="text-[11px] font-bold text-slate-400">기구 표준 접점 구조도 (SVG)</span>
+                      <svg viewBox="0 0 450 180" className="w-full max-w-md h-auto text-slate-300 select-none">
+                        <rect x="40" y="60" width="70" height="40" rx="6" fill="#1e293b" stroke="#38bdf8" strokeWidth="2" />
+                        <text x="75" y="80" textAnchor="middle" fill="#38bdf8" fontSize="10" fontWeight="bold">전원 코일</text>
+                        <text x="75" y="93" textAnchor="middle" fill="#94a3b8" fontSize="9">
+                          핀({deviceData[selectedDevice].powerPins?.join(', ')}번)
+                        </text>
+                        <line x1="110" y1="80" x2="160" y2="80" stroke="#38bdf8" strokeWidth="2" strokeDasharray="3,3" />
+
+                        <rect x="160" y="30" width="250" height="120" fill="#0f172a" stroke="#475569" strokeWidth="1.5" rx="8" />
+                        <text x="285" y="22" textAnchor="middle" fill="#f59e0b" fontSize="10" fontWeight="bold">
+                          {selectedDevice === 'mc12' ? '12핀 MC 주회로 및 보조접점' : selectedDevice === 'eocr12' ? '12핀 EOCR 95-96-98 접점부' : '기구 내부 접점부'}
+                        </text>
+
+                        <circle cx="180" cy="90" r="5" fill="#f59e0b" />
+                        <text x="180" y="110" textAnchor="middle" fill="#f59e0b" fontSize="9" fontWeight="bold">
+                          접점부 C
+                        </text>
+                        <line x1="180" y1="90" x2="280" y2="55" stroke="#cbd5e1" strokeWidth="3" />
+
+                        <circle cx="280" cy="55" r="5" fill="#22c55e" />
+                        <line x1="285" y1="55" x2="380" y2="55" stroke="#22c55e" strokeWidth="2" />
+                        <text x="330" y="48" fill="#86efac" fontSize="9" fontWeight="bold">b접점 (NC)</text>
+
+                        <circle cx="280" cy="125" r="5" fill="#ef4444" />
+                        <line x1="285" y1="125" x2="380" y2="125" stroke="#ef4444" strokeWidth="2" />
+                        <text x="330" y="140" fill="#fca5a5" fontSize="9" fontWeight="bold">a접점 (NO)</text>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 우측 핀 상세 정보 */}
+                <div className="lg:col-span-5 bg-slate-800 rounded-2xl border border-slate-700 p-5 space-y-4 flex flex-col justify-between">
+                  <div className="space-y-4">
+                    <div className="border-b border-slate-700 pb-3">
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">기구 기능 및 용도</h4>
+                      <p className="text-sm text-slate-200 mt-1 leading-relaxed">{deviceData[selectedDevice].usage}</p>
+                    </div>
+                    {selectedPin ? (
+                      <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-xl space-y-1.5 animate-fadeIn">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-amber-400">핀 번호 #{selectedPin} 상세</span>
+                          <span className="text-xs font-bold px-2 py-0.5 bg-amber-500 text-slate-950 rounded">
+                            {deviceData[selectedDevice].pins.find((p) => p.num === selectedPin)?.label}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-200">
+                          {deviceData[selectedDevice].pins.find((p) => p.num === selectedPin)?.desc}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-700/60 text-xs text-slate-400 text-center">
+                        좌측 소켓의 핀 번호를 클릭하면 해당 단자의 결선 및 상세 기능 설명이 나타납니다.
+                      </div>
+                    )}
+
+                    <div className="bg-slate-900 p-4 rounded-xl border border-slate-700/60 space-y-2">
+                      <div className="text-xs font-bold text-amber-400 flex items-center space-x-1">
+                        <Award className="w-4 h-4" />
+                        <span>시험 핵심 합격 팁 (TIP)</span>
+                      </div>
+                      <p className="text-xs text-slate-300 leading-relaxed">{deviceData[selectedDevice].tip}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 3: 퀴즈 */}
+        {activeTab === 'quiz' && (
+          <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 space-y-6 animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-slate-700 pb-4">
+              <div>
+                <h2 className="text-base font-bold text-amber-400 flex items-center space-x-2">
+                  <HelpCircle className="w-5 h-5" />
+                  <span>전기기능사 실기 핀배치 및 단자 번호 핵심 퀴즈</span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">자주 출제되는 실기 단자 번호와 접점 구조 점검</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {quizQuestions.map((q, idx) => {
+                const userAns = quizAnswers[q.id];
+                const isCorrect = userAns === q.correct;
+
+                return (
+                  <div key={q.id} className="bg-slate-900 p-5 rounded-xl border border-slate-700 space-y-3">
+                    <div className="text-sm font-bold text-slate-200 flex items-start space-x-2">
+                      <span className="text-amber-400 font-black">Q{idx + 1}.</span>
+                      <span>{q.question}</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      {q.options.map((opt, oIdx) => {
+                        const isSelected = userAns === oIdx;
+                        let btnStyle = 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-750';
+
+                        if (quizSubmitted) {
+                          if (oIdx === q.correct) {
+                            btnStyle = 'bg-emerald-500/20 border-emerald-500 text-emerald-300 font-bold';
+                          } else if (isSelected && !isCorrect) {
+                            btnStyle = 'bg-rose-500/20 border-rose-500 text-rose-300';
+                          }
+                        } else if (isSelected) {
+                          btnStyle = 'bg-amber-500 text-slate-950 font-bold border-amber-400';
+                        }
+
+                        return (
+                          <button
+                            key={oIdx}
+                            disabled={quizSubmitted}
+                            onClick={() => setQuizAnswers((prev) => ({ ...prev, [q.id]: oIdx }))}
+                            className={`p-3 rounded-xl border text-left text-xs transition-all ${btnStyle}`}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {quizSubmitted && (
+                      <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-1">
+                        <span className="text-amber-400 font-bold block mb-0.5">해설:</span>
+                        {q.explanation}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-between items-center pt-2">
+              <div className="text-xs text-slate-400">응답: {Object.keys(quizAnswers).length} / {quizQuestions.length}</div>
+              {!quizSubmitted ? (
+                <button
+                  onClick={() => setQuizSubmitted(true)}
+                  className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl shadow-lg"
+                >
+                  채점하기
+                </button>
+              ) : (
+                <button
+                  onClick={() => { setQuizAnswers({}); setQuizSubmitted(false); }}
+                  className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold rounded-xl"
+                >
+                  다시 풀기
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* 이미지 크게 보기 모달 */}
+      {modalImage && (
+        <div
+          onClick={() => setModalImage(null)}
+          className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer animate-fadeIn"
+        >
+          <div className="relative max-w-4xl w-full bg-slate-900 border border-slate-700 rounded-2xl p-4 overflow-hidden shadow-2xl">
+            <button
+              onClick={() => setModalImage(null)}
+              className="absolute top-3 right-3 p-2 rounded-full bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="text-xs font-bold text-amber-400 mb-2">실제 전기기구 내부결선도 고화질 원본</div>
+            <img
+              src={modalImage}
+              alt="실제 전기기구 내부결선도"
+              className="w-full h-auto max-h-[80vh] object-contain rounded-xl bg-slate-950 border border-slate-800"
+            />
+          </div>
+        </div>
+      )}
+
+      <footer className="border-t border-slate-800 bg-slate-950 py-4 text-center text-xs text-slate-500">
+        전기기능사 실기 마스터 PRO · 업로드하신 내부 결선도 및 Q-Net 시험 규격 완벽 반영
+      </footer>
+    </div>
+  );
+}
+
+import { createRoot } from 'react-dom/client';
+const bootEl = document.getElementById('boot');
+if (bootEl) bootEl.remove();
+const root = createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>

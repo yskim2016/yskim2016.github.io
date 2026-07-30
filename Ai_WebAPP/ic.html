@@ -1,0 +1,1793 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IC 분석기 · 김쌔미앙tv</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  body { background: #0F172A; background-image:none; }
+  #root { min-height:100vh; }
+  #boot {
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:#0F172A; color:#8FA79B; font-family:'JetBrains Mono',monospace; font-size:0.85rem;
+    letter-spacing:0.05em; z-index:1;
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.383.0?external=react"
+  }
+}
+</script>
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+</head>
+<body>
+
+<a class="back-pill" href="../student.html">← 학생용 홈으로</a>
+<div id="boot">불러오는 중...</div>
+<div id="root"></div>
+
+<script type="text/babel" data-type="module" data-presets="react,typescript">
+import React, { useState, useMemo } from 'react';
+import {
+  Search,
+  BookOpen,
+  Bookmark,
+  BookmarkCheck,
+  AlertTriangle,
+  Cpu,
+  Zap,
+  Check,
+  X,
+  ChevronRight,
+  Info,
+  Layers,
+  Sparkles,
+  HelpCircle,
+  Activity,
+  Calculator,
+  ArrowRight
+} from 'lucide-react';
+
+// ==========================================
+// 저항 색코드 기본 정의
+// ==========================================
+const COLOR_CODES = [
+  { id: 'black', name: '검정', digit: 0, mult: 1, color: '#18181b', textColor: '#ffffff' },
+  { id: 'brown', name: '갈색', digit: 1, mult: 10, tol: 1, color: '#78350f', textColor: '#ffffff' },
+  { id: 'red', name: '빨강', digit: 2, mult: 100, tol: 2, color: '#dc2626', textColor: '#ffffff' },
+  { id: 'orange', name: '주황', digit: 3, mult: 1000, color: '#ea580c', textColor: '#ffffff' },
+  { id: 'yellow', name: '노랑', digit: 4, mult: 10000, color: '#eab308', textColor: '#000000' },
+  { id: 'green', name: '초록', digit: 5, mult: 100000, tol: 0.5, color: '#16a34a', textColor: '#ffffff' },
+  { id: 'blue', name: '파랑', digit: 6, mult: 1000000, tol: 0.25, color: '#2563eb', textColor: '#ffffff' },
+  { id: 'violet', name: '보라', digit: 7, mult: 10000000, tol: 0.1, color: '#9333ea', textColor: '#ffffff' },
+  { id: 'gray', name: '회색', digit: 8, mult: 100000000, tol: 0.05, color: '#4b5563', textColor: '#ffffff' },
+  { id: 'white', name: '흰색', digit: 9, mult: 1000000000, color: '#f8fafc', textColor: '#000000', border: true },
+  { id: 'gold', name: '금색', mult: 0.1, tol: 5, color: '#d97706', textColor: '#ffffff' },
+  { id: 'silver', name: '은색', mult: 0.01, tol: 10, color: '#9ca3af', textColor: '#ffffff' }
+];
+
+function formatResistance(ohms) {
+  if (ohms === null || ohms === undefined || isNaN(ohms)) return '0 Ω';
+  if (ohms >= 1000000) return `${+(ohms / 1000000).toFixed(2)} MΩ`;
+  if (ohms >= 1000) return `${+(ohms / 1000).toFixed(2)} kΩ`;
+  return `${+ohms.toFixed(2)} Ω`;
+}
+
+// ==========================================
+// 전자기능사 핵심 IC 및 소자 데이터 정의
+// ==========================================
+const COMPONENT_DATA = [
+  // --- [1] 수동 소자 및 스위치 ---
+  {
+    id: 'resistor',
+    name: '고정 저항 (Resistor)',
+    englishName: 'Carbon Film Resistor',
+    category: '수동소자/스위치',
+    tag: 'PASSIVE • 2 PIN AXIAL',
+    pinCount: 2,
+    description: '전류 흐름을 제한하고 전압을 분배하는 수동 소자 (4색/5색 계산기 및 회로기호 지원)',
+    features: [
+      '전류 제한(Current Limiting) 및 전압 분배(Voltage Divider)',
+      '컬러코드(4색띠/5색띠)로 저항값 및 오차 판별',
+      '무극성 소자 (방향 구분 없이 자유 배선 가능)',
+      '실시간 저항 색띠 시뮬레이터 제공'
+    ],
+    pins: [
+      { num: 1, name: 'Lead 1', role: '단자 1', desc: '저항 첫 번째 리드선 (무극성)' },
+      { num: 2, name: 'Lead 2', role: '단자 2', desc: '저항 두 번째 리드선 (무극성)' }
+    ],
+    circuitModes: [
+      { id: 'divider', name: '전압 분배 회로', desc: '직렬 연결 분배 전압 공식: Vout = Vin × R2 / (R1 + R2)' },
+      { id: 'led_limit', name: 'LED 전류 제한 회로', desc: '5V 전원에서 LED가 파손되지 않도록 전류를 제한하는 회로' },
+      { id: 'simulator', name: '저항 색띠 시뮬레이터', desc: '대화형 시뮬레이터에서 색상 또는 숫자로 저항값을 정하세요.' }
+    ],
+    warning: '허용 소비전력(보통 1/4W)을 초과하면 저항이 과열될 수 있습니다.'
+  },
+  {
+    id: 'capacitor',
+    name: '커패시터 (Capacitor)',
+    englishName: 'Electrolytic / Ceramic Capacitor',
+    category: '수동소자/스위치',
+    tag: 'PASSIVE • 2 PIN RADIAL',
+    pinCount: 2,
+    description: '전하를 축적하고 직류(DC) 차단 및 교류(AC) 통과, 전원 평활 소자',
+    features: [
+      '전해 커패시터: 대용량, 극성(+/-) 존재, 전원 리플 평활용',
+      '세라믹 커패시터: 소용량, 무극성, 고주파 노이즈 제거 바이패스용',
+      '타이머(NE555) 충방전 시간 상수(t = R×C) 설정'
+    ],
+    pins: [
+      { num: 1, name: 'Anode (+)', role: '양극 (+)', desc: '긴 다리 (+전위 연결)' },
+      { num: 2, name: 'Cathode (-)', role: '음극 (-)', desc: '짧은 다리 / 띠 표시 (-GND 연결)' }
+    ],
+    circuitModes: [
+      { id: 'filter_rc', name: 'RC 평활 필터 회로', desc: '전원 전압의 맥동(Ripple) 노이즈를 흡수하여 평탄한 DC 생성' },
+      { id: 'decoupling', name: '전원 바이패스 회로', desc: 'IC Vcc-GND 사이에 0.1μF 연결하여 고주파 노이즈 차단' }
+    ],
+    warning: '전해 커패시터의 극성을 반대로 연결하면 폭발하거나 파열될 위험이 있습니다!'
+  },
+  {
+    id: 'inductor',
+    name: '인덕터 (Inductor / 코일)',
+    englishName: 'Axial / Radial Inductor',
+    category: '수동소자/스위치',
+    tag: 'PASSIVE • 2 PIN',
+    pinCount: 2,
+    description: '자기장 형태로 에너지를 저장하고 급격한 전류 변화를 억제하는 소자',
+    features: [
+      '급격한 전류 변화에 저항하는 성질(자체 인덕턴스 L)',
+      '고주파 노이즈 차단 필터 및 LC 공진 회로 구성',
+      'DC-DC 스위칭 전원 회로의 핵심 에너지 저장 소자'
+    ],
+    pins: [
+      { num: 1, name: 'Lead 1', role: '단자 1', desc: '코일 첫 번째 리드선 (무극성)' },
+      { num: 2, name: 'Lead 2', role: '단자 2', desc: '코일 두 번째 리드선 (무극성)' }
+    ],
+    circuitModes: [
+      { id: 'lc_filter', name: 'LC 저역 통과 필터', desc: '고주파 노이즈 신호를 차단하고 저주파 DC 전원만 통과' },
+      { id: 'flyback', name: '역기전력 방지 회로', desc: '인덕터 차단 시 발생하는 고전압 스파이크 방지 다이오드 병렬' }
+    ],
+    warning: '전원 차단 시 역기전력(Back EMF)이 발생하므로 보호 다이오드를 함께 사용하세요.'
+  },
+  {
+    id: 'led',
+    name: '발광 다이오드 (LED)',
+    englishName: 'Light Emitting Diode',
+    category: '수동소자/스위치',
+    tag: 'OPTO • 2 PIN',
+    pinCount: 2,
+    description: '순방향 전류가 흐르면 빛을 발산하는 반도체 광소자',
+    features: [
+      '동작 전압: 적색/황색 약 1.8~2.1V, 녹색/청색 약 3.0~3.2V',
+      '극성 엄격 구분: 긴 다리가 애노드(+), 짧은 다리가 캐소드(-)',
+      '과전류 파손 방지를 위해 반드시 전류 제한 저항(330Ω~1kΩ)을 직렬 연결'
+    ],
+    pins: [
+      { num: 1, name: 'A (Anode)', role: '애노드 (+)', desc: '긴 다리 (+전원 또는 신호 출력측)' },
+      { num: 2, name: 'K (Cathode)', role: '캐소드 (-)', desc: '짧은 다리 / 평평하게 깎인 면 (GND 연결)' }
+    ],
+    circuitModes: [
+      { id: 'led_drive', name: '기본 LED 구동 회로', desc: '5V - 저항(330Ω) - LED(A->K) - GND 순으로 연결' },
+      { id: 'tr_led', name: 'TR 연동 LED 스위칭', desc: '트랜지스터 C1815의 컬렉터단에 LED를 연결하여 제어' }
+    ],
+    warning: '저항 없이 5V를 직접 LED에 연결하면 과전류로 즉시 손상됩니다!'
+  },
+  {
+    id: 'tact_switch',
+    name: '4핀 택트 스위치',
+    englishName: '4-Pin Tactile Push Switch',
+    category: '수동소자/스위치',
+    tag: 'SWITCH • 4 PIN',
+    pinCount: 4,
+    description: '버튼을 누르고 있는 동안만 통전되는 순간 동작 푸시 스위치',
+    features: [
+      '4개 핀 중 양쪽 2개씩 내부적으로 이미 직통 연결되어 있음 (1-2 직통, 3-4 직통)',
+      '버튼을 누르면 1-2번 그룹과 3-4번 그룹 간이 연결(CLOSED)됨',
+      '풀업(Pull-Up) 또는 풀다운(Pull-Down) 저항과 조합하여 깔끔한 입력 신호 생성'
+    ],
+    pins: [
+      { num: 1, name: 'Pin 1 (A1)', role: '단자 1A', desc: '1번 그룹 (2번 핀과 내부 직통)' },
+      { num: 2, name: 'Pin 2 (A2)', role: '단자 1B', desc: '1번 그룹 (1번 핀과 내부 직통)' },
+      { num: 3, name: 'Pin 3 (B1)', role: '단자 2A', desc: '2번 그룹 (4번 핀과 내부 직통)' },
+      { num: 4, name: 'Pin 4 (B2)', role: '단자 2B', desc: '2번 그룹 (3번 핀과 내부 직통)' }
+    ],
+    circuitModes: [
+      { id: 'pullup_sw', name: '풀업 스위치 회로', desc: '평소 5V(HIGH), 버튼 누를 때 0V(LOW) 신호 입력' },
+      { id: 'pulldown_sw', name: '풀다운 스위치 회로', desc: '평소 0V(LOW), 버튼 누를 때 5V(HIGH) 신호 입력' }
+    ],
+    warning: '같은 내부 연결 핀끼리 결선하면 버튼을 눌러도 반응하지 않으므로 대각선 결선을 권장합니다.'
+  },
+
+  // --- [2] TR / FET ---
+  {
+    id: 'c1815',
+    name: 'C1815 NPN 트랜지스터',
+    englishName: 'KSC1815 / 2SC1815 NPN BJT',
+    category: 'TR/FET',
+    tag: 'TRANSISTOR • 3 PIN TO-92',
+    pinCount: 3,
+    description: '전자기능사 실기 시험 단골 소신호 범용 NPN 트랜지스터',
+    features: [
+      '소신호 증폭 및 스위칭용 NPN 형 BJT',
+      '베이스(B)에 HIGH 전류가 흐르면 C-E 간 통전됨',
+      '핀배치(전면 평평한 면 기준): 1:E(에미터), 2:C(컬렉터), 3:B(베이스)'
+    ],
+    pins: [
+      { num: 1, name: 'E', role: '에미터 (Emitter)', desc: 'GND 접지 연결' },
+      { num: 2, name: 'C', role: '컬렉터 (Collector)', desc: '부하 (LED/릴레이) 연결' },
+      { num: 3, name: 'B', role: '베이스 (Base)', desc: '제어 신호 입력 (저항 필수)' }
+    ],
+    circuitModes: [
+      { id: 'tr_switch', name: 'NPN 스위칭 회로', desc: '베이스 5V 입력 시 컬렉터-에미터 도통되어 부하 구동' }
+    ],
+    warning: 'C1815 핀 순서(E-C-B)를 헷갈리면 TR이 과열 소손됩니다.'
+  },
+  {
+    id: 'a1015',
+    name: 'A1015 PNP 트랜지스터',
+    englishName: 'KSA1015 / 2SA1015 PNP BJT',
+    category: 'TR/FET',
+    tag: 'TRANSISTOR • 3 PIN TO-92',
+    pinCount: 3,
+    description: 'C1815와 상보적(Complementary) 쌍을 이루는 PNP 소형 트랜지스터',
+    features: [
+      '소신호 PNP 형 BJT (베이스 전위가 LOW일 때 턴온)',
+      '에미터(E)에서 컬렉터(C) 방향으로 전류 흐름',
+      '핀배치(전면 평평한 면 기준): 1:E, 2:C, 3:B'
+    ],
+    pins: [
+      { num: 1, name: 'E', role: '에미터 (Emitter)', desc: '+VCC 전원 연결' },
+      { num: 2, name: 'C', role: '컬렉터 (Collector)', desc: '부하 연결' },
+      { num: 3, name: 'B', role: '베이스 (Base)', desc: '0V(LOW) 신호 시 통전' }
+    ],
+    circuitModes: [
+      { id: 'pnp_switch', name: 'PNP 스위칭 회로', desc: '베이스 0V 입력 시 에미터-컬렉터 도통되어 부하 구동' }
+    ],
+    warning: 'NPN(C1815)과 극성 및 전류 방향이 반대이므로 주의하세요.'
+  },
+  {
+    id: 'mosfet_n',
+    name: '2N7000 N-Ch MOSFET',
+    englishName: '2N7000 N-Channel Field Effect Transistor',
+    category: 'TR/FET',
+    tag: 'MOSFET • 3 PIN TO-92',
+    pinCount: 3,
+    description: '전압으로 드레인-소스 간 전류를 제어하는 소형 N-채널 MOSFET',
+    features: [
+      '게이트 전압(Vgs)에 의해 제어되는 전압 제어형 소자',
+      '핀배치(전면 기준): 1:S(소스), 2:G(게이트), 3:D(드레인)'
+    ],
+    pins: [
+      { num: 1, name: 'S', role: '소스 (Source)', desc: 'GND 접지 연결' },
+      { num: 2, name: 'G', role: '게이트 (Gate)', desc: '전압 제어 단자' },
+      { num: 3, name: 'D', role: '드레인 (Drain)', desc: '부하 연결' }
+    ],
+    circuitModes: [
+      { id: 'fet_driver', name: 'MOSFET 드라이버 회로', desc: '게이트 전압 인가 시 드레인-소스 채널 도통' }
+    ],
+    warning: '정전기(ESD)에 취약하므로 취급 시 유의하세요.'
+  },
+
+  // --- [3] 논리 게이트 ---
+  {
+    id: '7400',
+    name: '7400 NAND 게이트',
+    englishName: '74LS00 Quad 2-Input NAND Gate',
+    category: '논리 게이트',
+    tag: 'LOGIC • 14 PIN DIP',
+    pinCount: 14,
+    description: '4개의 독립된 2입력 NAND 논리 게이트로 구성된 범용 TTL IC',
+    features: [
+      '4개의 2입력 NAND 게이트 내장 (Y = NOT(A AND B))',
+      '두 입력이 모두 HIGH일 때만 출력이 LOW 전환',
+      '표준 TTL 5V 구동'
+    ],
+    pins: [
+      { num: 1, name: '1A', role: '게이트1 입력A', desc: '1번 NAND 게이트 첫 번째 입력' },
+      { num: 2, name: '1B', role: '게이트1 입력B', desc: '1번 NAND 게이트 두 번째 입력' },
+      { num: 3, name: '1Y', role: '게이트1 출력', desc: '1번 NAND 게이트 출력' },
+      { num: 4, name: '2A', role: '게이트2 입력A', desc: '2번 NAND 입력A' },
+      { num: 5, name: '2B', role: '게이트2 입력B', desc: '2번 NAND 입력B' },
+      { num: 6, name: '2Y', role: '게이트2 출력', desc: '2번 NAND 출력' },
+      { num: 7, name: 'GND', role: '접지', desc: '전원 음극 (0V)' },
+      { num: 8, name: '3Y', role: '게이트3 출력', desc: '3번 NAND 출력' },
+      { num: 9, name: '3A', role: '게이트3 입력A', desc: '3번 NAND 입력A' },
+      { num: 10, name: '3B', role: '게이트3 입력B', desc: '3번 NAND 입력B' },
+      { num: 11, name: '4Y', role: '게이트4 출력', desc: '4번 NAND 출력' },
+      { num: 12, name: '4A', role: '게이트4 입력A', desc: '4번 NAND 입력A' },
+      { num: 13, name: '4B', role: '게이트4 입력B', desc: '4번 NAND 입력B' },
+      { num: 14, name: 'VCC', role: '전원', desc: '정전압 공급 (+5V)' }
+    ],
+    circuitModes: [
+      { id: 'nand_basic', name: '기본 NAND 회로', desc: '두 입력이 모두 HIGH일 때만 출력 LOW (LED 꺼짐)' }
+    ],
+    warning: '사용하지 않는 입력 핀은 Vcc나 GND에 고정하세요.'
+  },
+  {
+    id: '7402',
+    name: '7402 NOR 게이트',
+    englishName: '74LS02 Quad 2-Input NOR Gate',
+    category: '논리 게이트',
+    tag: 'LOGIC • 14 PIN DIP',
+    pinCount: 14,
+    description: '4개의 독립된 2입력 NOR 논리 게이트 IC (출력 핀 위치 1번 주의!)',
+    features: [
+      '4개의 2입력 NOR 게이트 내장 (Y = NOT(A OR B))',
+      '★출력(1Y)이 1번 핀에 위치하여 입력(2,3번)보다 앞섬'
+    ],
+    pins: [
+      { num: 1, name: '1Y', role: '게이트1 출력', desc: '1번 NOR 게이트 출력' },
+      { num: 2, name: '1A', role: '게이트1 입력A', desc: '1번 NOR 입력A' },
+      { num: 3, name: '1B', role: '게이트1 입력B', desc: '1번 NOR 입력B' },
+      { num: 4, name: '2Y', role: '게이트2 출력', desc: '2번 NOR 출력' },
+      { num: 5, name: '2A', role: '게이트2 입력A', desc: '2번 NOR 입력A' },
+      { num: 6, name: '2B', role: '게이트2 입력B', desc: '2번 NOR 입력B' },
+      { num: 7, name: 'GND', role: '접지', desc: '0V' },
+      { num: 8, name: '3A', role: '게이트3 입력A', desc: '3번 NOR 입력A' },
+      { num: 9, name: '3B', role: '게이트3 입력B', desc: '3번 NOR 입력B' },
+      { num: 10, name: '3Y', role: '게이트3 출력', desc: '3번 NOR 출력' },
+      { num: 11, name: '4A', role: '게이트4 입력A', desc: '4번 NOR 입력A' },
+      { num: 12, name: '4B', role: '게이트4 입력B', desc: '4번 NOR 입력B' },
+      { num: 13, name: '4Y', role: '게이트4 출력', desc: '4번 NOR 출력' },
+      { num: 14, name: 'VCC', role: '전원', desc: '+5V' }
+    ],
+    circuitModes: [
+      { id: 'nor_basic', name: '기본 NOR 회로', desc: '두 입력 모두 LOW일 때만 HIGH' }
+    ],
+    warning: '핀 순서가 7400/7408과 반대이므로 핀배치 주의!'
+  },
+  {
+    id: '7404',
+    name: '7404 NOT 게이트',
+    englishName: '74LS04 Hex Inverter Gate',
+    category: '논리 게이트',
+    tag: 'LOGIC • 14 PIN DIP',
+    pinCount: 14,
+    description: '6개의 독립된 NOT(인버터) 논리 게이트로 구성된 TTL IC',
+    features: ['6개 단일 입력 인버터 내장 (Y = NOT A)'],
+    pins: [
+      { num: 1, name: '1A', role: '입력1', desc: '1번 인버터 입력' },
+      { num: 2, name: '1Y', role: '출력1', desc: '1번 인버터 출력' },
+      { num: 3, name: '2A', role: '입력2', desc: '2번 인버터 입력' },
+      { num: 4, name: '2Y', role: '출력2', desc: '2번 인버터 출력' },
+      { num: 5, name: '3A', role: '입력3', desc: '3번 인버터 입력' },
+      { num: 6, name: '3Y', role: '출력3', desc: '3번 인버터 출력' },
+      { num: 7, name: 'GND', role: '접지', desc: '0V' },
+      { num: 8, name: '4Y', role: '출력4', desc: '4번 인버터 출력' },
+      { num: 9, name: '4A', role: '입력4', desc: '4번 인버터 입력' },
+      { num: 10, name: '5Y', role: '출력5', desc: '5번 인버터 출력' },
+      { num: 11, name: '5A', role: '입력5', desc: '5번 인버터 입력' },
+      { num: 12, name: '6Y', role: '출력6', desc: '6번 인버터 출력' },
+      { num: 13, name: '6A', role: '입력6', desc: '6번 인버터 입력' },
+      { num: 14, name: 'VCC', role: '전원', desc: '+5V' }
+    ],
+    circuitModes: [{ id: 'not_basic', name: '기본 NOT 회로', desc: '입력 반전' }],
+    warning: '입력이 오픈되지 않도록 주의하세요.'
+  },
+  {
+    id: '7408',
+    name: '7408 AND 게이트',
+    englishName: '74LS08 Quad 2-Input AND Gate',
+    category: '논리 게이트',
+    tag: 'LOGIC • 14 PIN DIP',
+    pinCount: 14,
+    description: '4개의 2입력 AND 게이트 IC',
+    features: ['4개의 2입력 AND 게이트 내장 (Y = A AND B)'],
+    pins: [
+      { num: 1, name: '1A', role: '입력1A', desc: '1번 AND 입력A' },
+      { num: 2, name: '1B', role: '입력1B', desc: '1번 AND 입력B' },
+      { num: 3, name: '1Y', role: '출력1', desc: '1번 AND 출력' },
+      { num: 4, name: '2A', role: '입력2A', desc: '2번 AND 입력A' },
+      { num: 5, name: '2B', role: '입력2B', desc: '2번 AND 입력B' },
+      { num: 6, name: '2Y', role: '출력2', desc: '2번 AND 출력' },
+      { num: 7, name: 'GND', role: '접지', desc: '0V' },
+      { num: 8, name: '3Y', role: '출력3', desc: '3번 AND 출력' },
+      { num: 9, name: '3A', role: '입력3A', desc: '3번 AND 입력A' },
+      { num: 10, name: '3B', role: '입력3B', desc: '3번 AND 입력B' },
+      { num: 11, name: '4Y', role: '출력4', desc: '4번 AND 출력' },
+      { num: 12, name: '4A', role: '입력4A', desc: '4번 AND 입력A' },
+      { num: 13, name: '4B', role: '입력4B', desc: '4번 AND 입력B' },
+      { num: 14, name: 'VCC', role: '전원', desc: '+5V' }
+    ],
+    circuitModes: [{ id: 'and_basic', name: '기본 AND 회로', desc: '두 입력 모두 HIGH일 때만 HIGH' }],
+    warning: '전원 핀 결선을 꼭 점검하세요.'
+  },
+  {
+    id: '7432',
+    name: '7432 OR 게이트',
+    englishName: '74LS32 Quad 2-Input OR Gate',
+    category: '논리 게이트',
+    tag: 'LOGIC • 14 PIN DIP',
+    pinCount: 14,
+    description: '4개의 2입력 OR 게이트 IC',
+    features: ['4개의 2입력 OR 게이트 내장 (Y = A OR B)'],
+    pins: [
+      { num: 1, name: '1A', role: '입력1A', desc: '1번 OR 입력A' },
+      { num: 2, name: '1B', role: '입력1B', desc: '1번 OR 입력B' },
+      { num: 3, name: '1Y', role: '출력1', desc: '1번 OR 출력' },
+      { num: 4, name: '2A', role: '입력2A', desc: '2번 OR 입력A' },
+      { num: 5, name: '2B', role: '입력2B', desc: '2번 OR 입력B' },
+      { num: 6, name: '2Y', role: '출력2', desc: '2번 OR 출력' },
+      { num: 7, name: 'GND', role: '접지', desc: '0V' },
+      { num: 8, name: '3Y', role: '출력3', desc: '3번 OR 출력' },
+      { num: 9, name: '3A', role: '입력3A', desc: '3번 OR 입력A' },
+      { num: 10, name: '3B', role: '입력3B', desc: '3번 OR 입력B' },
+      { num: 11, name: '4Y', role: '출력4', desc: '4번 OR 출력' },
+      { num: 12, name: '4A', role: '입력4A', desc: '4번 OR 입력A' },
+      { num: 13, name: '4B', role: '입력4B', desc: '4번 OR 입력B' },
+      { num: 14, name: 'VCC', role: '전원', desc: '+5V' }
+    ],
+    circuitModes: [{ id: 'or_basic', name: '기본 OR 회로', desc: '하나라도 HIGH이면 HIGH' }],
+    warning: '입력이 모두 0V일 때만 0V가 됩니다.'
+  },
+  {
+    id: '7486',
+    name: '7486 XOR 게이트',
+    englishName: '74LS86 Quad 2-Input XOR Gate',
+    category: '논리 게이트',
+    tag: 'LOGIC • 14 PIN DIP',
+    pinCount: 14,
+    description: '4개의 배타적 OR (XOR) 게이트 IC',
+    features: ['4개의 2입력 XOR 게이트 내장 (Y = A ⊕ B)'],
+    pins: [
+      { num: 1, name: '1A', role: '입력1A', desc: '1번 XOR 입력A' },
+      { num: 2, name: '1B', role: '입력1B', desc: '1번 XOR 입력B' },
+      { num: 3, name: '1Y', role: '출력1', desc: '1번 XOR 출력' },
+      { num: 4, name: '2A', role: '입력2A', desc: '2번 XOR 입력A' },
+      { num: 5, name: '2B', role: '입력2B', desc: '2번 XOR 입력B' },
+      { num: 6, name: '2Y', role: '출력2', desc: '2번 XOR 출력' },
+      { num: 7, name: 'GND', role: '접지', desc: '0V' },
+      { num: 8, name: '3Y', role: '출력3', desc: '3번 XOR 출력' },
+      { num: 9, name: '3A', role: '입력3A', desc: '3번 XOR 입력A' },
+      { num: 10, name: '3B', role: '입력3B', desc: '3번 XOR 입력B' },
+      { num: 11, name: '4Y', role: '출력4', desc: '4번 XOR 출력' },
+      { num: 12, name: '4A', role: '입력4A', desc: '4번 XOR 입력A' },
+      { num: 13, name: '4B', role: '입력4B', desc: '4번 XOR 입력B' },
+      { num: 14, name: 'VCC', role: '전원', desc: '+5V' }
+    ],
+    circuitModes: [{ id: 'xor_basic', name: '기본 XOR 회로', desc: '두 입력 상태가 다를 때만 HIGH' }],
+    warning: '가산기 설계 시 필수 사용됩니다.'
+  },
+  {
+    id: 'cd4077',
+    name: 'CD4077 XNOR 게이트',
+    englishName: 'CD4077 Quad 2-Input XNOR Gate',
+    category: '논리 게이트',
+    tag: 'LOGIC • 14 PIN DIP',
+    pinCount: 14,
+    description: '4개의 배타적 NOR (XNOR) CMOS 게이트 IC',
+    features: ['4개의 2입력 XNOR 게이트 내장 (Y = NOT(A ⊕ B))'],
+    pins: [
+      { num: 1, name: '1A', role: '입력1A', desc: '1번 XNOR 입력A' },
+      { num: 2, name: '1B', role: '입력1B', desc: '1번 XNOR 입력B' },
+      { num: 3, name: '1Y', role: '출력1', desc: '1번 XNOR 출력' },
+      { num: 4, name: '2Y', role: '출력2', desc: '2번 XNOR 출력' },
+      { num: 5, name: '2A', role: '입력2A', desc: '2번 XNOR 입력A' },
+      { num: 6, name: '2B', role: '입력2B', desc: '2번 XNOR 입력B' },
+      { num: 7, name: 'VSS', role: '접지', desc: '0V' },
+      { num: 8, name: '3A', role: '입력3A', desc: '3번 XNOR 입력A' },
+      { num: 9, name: '3B', role: '입력3B', desc: '3번 XNOR 입력B' },
+      { num: 10, name: '3Y', role: '출력3', desc: '3번 XNOR 출력' },
+      { num: 11, name: '4Y', role: '출력4', desc: '4번 XNOR 출력' },
+      { num: 12, name: '4A', role: '입력4A', desc: '4번 XNOR 입력A' },
+      { num: 13, name: '4B', role: '입력4B', desc: '4번 XNOR 입력B' },
+      { num: 14, name: 'VDD', role: '전원', desc: '+3V ~ +15V' }
+    ],
+    circuitModes: [{ id: 'xnor_basic', name: '기본 XNOR 회로', desc: '두 입력 상태가 일치할 때만 HIGH' }],
+    warning: 'CMOS소자 정전기에 유의하세요.'
+  },
+
+  // --- [4] 타이머 및 증폭기/카운터/레귤레이터 ---
+  {
+    id: 'ne555',
+    name: 'NE555 타이머',
+    englishName: 'NE555 Precision Timer',
+    category: '타이머/카운터',
+    tag: 'TIMER • 8 PIN DIP',
+    pinCount: 8,
+    description: '정밀 시간 지연 및 발진 파형 생성 범용 타이머 IC',
+    features: ['단안정, 비안정, 슈미트 트리거 구동'],
+    pins: [
+      { num: 1, name: 'GND', role: '접지', desc: '0V' },
+      { num: 2, name: 'TRIG', role: '트리거', desc: '1/3 Vcc 이하 시 HIGH' },
+      { num: 3, name: 'OUT', role: '출력', desc: '펄스 파형' },
+      { num: 4, name: 'RESET', role: '리셋', desc: 'LOW 시 리셋' },
+      { num: 5, name: 'CTRL', role: '제어', desc: '제어 전압' },
+      { num: 6, name: 'THRES', role: '임계값', desc: '2/3 Vcc 이상 시 LOW' },
+      { num: 7, name: 'DISCH', role: '방전', desc: '커패시터 방전' },
+      { num: 8, name: 'VCC', role: '전원', desc: '+4.5V ~ +16V' }
+    ],
+    circuitModes: [
+      { id: 'astable', name: '비안정 발진회로', desc: '사각파 연속 펄스 생성' },
+      { id: 'monostable', name: '단안정 타이머회로', desc: '원샷 펄스 생성' }
+    ],
+    warning: '전원 극성에 주의하세요.'
+  },
+  {
+    id: 'lm358',
+    name: 'LM358 연산증폭기',
+    englishName: 'LM358 Dual Op-Amp',
+    category: '증폭기/레귤레이터',
+    tag: 'OP-AMP • 8 PIN DIP',
+    pinCount: 8,
+    description: '단일 전원 구동이 가능한 듀얼 범용 연산 증폭기 IC',
+    features: ['독립된 2개 Op-Amp 내장'],
+    pins: [
+      { num: 1, name: 'OUT1', role: '출력1', desc: 'Op-Amp 1 출력' },
+      { num: 2, name: 'IN1-', role: '반전1', desc: 'Op-Amp 1 반전입력' },
+      { num: 3, name: 'IN1+', role: '비반전1', desc: 'Op-Amp 1 비반전입력' },
+      { num: 4, name: 'GND', role: '접지', desc: '0V' },
+      { num: 5, name: 'IN2+', role: '비반전2', desc: 'Op-Amp 2 비반전입력' },
+      { num: 6, name: 'IN2-', role: '반전2', desc: 'Op-Amp 2 반전입력' },
+      { num: 7, name: 'OUT2', role: '출력2', desc: 'Op-Amp 2 출력' },
+      { num: 8, name: 'VCC', role: '전원', desc: '+3V ~ +32V' }
+    ],
+    circuitModes: [
+      { id: 'noninverting', name: '비반전 증폭기', desc: 'Av = 1 + R2/R1 위상 유지 증폭' },
+      { id: 'inverting', name: '반전 증폭기', desc: 'Av = -R2/R1 180도 반전 증폭' }
+    ],
+    warning: '피드백 저항 미연결 시 출력이 포화될 수 있습니다.'
+  },
+  {
+    id: '7805',
+    name: '7805 전압 레귤레이터',
+    englishName: 'LM7805 Voltage Regulator',
+    category: '증폭기/레귤레이터',
+    tag: 'REGULATOR • 3 PIN TO-220',
+    pinCount: 3,
+    description: '안정적인 +5V 고정 출력 전압 레귤레이터',
+    features: ['정밀 +5V DC 고정 출력'],
+    pins: [
+      { num: 1, name: 'IN', role: '입력', desc: 'DC 입력 (+7V ~ +25V)' },
+      { num: 2, name: 'GND', role: '공통접지', desc: '0V' },
+      { num: 3, name: 'OUT', role: '출력', desc: '+5V 정전압' }
+    ],
+    circuitModes: [{ id: 'standard_reg', name: '기본 5V 전원회로', desc: '평활 커패시터 조합 구성' }],
+    warning: '입/출력 전압차가 크면 방열판을 장착하세요.'
+  },
+  {
+    id: 'cd4017',
+    name: 'CD4017 카운터',
+    englishName: 'CD4017 CMOS Decade Counter',
+    category: '타이머/카운터',
+    tag: 'COUNTER • 16 PIN DIP',
+    pinCount: 16,
+    description: '10진 카운터 및 디코더 기능의 CMOS 16핀 순차 제어 IC',
+    features: ['10개의 순차적 디코딩 출력 (Q0~Q9)'],
+    pins: [
+      { num: 1, name: 'Q5', role: '출력5', desc: '5번째 출력' },
+      { num: 2, name: 'Q1', role: '출력1', desc: '1번째 출력' },
+      { num: 3, name: 'Q0', role: '출력0', desc: '0번째 출력' },
+      { num: 4, name: 'Q2', role: '출력2', desc: '2번째 출력' },
+      { num: 5, name: 'Q6', role: '출력6', desc: '6번째 출력' },
+      { num: 6, name: 'Q7', role: '출력7', desc: '7번째 출력' },
+      { num: 7, name: 'Q3', role: '출력3', desc: '3번째 출력' },
+      { num: 8, name: 'GND', role: '접지', desc: '0V' },
+      { num: 9, name: 'Q8', role: '출력8', desc: '8번째 출력' },
+      { num: 10, name: 'Q4', role: '출력4', desc: '4번째 출력' },
+      { num: 11, name: 'Q9', role: '출력9', desc: '9번째 출력' },
+      { num: 12, name: 'CO', role: '캐리아웃', desc: '10분주 캐리' },
+      { num: 13, name: 'EN', role: '이네이블', desc: 'LOW 시 동작' },
+      { num: 14, name: 'CLK', role: '클럭입력', desc: '클럭 펄스' },
+      { num: 15, name: 'RESET', role: '마스터리셋', desc: 'HIGH 시 Q0 초기화' },
+      { num: 16, name: 'VDD', role: '전원', desc: '+3V ~ +15V' }
+    ],
+    circuitModes: [{ id: 'decade_run', name: '10단계 순차 구동회로', desc: 'LED 순차 점등' }],
+    warning: '미사용 입력 핀을 Floating 상태로 두지 마세요.'
+  }
+];
+
+const GLOSSARY_DATA = [
+  { term: 'Vcc / Vdd', title: '전원 양극 (+)', desc: 'IC 및 회로에 공급 전원을 연결하는 핀입니다. TTL은 Vcc(+5V), CMOS는 Vdd(+3V~+15V)로 표기합니다.' },
+  { term: 'GND / Vss', title: '접지 (0V)', desc: '전원 기준 전위이자 음극(-) 연결점입니다. 회로 내부 모든 전압 측정의 기준입니다.' },
+  { term: 'BJT (NPN / PNP)', title: '바이폴라 트랜지스터', desc: '베이스(B) 전류에 의해 컬렉터-에미터 간 전류가 제어되는 전류 제어형 트랜지스터입니다. C1815(NPN), A1015(PNP)가 대표적입니다.' },
+  { term: 'N-Ch MOSFET', title: '전계효과 트랜지스터', desc: '게이트 전압(Vgs)에 의해 드레인-소스 간 통전 채널이 형성되는 전압 제어형 소자입니다.' },
+  { term: '4핀 택트 스위치 핀', title: '내부 도통 구조', desc: '택트 스위치는 마주보는 두 핀끼리 내부에서 이미 연결되어 있습니다. 확실한 스위칭을 위해 대각선 위치 핀 2개를 사용하는 것이 안전합니다.' },
+  { term: '저항 색띠 (Color Code)', title: '저항값 읽는 법', desc: '흑(0) 갈(1) 적(2) 등(3) 황(4) 녹(5) 청(6) 자(7) 회(8) 백(9) / 금(오차 5%) 은(오차 10%). 예: 갈-검-적-금 = 1-0-10² = 1,000Ω = 1kΩ' }
+];
+
+export default function App() {
+  const [selectedCategory, setSelectedCategory] = useState('전체');
+  const [selectedIcId, setSelectedIcId] = useState('resistor');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTabMode, setActiveTabMode] = useState('divider');
+  const [hoveredPinNum, setHoveredPinNum] = useState(null);
+  const [bookmarkedIcs, setBookmarkedIcs] = useState(['resistor', 'ne555', 'c1815']);
+  const [isGlossaryOpen, setIsGlossaryOpen] = useState(false);
+  const [isResistorSimOpen, setIsResistorSimOpen] = useState(false);
+
+  const selectedComponent = useMemo(() => {
+    return COMPONENT_DATA.find((c) => c.id === selectedIcId) || COMPONENT_DATA[0];
+  }, [selectedIcId]);
+
+  const handleSelectComponent = (id) => {
+    setSelectedIcId(id);
+    const target = COMPONENT_DATA.find((i) => i.id === id);
+    if (target && target.circuitModes && target.circuitModes.length > 0) {
+      setActiveTabMode(target.circuitModes[0].id);
+    }
+    setHoveredPinNum(null);
+  };
+
+  const filteredComponents = useMemo(() => {
+    return COMPONENT_DATA.filter((comp) => {
+      const matchCategory =
+        selectedCategory === '전체' || comp.category === selectedCategory;
+      const matchQuery =
+        comp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        comp.englishName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        comp.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        comp.pins.some(
+          (p) =>
+            p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            p.role.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      return matchCategory && matchQuery;
+    });
+  }, [selectedCategory, searchQuery]);
+
+  const toggleBookmark = (id, e) => {
+    e.stopPropagation();
+    setBookmarkedIcs((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const categories = [
+    '전체',
+    '수동소자/스위치',
+    'TR/FET',
+    '논리 게이트',
+    '타이머/카운터',
+    '증폭기/레귤레이터'
+  ];
+
+  return (
+    <div className="min-h-screen bg-[#FAF8F5] text-stone-800 font-sans flex flex-col antialiased">
+      {/* Top Header */}
+      <header className="bg-white border-b border-stone-200 sticky top-0 z-30 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+          <div
+            className="flex items-center gap-3 cursor-pointer"
+            onClick={() => handleSelectComponent('resistor')}
+          >
+            <div className="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center shadow-md shadow-orange-500/20">
+              <Cpu className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="font-bold text-lg text-stone-900 tracking-tight leading-none flex items-center gap-2">
+                전자기능사 <span className="text-orange-600">IC &amp; 소자 가이드</span>
+              </h1>
+              <p className="text-xs text-stone-500 mt-0.5">
+                실물 핀배치 ↔ 회로 기호 심볼 매칭 • 권장 연결 회로도
+              </p>
+            </div>
+          </div>
+
+          <div className="flex-1 max-w-md relative hidden md:block">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+            <input
+              type="text"
+              placeholder="부품명, 핀 이름, 저항, 게이트 검색..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 text-sm bg-stone-100 hover:bg-stone-100/80 focus:bg-white border border-transparent focus:border-orange-400 rounded-full transition outline-none text-stone-800"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                handleSelectComponent('resistor');
+                setIsResistorSimOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold text-xs transition shadow-sm"
+            >
+              <Calculator className="w-4 h-4 text-orange-600" />
+              <span>저항 색띠 계산기</span>
+            </button>
+
+            <button
+              onClick={() => setIsGlossaryOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-stone-200 hover:border-orange-300 bg-stone-50 hover:bg-orange-50/50 text-stone-700 hover:text-orange-600 font-medium text-xs transition"
+            >
+              <BookOpen className="w-4 h-4 text-orange-500" />
+              <span>기초 용어</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 border-t border-stone-100 flex flex-col md:flex-row gap-2 items-stretch md:items-center justify-between">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+                  selectedCategory === cat
+                    ? 'bg-orange-500 text-white shadow-sm shadow-orange-500/30'
+                    : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+      </header>
+
+      {/* Main Area */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Sidebar */}
+        <aside className="lg:col-span-4 bg-white rounded-2xl border border-stone-200 shadow-sm p-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between px-1 pb-1 border-b border-stone-100">
+            <h2 className="font-bold text-stone-800 text-base">부품 도감 목록</h2>
+            <span className="text-xs font-semibold text-orange-600 bg-orange-50 px-2.5 py-0.5 rounded-full border border-orange-200/60">
+              {filteredComponents.length}개
+            </span>
+          </div>
+
+          <div className="flex flex-col gap-2 max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
+            {filteredComponents.map((comp) => {
+              const isSelected = selectedComponent.id === comp.id;
+              const isBookmarked = bookmarkedIcs.includes(comp.id);
+              return (
+                <div
+                  key={comp.id}
+                  onClick={() => handleSelectComponent(comp.id)}
+                  className={`group relative p-3 rounded-xl border transition cursor-pointer flex gap-3 items-center ${
+                    isSelected
+                      ? 'bg-orange-50/70 border-orange-400 shadow-sm ring-1 ring-orange-400/20'
+                      : 'bg-white border-stone-200/80 hover:border-orange-200 hover:bg-stone-50/70'
+                  }`}
+                >
+                  <div
+                    className={`w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center font-mono font-bold text-xs p-1 text-center transition ${
+                      isSelected
+                        ? 'bg-stone-900 text-white shadow-inner'
+                        : 'bg-stone-800 text-stone-200 group-hover:bg-stone-900'
+                    }`}
+                  >
+                    <span className="leading-tight text-[10px]">
+                      {comp.name.split(' ')[0]}
+                    </span>
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <h3
+                        className={`font-bold text-xs sm:text-sm truncate ${
+                          isSelected ? 'text-orange-700' : 'text-stone-900'
+                        }`}
+                      >
+                        {comp.name}
+                      </h3>
+                      <button
+                        onClick={(e) => toggleBookmark(comp.id, e)}
+                        className="text-stone-300 hover:text-orange-500 p-0.5 transition"
+                      >
+                        {isBookmarked ? (
+                          <BookmarkCheck className="w-4 h-4 text-orange-500 fill-orange-500" />
+                        ) : (
+                          <Bookmark className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-stone-500 line-clamp-1 mt-0.5">
+                      {comp.description}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </aside>
+
+        {/* Right Detail */}
+        <section className="lg:col-span-8 flex flex-col gap-6">
+          {/* Header Card */}
+          <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="px-2.5 py-0.5 text-[11px] font-bold text-orange-600 bg-orange-100/70 border border-orange-200 rounded-md">
+                    {selectedComponent.tag}
+                  </span>
+                  <span className="text-xs text-stone-400 font-mono">
+                    {selectedComponent.englishName}
+                  </span>
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-stone-900">
+                  {selectedComponent.name}
+                </h2>
+                <p className="text-sm text-stone-600 mt-1">
+                  {selectedComponent.description}
+                </p>
+              </div>
+
+              {selectedComponent.id === 'resistor' && (
+                <button
+                  onClick={() => setIsResistorSimOpen(true)}
+                  className="px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-md shadow-orange-500/20 flex items-center gap-1.5 transition"
+                >
+                  <Calculator className="w-4 h-4" />
+                  <span>색띠 계산기 열기</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Dual Symbol & Package Visualizer */}
+          <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
+            <div className="flex items-center justify-between border-b border-stone-100 pb-2 mb-3">
+              <div className="flex items-center gap-2 text-stone-800 font-bold text-base">
+                <Cpu className="w-4 h-4 text-orange-500" />
+                <h3>외형 패키지 &amp; 회로 기호 심볼 (핀 매칭)</h3>
+              </div>
+              <span className="text-[11px] text-orange-600 font-semibold bg-orange-50 px-2 py-0.5 rounded border border-orange-200/50">
+                실물 핀 ↔ 심볼 단자 매칭
+              </span>
+            </div>
+
+            <div className="py-3 flex items-center justify-center bg-stone-50/70 rounded-xl border border-stone-200/80">
+              <DualPackageSymbolSvg
+                comp={selectedComponent}
+                hoveredPinNum={hoveredPinNum}
+                setHoveredPinNum={setHoveredPinNum}
+              />
+            </div>
+          </div>
+
+          {/* Pin Configuration Table */}
+          <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
+            <div className="flex items-center gap-2 text-stone-800 font-bold text-base mb-3 border-b border-stone-100 pb-2">
+              <Layers className="w-4 h-4 text-orange-500" />
+              <h3>단자 / 핀 역할 및 사양</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-stone-100/70 text-stone-600 font-semibold border-b border-stone-200">
+                    <th className="py-2.5 px-3 w-16 text-center">핀 번호</th>
+                    <th className="py-2.5 px-3 w-28">핀 / 단자 명</th>
+                    <th className="py-2.5 px-3 w-32">역할</th>
+                    <th className="py-2.5 px-3">상세 설명</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-100 text-stone-700">
+                  {selectedComponent.pins.map((pin) => {
+                    const isHovered = hoveredPinNum === pin.num;
+                    return (
+                      <tr
+                        key={pin.num}
+                        onMouseEnter={() => setHoveredPinNum(pin.num)}
+                        onMouseLeave={() => setHoveredPinNum(null)}
+                        className={`transition cursor-pointer ${
+                          isHovered
+                            ? 'bg-orange-50 font-medium text-orange-900'
+                            : 'hover:bg-stone-50'
+                        }`}
+                      >
+                        <td className="py-2.5 px-3 text-center">
+                          <span
+                            className={`inline-block w-6 h-6 rounded-full text-center leading-6 text-xs font-bold ${
+                              isHovered
+                                ? 'bg-orange-500 text-white'
+                                : 'bg-stone-200 text-stone-700'
+                            }`}
+                          >
+                            {pin.num}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 font-mono font-bold text-stone-900">
+                          {pin.name}
+                        </td>
+                        <td className="py-2.5 px-3 font-semibold text-orange-600">
+                          {pin.role}
+                        </td>
+                        <td className="py-2.5 px-3 text-stone-600">
+                          {pin.desc}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Recommended Connection Schematics */}
+          <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-100 pb-3 mb-4">
+              <div className="flex items-center gap-2 text-stone-900 font-bold text-lg">
+                <Zap className="w-5 h-5 text-orange-500" />
+                <h3>권장 연결방법 및 시각 회로도</h3>
+              </div>
+
+              {selectedComponent.circuitModes &&
+                selectedComponent.circuitModes.length > 0 && (
+                  <div className="flex items-center gap-1.5 bg-stone-100 p-1 rounded-xl">
+                    {selectedComponent.circuitModes.map((mode) => (
+                      <button
+                        key={mode.id}
+                        onClick={() => setActiveTabMode(mode.id)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                          activeTabMode === mode.id
+                            ? 'bg-orange-500 text-white shadow-sm'
+                            : 'text-stone-600 hover:text-stone-900 hover:bg-stone-200/60'
+                        }`}
+                      >
+                        {mode.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+            </div>
+
+            {selectedComponent.circuitModes && (
+              <div className="bg-stone-50 border border-stone-200/80 rounded-xl p-3.5 mb-5 text-xs text-stone-700 flex items-start gap-2">
+                <Info className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold text-stone-900 mr-1.5">
+                    [
+                    {
+                      selectedComponent.circuitModes.find(
+                        (m) => m.id === activeTabMode
+                      )?.name
+                    }
+                    ]
+                  </span>
+                  {
+                    selectedComponent.circuitModes.find(
+                      (m) => m.id === activeTabMode
+                    )?.desc
+                  }
+                </div>
+              </div>
+            )}
+
+            <div className="bg-stone-50/80 rounded-2xl border border-stone-200 p-6 flex items-center justify-center min-h-[260px] relative overflow-hidden">
+              <CircuitSchematicSvg
+                icId={selectedComponent.id}
+                modeId={activeTabMode}
+                hoveredPinNum={hoveredPinNum}
+              />
+            </div>
+
+            {selectedComponent.warning && (
+              <div className="mt-5 bg-orange-50/80 border border-orange-200 rounded-xl p-4 flex items-center gap-3">
+                <AlertTriangle className="w-5 h-5 text-orange-500 flex-shrink-0" />
+                <p className="text-xs text-orange-800 font-medium leading-relaxed">
+                  {selectedComponent.warning}
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-white border-t border-stone-200 py-6 mt-10 text-center text-xs text-stone-500">
+        <p className="font-medium">전자기능사 실기 및 필기 시험 대비 IC &amp; 소자 통합 가이드</p>
+      </footer>
+
+      {/* Resistor Modal */}
+      {isResistorSimOpen && (
+        <div className="fixed inset-0 z-50 bg-stone-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-stone-200 flex flex-col gap-4 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+              <div className="flex items-center gap-2 font-bold text-lg text-stone-900">
+                <Calculator className="w-5 h-5 text-orange-500" />
+                <h2>대화형 저항 색띠 시뮬레이터 (4색 / 5색)</h2>
+              </div>
+              <button
+                onClick={() => setIsResistorSimOpen(false)}
+                className="p-1 text-stone-400 hover:text-stone-600 rounded-lg hover:bg-stone-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <ResistorSimulatorView />
+            <div className="pt-2 border-t border-stone-100 text-right">
+              <button
+                onClick={() => setIsResistorSimOpen(false)}
+                className="px-5 py-2 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold transition"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Glossary Modal */}
+      {isGlossaryOpen && (
+        <div className="fixed inset-0 z-50 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-stone-200 flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+              <div className="flex items-center gap-2 font-bold text-lg text-stone-900">
+                <BookOpen className="w-5 h-5 text-orange-500" />
+                <h2>전자기능사 기초 용어 가이드</h2>
+              </div>
+              <button
+                onClick={() => setIsGlossaryOpen(false)}
+                className="p-1 text-stone-400 hover:text-stone-600 rounded-lg hover:bg-stone-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+              {GLOSSARY_DATA.map((item, idx) => (
+                <div key={idx} className="bg-stone-50 border border-stone-200/80 rounded-xl p-3.5 text-xs">
+                  <div className="flex items-center justify-between font-bold text-stone-900 mb-1">
+                    <span className="text-orange-600 font-mono text-sm">{item.term}</span>
+                    <span className="text-stone-500 text-[11px]">{item.title}</span>
+                  </div>
+                  <p className="text-stone-600 leading-relaxed">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+            <div className="pt-2 border-t border-stone-100 text-right">
+              <button
+                onClick={() => setIsGlossaryOpen(false)}
+                className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold transition"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==========================================
+// Physical Package + Circuit Symbol Dual Visualizer
+// ==========================================
+function DualPackageSymbolSvg({ comp, hoveredPinNum, setHoveredPinNum }) {
+  const id = comp.id;
+
+  return (
+    <svg width="460" height="200" viewBox="0 0 460 200" className="select-none">
+      <rect x="10" y="10" width="205" height="180" rx="10" fill="#FFFFFF" stroke="#E2E8F0" strokeWidth="1.5" />
+      <rect x="245" y="10" width="205" height="180" rx="10" fill="#FFFFFF" stroke="#E2E8F0" strokeWidth="1.5" />
+
+      <g>
+        <circle cx="230" cy="100" r="14" fill="#F97316" />
+        <path d="M 224 100 L 236 100 M 231 95 L 236 100 L 231 105" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      </g>
+
+      <text x="112" y="30" fill="#64748B" fontSize="11" fontWeight="bold" textAnchor="middle">
+        [실물 외형 핀배치]
+      </text>
+      <text x="347" y="30" fill="#EA580C" fontSize="11" fontWeight="bold" textAnchor="middle">
+        [회로도 기호 심볼]
+      </text>
+
+      {/* --- RESISTOR --- */}
+      {id === 'resistor' && (
+        <g>
+          <line x1="25" y1="100" x2="60" y2="100" stroke="#94A3B8" strokeWidth="3" />
+          <line x1="165" y1="100" x2="200" y2="100" stroke="#94A3B8" strokeWidth="3" />
+          <path d="M 60 100 C 55 75, 70 75, 80 75 L 145 75 C 155 75, 170 75, 165 100 C 170 125, 155 125, 145 125 L 80 125 C 70 125, 55 125, 60 100 Z" fill="#E5D3B3" stroke="#C4A882" strokeWidth="1.5" />
+          <rect x="80" y="75" width="8" height="50" fill="#78350F" />
+          <rect x="98" y="75" width="8" height="50" fill="#18181B" />
+          <rect x="116" y="75" width="8" height="50" fill="#DC2626" />
+          <rect x="145" y="75" width="8" height="50" fill="#D97706" />
+
+          <line x1="260" y1="100" x2="290" y2="100" stroke="#1E293B" strokeWidth="2" />
+          <path d="M 290 100 L 295 85 L 305 115 L 315 85 L 325 115 L 335 85 L 345 115 L 355 85 L 365 115 L 370 100" fill="none" stroke="#1E293B" strokeWidth="2.5" />
+          <line x1="370" y1="100" x2="400" y2="100" stroke="#1E293B" strokeWidth="2" />
+          <text x="330" y="70" fill="#1E293B" fontSize="13" fontWeight="bold" textAnchor="middle">R (저항)</text>
+          <text x="275" y="120" fill="#EA580C" fontSize="11" fontWeight="bold">1</text>
+          <text x="385" y="120" fill="#EA580C" fontSize="11" fontWeight="bold">2</text>
+        </g>
+      )}
+
+      {/* --- CAPACITOR --- */}
+      {id === 'capacitor' && (
+        <g>
+          <rect x="85" y="60" width="55" height="60" rx="5" fill="#1E3A8A" />
+          <rect x="123" y="60" width="17" height="60" fill="#60A5FA" />
+          <text x="131.5" y="95" fill="#1E3A8A" fontSize="16" fontWeight="bold" textAnchor="middle">-</text>
+          <line x1="98" y1="120" x2="98" y2="160" stroke="#64748B" strokeWidth="3" />
+          <line x1="128" y1="120" x2="128" y2="145" stroke="#64748B" strokeWidth="3" />
+
+          <line x1="260" y1="100" x2="320" y2="100" stroke="#1E293B" strokeWidth="2" />
+          <line x1="320" y1="75" x2="320" y2="125" stroke="#1E293B" strokeWidth="3" />
+          <line x1="335" y1="75" x2="335" y2="125" stroke="#1E293B" strokeWidth="3" />
+          <line x1="335" y1="100" x2="395" y2="100" stroke="#1E293B" strokeWidth="2" />
+          <text x="305" y="70" fill="#EF4444" fontSize="13" fontWeight="bold">+</text>
+          <text x="327.5" y="60" fill="#1E293B" fontSize="13" fontWeight="bold" textAnchor="middle">C (커패시터)</text>
+          <text x="280" y="120" fill="#EA580C" fontSize="11" fontWeight="bold">1(+)</text>
+          <text x="365" y="120" fill="#EA580C" fontSize="11" fontWeight="bold">2(-)</text>
+        </g>
+      )}
+
+      {/* --- INDUCTOR --- */}
+      {id === 'inductor' && (
+        <g>
+          <line x1="25" y1="100" x2="65" y2="100" stroke="#94A3B8" strokeWidth="3" />
+          <line x1="160" y1="100" x2="200" y2="100" stroke="#94A3B8" strokeWidth="3" />
+          <rect x="65" y="80" width="95" height="40" rx="15" fill="#065F46" />
+          <line x1="85" y1="80" x2="85" y2="120" stroke="#A7F3D0" strokeWidth="2" />
+          <line x1="112" y1="80" x2="112" y2="120" stroke="#A7F3D0" strokeWidth="2" />
+          <line x1="140" y1="80" x2="140" y2="120" stroke="#A7F3D0" strokeWidth="2" />
+
+          <line x1="260" y1="100" x2="280" y2="100" stroke="#1E293B" strokeWidth="2" />
+          <path d="M 280 100 A 12 12 0 0 1 304 100 A 12 12 0 0 1 328 100 A 12 12 0 0 1 352 100 A 12 12 0 0 1 376 100" fill="none" stroke="#1E293B" strokeWidth="2.5" />
+          <line x1="376" y1="100" x2="396" y2="100" stroke="#1E293B" strokeWidth="2" />
+          <text x="328" y="68" fill="#1E293B" fontSize="13" fontWeight="bold" textAnchor="middle">L (인덕터)</text>
+          <text x="270" y="120" fill="#EA580C" fontSize="11" fontWeight="bold">1</text>
+          <text x="385" y="120" fill="#EA580C" fontSize="11" fontWeight="bold">2</text>
+        </g>
+      )}
+
+      {/* --- LED --- */}
+      {id === 'led' && (
+        <g>
+          <path d="M 85 85 A 25 25 0 0 1 135 85 L 135 105 L 85 105 Z" fill="#EF4444" opacity="0.9" />
+          <line x1="98" y1="105" x2="98" y2="155" stroke="#64748B" strokeWidth="3" />
+          <line x1="122" y1="105" x2="122" y2="135" stroke="#64748B" strokeWidth="3" />
+
+          <line x1="260" y1="100" x2="310" y2="100" stroke="#1E293B" strokeWidth="2" />
+          <polygon points="310,80 310,120 345,100" fill="#1E293B" />
+          <line x1="345" y1="80" x2="345" y2="120" stroke="#1E293B" strokeWidth="3" />
+          <line x1="345" y1="100" x2="395" y2="100" stroke="#1E293B" strokeWidth="2" />
+          <path d="M 330 75 L 342 60 M 342 60 L 334 60 M 342 60 L 342 68" stroke="#F97316" strokeWidth="2" />
+          <path d="M 340 75 L 352 60 M 352 60 L 344 60 M 352 60 L 352 68" stroke="#F97316" strokeWidth="2" />
+          <text x="328" y="138" fill="#1E293B" fontSize="12" fontWeight="bold" textAnchor="middle">LED</text>
+          <text x="275" y="120" fill="#EA580C" fontSize="10" fontWeight="bold">1(A)</text>
+          <text x="365" y="120" fill="#EA580C" fontSize="10" fontWeight="bold">2(K)</text>
+        </g>
+      )}
+
+      {/* --- TACT SWITCH --- */}
+      {id === 'tact_switch' && (
+        <g>
+          <rect x="70" y="55" width="85" height="75" rx="6" fill="#334155" />
+          <circle cx="112.5" cy="92.5" r="22" fill="#EF4444" />
+          <rect x="52" y="65" width="18" height="10" fill="#94A3B8" rx="2" />
+          <rect x="155" y="65" width="18" height="10" fill="#94A3B8" rx="2" />
+          <rect x="52" y="110" width="18" height="10" fill="#94A3B8" rx="2" />
+          <rect x="155" y="110" width="18" height="10" fill="#94A3B8" rx="2" />
+
+          <circle cx="280" cy="100" r="4" fill="#1E293B" />
+          <circle cx="370" cy="100" r="4" fill="#1E293B" />
+          <line x1="260" y1="100" x2="280" y2="100" stroke="#1E293B" strokeWidth="2" />
+          <line x1="370" y1="100" x2="390" y2="100" stroke="#1E293B" strokeWidth="2" />
+          <line x1="280" y1="96" x2="365" y2="75" stroke="#1E293B" strokeWidth="3" strokeLinecap="round" />
+          <line x1="322" y1="86" x2="322" y2="65" stroke="#1E293B" strokeWidth="2" />
+          <rect x="312" y="60" width="20" height="6" fill="#EF4444" rx="1" />
+          <text x="325" y="125" fill="#1E293B" fontSize="12" fontWeight="bold" textAnchor="middle">Push SW</text>
+          <text x="265" y="118" fill="#EA580C" fontSize="10" fontWeight="bold">1,2</text>
+          <text x="375" y="118" fill="#EA580C" fontSize="10" fontWeight="bold">3,4</text>
+        </g>
+      )}
+
+      {/* --- C1815 NPN TR --- */}
+      {id === 'c1815' && (
+        <g>
+          <path d="M 70 50 A 45 35 0 0 1 155 50 L 155 85 L 70 85 Z" fill="#1E293B" />
+          <line x1="85" y1="85" x2="85" y2="145" stroke="#94A3B8" strokeWidth="2.5" />
+          <line x1="112.5" y1="85" x2="112.5" y2="145" stroke="#94A3B8" strokeWidth="2.5" />
+          <line x1="140" y1="85" x2="140" y2="145" stroke="#94A3B8" strokeWidth="2.5" />
+          <text x="85" y="160" fill="#EA580C" fontSize="10" fontWeight="bold" textAnchor="middle">1:E</text>
+          <text x="112.5" y="160" fill="#EA580C" fontSize="10" fontWeight="bold" textAnchor="middle">2:C</text>
+          <text x="140" y="160" fill="#EA580C" fontSize="10" fontWeight="bold" textAnchor="middle">3:B</text>
+
+          <circle cx="340" cy="95" r="32" fill="none" stroke="#1E293B" strokeWidth="2" />
+          <line x1="322" y1="75" x2="322" y2="115" stroke="#1E293B" strokeWidth="3.5" />
+          <line x1="280" y1="95" x2="322" y2="95" stroke="#1E293B" strokeWidth="2" />
+          <line x1="322" y1="83" x2="355" y2="65" stroke="#1E293B" strokeWidth="2" />
+          <line x1="322" y1="107" x2="355" y2="125" stroke="#1E293B" strokeWidth="2" />
+          <polygon points="352,123 340,118 348,110" fill="#1E293B" />
+          <text x="270" y="98" fill="#EA580C" fontSize="10" fontWeight="bold">3(B)</text>
+          <text x="360" y="65" fill="#EA580C" fontSize="10" fontWeight="bold">2(C)</text>
+          <text x="360" y="130" fill="#EA580C" fontSize="10" fontWeight="bold">1(E)</text>
+        </g>
+      )}
+
+      {/* --- A1015 PNP TR --- */}
+      {id === 'a1015' && (
+        <g>
+          <path d="M 70 50 A 45 35 0 0 1 155 50 L 155 85 L 70 85 Z" fill="#1E293B" />
+          <line x1="85" y1="85" x2="85" y2="145" stroke="#94A3B8" strokeWidth="2.5" />
+          <line x1="112.5" y1="85" x2="112.5" y2="145" stroke="#94A3B8" strokeWidth="2.5" />
+          <line x1="140" y1="85" x2="140" y2="145" stroke="#94A3B8" strokeWidth="2.5" />
+          <text x="85" y="160" fill="#EA580C" fontSize="10" fontWeight="bold" textAnchor="middle">1:E</text>
+          <text x="112.5" y="160" fill="#EA580C" fontSize="10" fontWeight="bold" textAnchor="middle">2:C</text>
+          <text x="140" y="160" fill="#EA580C" fontSize="10" fontWeight="bold" textAnchor="middle">3:B</text>
+
+          <circle cx="340" cy="95" r="32" fill="none" stroke="#1E293B" strokeWidth="2" />
+          <line x1="322" y1="75" x2="322" y2="115" stroke="#1E293B" strokeWidth="3.5" />
+          <line x1="280" y1="95" x2="322" y2="95" stroke="#1E293B" strokeWidth="2" />
+          <line x1="322" y1="83" x2="355" y2="65" stroke="#1E293B" strokeWidth="2" />
+          <line x1="322" y1="107" x2="355" y2="125" stroke="#1E293B" strokeWidth="2" />
+          <polygon points="325,85 338,82 332,93" fill="#1E293B" />
+          <text x="270" y="98" fill="#EA580C" fontSize="10" fontWeight="bold">3(B)</text>
+          <text x="360" y="65" fill="#EA580C" fontSize="10" fontWeight="bold">1(E)</text>
+          <text x="360" y="130" fill="#EA580C" fontSize="10" fontWeight="bold">2(C)</text>
+        </g>
+      )}
+
+      {/* --- 2N7000 N-MOSFET --- */}
+      {id === 'mosfet_n' && (
+        <g>
+          <path d="M 70 50 A 45 35 0 0 1 155 50 L 155 85 L 70 85 Z" fill="#1E293B" />
+          <line x1="85" y1="85" x2="85" y2="145" stroke="#94A3B8" strokeWidth="2.5" />
+          <line x1="112.5" y1="85" x2="112.5" y2="145" stroke="#94A3B8" strokeWidth="2.5" />
+          <line x1="140" y1="85" x2="140" y2="145" stroke="#94A3B8" strokeWidth="2.5" />
+          <text x="85" y="160" fill="#EA580C" fontSize="10" fontWeight="bold" textAnchor="middle">1:S</text>
+          <text x="112.5" y="160" fill="#EA580C" fontSize="10" fontWeight="bold" textAnchor="middle">2:G</text>
+          <text x="140" y="160" fill="#EA580C" fontSize="10" fontWeight="bold" textAnchor="middle">3:D</text>
+
+          <circle cx="340" cy="95" r="32" fill="none" stroke="#1E293B" strokeWidth="2" />
+          <line x1="315" y1="75" x2="315" y2="115" stroke="#1E293B" strokeWidth="2.5" />
+          <line x1="280" y1="95" x2="315" y2="95" stroke="#1E293B" strokeWidth="2" />
+          <line x1="325" y1="75" x2="325" y2="85" stroke="#1E293B" strokeWidth="2.5" />
+          <line x1="325" y1="90" x2="325" y2="100" stroke="#1E293B" strokeWidth="2.5" />
+          <line x1="325" y1="105" x2="325" y2="115" stroke="#1E293B" strokeWidth="2.5" />
+          <line x1="325" y1="80" x2="355" y2="80" stroke="#1E293B" strokeWidth="2" />
+          <line x1="325" y1="110" x2="355" y2="110" stroke="#1E293B" strokeWidth="2" />
+          <text x="270" y="98" fill="#EA580C" fontSize="10" fontWeight="bold">2(G)</text>
+          <text x="360" y="82" fill="#EA580C" fontSize="10" fontWeight="bold">3(D)</text>
+          <text x="360" y="112" fill="#EA580C" fontSize="10" fontWeight="bold">1(S)</text>
+        </g>
+      )}
+
+      {/* Default DIP/Generic IC visualizer */}
+      {!['resistor', 'capacitor', 'inductor', 'led', 'tact_switch', 'c1815', 'a1015', 'mosfet_n'].includes(id) && (
+        <g>
+          <rect x="55" y="50" width="115" height="90" rx="6" fill="#1E293B" />
+          <path d="M 100 50 A 12 12 0 0 0 124 50 Z" fill="#0F172A" />
+          <text x="112.5" y="100" fill="#FFFFFF" fontSize="12" fontWeight="bold" textAnchor="middle">{id.toUpperCase()}</text>
+
+          <rect x="290" y="50" width="115" height="90" rx="6" fill="#F8FAFC" stroke="#1E293B" strokeWidth="2" />
+          <text x="347.5" y="95" fill="#1E293B" fontSize="14" fontWeight="extrabold" textAnchor="middle">{id.toUpperCase()}</text>
+          <text x="347.5" y="115" fill="#64748B" fontSize="10" textAnchor="middle">내부 심볼 회로</text>
+        </g>
+      )}
+    </svg>
+  );
+}
+
+// ==========================================
+// Interactive Resistor Color Code Simulator View
+// ==========================================
+function ResistorSimulatorView() {
+  const [bandCount, setBandCount] = useState(4);
+  const [inputMode, setInputMode] = useState('colorToVal');
+  const [band1, setBand1] = useState('brown');
+  const [band2, setBand2] = useState('black');
+  const [band3, setBand3] = useState('black');
+  const [multiplier, setMultiplier] = useState('red');
+  const [tolerance, setTolerance] = useState('gold');
+  const [valInput, setValInput] = useState('1000');
+  const [unitInput, setUnitInput] = useState('ohms');
+
+  const calculatedOhms = useMemo(() => {
+    const b1 = COLOR_CODES.find((c) => c.id === band1)?.digit ?? 0;
+    const b2 = COLOR_CODES.find((c) => c.id === band2)?.digit ?? 0;
+    const b3 = COLOR_CODES.find((c) => c.id === band3)?.digit ?? 0;
+    const multObj = COLOR_CODES.find((c) => c.id === multiplier);
+    const mult = multObj ? multObj.mult : 1;
+
+    let baseVal = 0;
+    if (bandCount === 4) {
+      baseVal = b1 * 10 + b2;
+    } else {
+      baseVal = b1 * 100 + b2 * 10 + b3;
+    }
+    return baseVal * mult;
+  }, [bandCount, band1, band2, band3, multiplier]);
+
+  const currentTolerance = useMemo(() => {
+    const tolObj = COLOR_CODES.find((c) => c.id === tolerance);
+    return tolObj ? tolObj.tol : 5;
+  }, [tolerance]);
+
+  const applyValueToBands = (valNum) => {
+    if (!valNum || valNum <= 0) return;
+
+    let num = valNum;
+    if (unitInput === 'kOhms') num *= 1000;
+    if (unitInput === 'mOhms') num *= 1000000;
+
+    if (bandCount === 4) {
+      let exp = Math.floor(Math.log10(num)) - 1;
+      let norm = Math.round(num / Math.pow(10, exp));
+      if (norm >= 100) {
+        norm = Math.round(norm / 10);
+        exp += 1;
+      }
+      const d1 = Math.floor(norm / 10);
+      const d2 = norm % 10;
+
+      const c1 = COLOR_CODES.find((c) => c.digit === d1)?.id || 'brown';
+      const c2 = COLOR_CODES.find((c) => c.digit === d2)?.id || 'black';
+
+      const multVal = Math.pow(10, exp);
+      let multObj = COLOR_CODES.find((c) => Math.abs(c.mult - multVal) < 0.0001);
+      if (!multObj) multObj = COLOR_CODES.find((c) => c.id === 'black');
+
+      setBand1(c1);
+      setBand2(c2);
+      if (multObj) setMultiplier(multObj.id);
+    } else {
+      let exp = Math.floor(Math.log10(num)) - 2;
+      let norm = Math.round(num / Math.pow(10, exp));
+      if (norm >= 1000) {
+        norm = Math.round(norm / 10);
+        exp += 1;
+      }
+      const d1 = Math.floor(norm / 100);
+      const d2 = Math.floor((norm % 100) / 10);
+      const d3 = norm % 10;
+
+      const c1 = COLOR_CODES.find((c) => c.digit === d1)?.id || 'brown';
+      const c2 = COLOR_CODES.find((c) => c.digit === d2)?.id || 'black';
+      const c3 = COLOR_CODES.find((c) => c.digit === d3)?.id || 'black';
+
+      const multVal = Math.pow(10, exp);
+      let multObj = COLOR_CODES.find((c) => Math.abs(c.mult - multVal) < 0.0001);
+      if (!multObj) multObj = COLOR_CODES.find((c) => c.id === 'black');
+
+      setBand1(c1);
+      setBand2(c2);
+      setBand3(c3);
+      if (multObj) setMultiplier(multObj.id);
+    }
+  };
+
+  const presetValues = [
+    { label: '330 Ω', val: 330, unit: 'ohms' },
+    { label: '1 kΩ', val: 1, unit: 'kOhms' },
+    { label: '4.7 kΩ', val: 4.7, unit: 'kOhms' },
+    { label: '10 kΩ', val: 10, unit: 'kOhms' },
+    { label: '100 kΩ', val: 100, unit: 'kOhms' },
+    { label: '1 MΩ', val: 1, unit: 'mOhms' }
+  ];
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-stone-100 p-2 rounded-xl text-xs">
+        <div className="flex items-center gap-1">
+          <span className="font-bold text-stone-700 mr-1">색띠:</span>
+          <button
+            onClick={() => setBandCount(4)}
+            className={`px-3 py-1.5 rounded-lg font-bold transition ${
+              bandCount === 4 ? 'bg-orange-500 text-white' : 'bg-white text-stone-600'
+            }`}
+          >
+            4색띠
+          </button>
+          <button
+            onClick={() => setBandCount(5)}
+            className={`px-3 py-1.5 rounded-lg font-bold transition ${
+              bandCount === 5 ? 'bg-orange-500 text-white' : 'bg-white text-stone-600'
+            }`}
+          >
+            5색띠
+          </button>
+        </div>
+
+        <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-stone-200">
+          <button
+            onClick={() => setInputMode('colorToVal')}
+            className={`px-2 py-1 rounded font-semibold transition ${
+              inputMode === 'colorToVal' ? 'bg-stone-900 text-white' : 'text-stone-600'
+            }`}
+          >
+            색상 선택 ➔ 저항값
+          </button>
+          <button
+            onClick={() => setInputMode('valToColor')}
+            className={`px-2 py-1 rounded font-semibold transition ${
+              inputMode === 'valToColor' ? 'bg-stone-900 text-white' : 'text-stone-600'
+            }`}
+          >
+            숫자 입력 ➔ 색띠
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-stone-900 rounded-2xl p-5 flex flex-col items-center justify-center relative shadow-inner">
+        <ResistorGraphicSvg
+          bandCount={bandCount}
+          b1={COLOR_CODES.find((c) => c.id === band1)?.color}
+          b2={COLOR_CODES.find((c) => c.id === band2)?.color}
+          b3={COLOR_CODES.find((c) => c.id === band3)?.color}
+          mult={COLOR_CODES.find((c) => c.id === multiplier)?.color}
+          tol={COLOR_CODES.find((c) => c.id === tolerance)?.color}
+        />
+
+        <div className="mt-3 bg-white/10 px-5 py-2 rounded-full border border-white/20 text-center">
+          <div className="text-xl font-black text-amber-400 font-mono">
+            {formatResistance(calculatedOhms)}{' '}
+            <span className="text-xs font-normal text-amber-200/80">(±{currentTolerance}%)</span>
+          </div>
+        </div>
+      </div>
+
+      {inputMode === 'colorToVal' && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2 text-xs">
+          <div className="bg-stone-50 border p-2 rounded-xl">
+            <p className="font-bold text-stone-700 mb-1">1번째 색</p>
+            <select value={band1} onChange={(e) => setBand1(e.target.value)} className="w-full p-1.5 bg-white border rounded font-bold">
+              {COLOR_CODES.filter((c) => c.digit !== undefined && c.digit !== 0).map((c) => (
+                <option key={c.id} value={c.id}>{c.digit} - {c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="bg-stone-50 border p-2 rounded-xl">
+            <p className="font-bold text-stone-700 mb-1">2번째 색</p>
+            <select value={band2} onChange={(e) => setBand2(e.target.value)} className="w-full p-1.5 bg-white border rounded font-bold">
+              {COLOR_CODES.filter((c) => c.digit !== undefined).map((c) => (
+                <option key={c.id} value={c.id}>{c.digit} - {c.name}</option>
+              ))}
+            </select>
+          </div>
+          {bandCount === 5 && (
+            <div className="bg-stone-50 border p-2 rounded-xl">
+              <p className="font-bold text-stone-700 mb-1">3번째 색</p>
+              <select value={band3} onChange={(e) => setBand3(e.target.value)} className="w-full p-1.5 bg-white border rounded font-bold">
+                {COLOR_CODES.filter((c) => c.digit !== undefined).map((c) => (
+                  <option key={c.id} value={c.id}>{c.digit} - {c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="bg-stone-50 border p-2 rounded-xl">
+            <p className="font-bold text-stone-700 mb-1">승수 (배율)</p>
+            <select value={multiplier} onChange={(e) => setMultiplier(e.target.value)} className="w-full p-1.5 bg-white border rounded font-bold">
+              {COLOR_CODES.filter((c) => c.mult !== undefined).map((c) => (
+                <option key={c.id} value={c.id}>x{c.mult} - {c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="bg-stone-50 border p-2 rounded-xl">
+            <p className="font-bold text-stone-700 mb-1">허용 오차</p>
+            <select value={tolerance} onChange={(e) => setTolerance(e.target.value)} className="w-full p-1.5 bg-white border rounded font-bold">
+              {COLOR_CODES.filter((c) => c.tol !== undefined).map((c) => (
+                <option key={c.id} value={c.id}>±{c.tol}% - {c.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
+
+      {inputMode === 'valToColor' && (
+        <div className="bg-stone-50 border p-3 rounded-2xl flex flex-col gap-2.5">
+          <div className="flex gap-2">
+            <input
+              type="number"
+              value={valInput}
+              onChange={(e) => {
+                setValInput(e.target.value);
+                applyValueToBands(parseFloat(e.target.value));
+              }}
+              placeholder="예: 330, 4.7"
+              className="flex-1 text-sm font-mono font-bold p-2 bg-white border rounded-xl"
+            />
+            <select
+              value={unitInput}
+              onChange={(e) => {
+                setUnitInput(e.target.value);
+                const num = parseFloat(valInput);
+                if (num) applyValueToBands(num);
+              }}
+              className="text-xs font-bold p-2 bg-white border rounded-xl"
+            >
+              <option value="ohms">Ω</option>
+              <option value="kOhms">kΩ</option>
+              <option value="mOhms">MΩ</option>
+            </select>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {presetValues.map((p, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  setValInput(p.val.toString());
+                  setUnitInput(p.unit);
+                  let multVal = p.val;
+                  if (p.unit === 'kOhms') multVal *= 1000;
+                  if (p.unit === 'mOhms') multVal *= 1000000;
+                  applyValueToBands(multVal);
+                }}
+                className="px-2 py-1 bg-white border rounded text-xs font-bold hover:bg-orange-50"
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ResistorGraphicSvg({ bandCount, b1, b2, b3, mult, tol }) {
+  return (
+    <svg width="300" height="90" viewBox="0 0 300 90" className="select-none">
+      <line x1="15" y1="45" x2="60" y2="45" stroke="#D1D5DB" strokeWidth="5" strokeLinecap="round" />
+      <line x1="240" y1="45" x2="285" y2="45" stroke="#D1D5DB" strokeWidth="5" strokeLinecap="round" />
+      <path d="M 60 45 C 55 20, 70 20, 85 20 L 215 20 C 230 20, 245 20, 240 45 C 245 70, 230 70, 215 70 L 85 70 C 70 70, 55 70, 60 45 Z" fill="#E5D3B3" stroke="#C4A882" strokeWidth="2" />
+      <rect x="85" y="20" width="10" height="50" fill={b1 || '#78350F'} />
+      <rect x="110" y="21" width="10" height="48" fill={b2 || '#18181B'} />
+      {bandCount === 5 && <rect x="135" y="21" width="10" height="48" fill={b3 || '#18181B'} />}
+      <rect x={bandCount === 5 ? '160' : '135'} y="21" width="10" height="48" fill={mult || '#DC2626'} />
+      <rect x="200" y="20" width="10" height="50" fill={tol || '#D97706'} />
+    </svg>
+  );
+}
+
+// ==========================================
+// Comprehensive Recommended Schematics Visualizer
+// ==========================================
+function CircuitSchematicSvg({ icId, modeId }) {
+  // 1. RESISTOR
+  if (icId === 'resistor') {
+    if (modeId === 'led_limit') {
+      return (
+        <svg width="420" height="180" viewBox="0 0 420 180" className="select-none">
+          <line x1="40" y1="90" x2="90" y2="90" stroke="#EF4444" strokeWidth="2" />
+          <text x="40" y="75" fill="#EF4444" fontSize="12" fontWeight="bold">VCC (+5V)</text>
+          <path d="M 90 90 L 95 80 L 105 100 L 115 80 L 125 100 L 135 80 L 145 100 L 155 80 L 165 100 L 170 90" fill="none" stroke="#1E293B" strokeWidth="2.5" />
+          <text x="130" y="65" fill="#1E293B" fontSize="12" fontWeight="bold" textAnchor="middle">R (330Ω)</text>
+          <line x1="170" y1="90" x2="230" y2="90" stroke="#1E293B" strokeWidth="2" />
+          <polygon points="230,70 230,110 265,90" fill="#1E293B" />
+          <line x1="265" y1="70" x2="265" y2="110" stroke="#1E293B" strokeWidth="3" />
+          <text x="247.5" y="125" fill="#1E293B" fontSize="11" fontWeight="bold" textAnchor="middle">LED</text>
+          <line x1="265" y1="90" x2="350" y2="90" stroke="#1E293B" strokeWidth="2" />
+          <line x1="350" y1="90" x2="350" y2="120" stroke="#1E293B" strokeWidth="2" />
+          <line x1="335" y1="120" x2="365" y2="120" stroke="#1E293B" strokeWidth="2.5" />
+          <line x1="342" y1="125" x2="358" y2="125" stroke="#1E293B" strokeWidth="2" />
+          <text x="350" y="145" fill="#1E293B" fontSize="11" fontWeight="bold" textAnchor="middle">GND (0V)</text>
+        </svg>
+      );
+    }
+    return (
+      <svg width="420" height="180" viewBox="0 0 420 180" className="select-none">
+        <line x1="210" y1="20" x2="210" y2="40" stroke="#EF4444" strokeWidth="2" />
+        <text x="210" y="15" fill="#EF4444" fontSize="11" fontWeight="bold" textAnchor="middle">Vin (+5V)</text>
+        <path d="M 210 40 L 202 45 L 218 53 L 202 61 L 218 69 L 202 77 L 218 85 L 210 90" fill="none" stroke="#1E293B" strokeWidth="2.5" />
+        <text x="230" y="68" fill="#1E293B" fontSize="11" fontWeight="bold">R1</text>
+        <circle cx="210" cy="100" r="3" fill="#EA580C" />
+        <line x1="210" y1="100" x2="310" y2="100" stroke="#EA580C" strokeWidth="2" />
+        <text x="315" y="104" fill="#EA580C" fontSize="11" fontWeight="bold">Vout 출력</text>
+        <path d="M 210 110 L 202 115 L 218 123 L 202 131 L 218 139 L 202 147 L 218 155 L 210 160" fill="none" stroke="#1E293B" strokeWidth="2.5" />
+        <text x="230" y="138" fill="#1E293B" fontSize="11" fontWeight="bold">R2</text>
+        <line x1="210" y1="160" x2="210" y2="175" stroke="#1E293B" strokeWidth="2" />
+        <line x1="195" y1="175" x2="225" y2="175" stroke="#1E293B" strokeWidth="2" />
+      </svg>
+    );
+  }
+
+  // 2. CAPACITOR
+  if (icId === 'capacitor') {
+    if (modeId === 'decoupling') {
+      return (
+        <svg width="420" height="180" viewBox="0 0 420 180" className="select-none">
+          <line x1="100" y1="40" x2="320" y2="40" stroke="#EF4444" strokeWidth="2.5" />
+          <text x="210" y="30" fill="#EF4444" fontSize="11" fontWeight="bold" textAnchor="middle">IC VCC 전원 라인 (+5V)</text>
+          
+          <line x1="210" y1="40" x2="210" y2="70" stroke="#1E293B" strokeWidth="2" />
+          <line x1="190" y1="70" x2="230" y2="70" stroke="#1E293B" strokeWidth="3" />
+          <line x1="190" y1="78" x2="230" y2="78" stroke="#1E293B" strokeWidth="3" />
+          <line x1="210" y1="78" x2="210" y2="110" stroke="#1E293B" strokeWidth="2" />
+          <text x="245" y="78" fill="#1E293B" fontSize="11" fontWeight="bold">C (0.1μF 바이패스)</text>
+
+          <line x1="100" y1="110" x2="320" y2="110" stroke="#1E293B" strokeWidth="2.5" />
+          <line x1="195" y1="110" x2="225" y2="110" stroke="#1E293B" strokeWidth="2.5" />
+          <line x1="202" y1="115" x2="218" y2="115" stroke="#1E293B" strokeWidth="2" />
+          <text x="210" y="135" fill="#1E293B" fontSize="11" fontWeight="bold" textAnchor="middle">GND (0V)</text>
+        </svg>
+      );
+    }
+    return (
+      <svg width="420" height="180" viewBox="0 0 420 180" className="select-none">
+        <line x1="50" y1="90" x2="140" y2="90" stroke="#1E293B" strokeWidth="2" />
+        <text x="50" y="75" fill="#1E293B" fontSize="11" fontWeight="bold">Vin (리플 입력)</text>
+        <path d="M 140 90 L 145 80 L 155 100 L 165 80 L 175 100 L 180 90" fill="none" stroke="#1E293B" strokeWidth="2" />
+        <line x1="180" y1="90" x2="250" y2="90" stroke="#1E293B" strokeWidth="2" />
+        <circle cx="250" cy="90" r="3" fill="#1E293B" />
+        <line x1="250" y1="90" x2="350" y2="90" stroke="#065F46" strokeWidth="2.5" />
+        <text x="355" y="94" fill="#065F46" fontSize="11" fontWeight="bold">Vout (평활된 DC)</text>
+
+        <line x1="250" y1="90" x2="250" y2="115" stroke="#1E293B" strokeWidth="2" />
+        <line x1="230" y1="115" x2="270" y2="115" stroke="#1E293B" strokeWidth="3" />
+        <line x1="230" y1="123" x2="270" y2="123" stroke="#1E293B" strokeWidth="3" />
+        <line x1="250" y1="123" x2="250" y2="150" stroke="#1E293B" strokeWidth="2" />
+        <text x="280" y="122" fill="#1E293B" fontSize="11" fontWeight="bold">C (100μF)</text>
+        <line x1="235" y1="150" x2="265" y2="150" stroke="#1E293B" strokeWidth="2" />
+      </svg>
+    );
+  }
+
+  // 3. INDUCTOR
+  if (icId === 'inductor') {
+    if (modeId === 'flyback') {
+      return (
+        <svg width="420" height="180" viewBox="0 0 420 180" className="select-none">
+          <line x1="80" y1="60" x2="160" y2="60" stroke="#EF4444" strokeWidth="2" />
+          <text x="80" y="45" fill="#EF4444" fontSize="11" fontWeight="bold">전원 (+)</text>
+          
+          {/* Inductor Symbol */}
+          <path d="M 160 60 A 10 10 0 0 1 180 60 A 10 10 0 0 1 200 60 A 10 10 0 0 1 220 60 A 10 10 0 0 1 240 60" fill="none" stroke="#1E293B" strokeWidth="2.5" />
+          <text x="200" y="40" fill="#1E293B" fontSize="11" fontWeight="bold" textAnchor="middle">코일 (릴레이/인덕터)</text>
+
+          {/* Diode Parallel (Flyback) */}
+          <line x1="160" y1="60" x2="160" y2="120" stroke="#1E293B" strokeWidth="2" />
+          <line x1="240" y1="60" x2="240" y2="120" stroke="#1E293B" strokeWidth="2" />
+          <polygon points="200,110 190,130 210,130" fill="#1E293B" />
+          <line x1="190" y1="110" x2="210" y2="110" stroke="#1E293B" strokeWidth="2.5" />
+          <text x="225" y="122" fill="#1E293B" fontSize="10" fontWeight="bold">보호 다이오드</text>
+
+          <line x1="200" y1="130" x2="200" y2="155" stroke="#1E293B" strokeWidth="2" />
+          <line x1="185" y1="155" x2="215" y2="155" stroke="#1E293B" strokeWidth="2" />
+        </svg>
+      );
+    }
+    return (
+      <svg width="420" height="180" viewBox="0 0 420 180" className="select-none">
+        <line x1="50" y1="90" x2="130" y2="90" stroke="#1E293B" strokeWidth="2" />
+        <text x="50" y="75" fill="#1E293B" fontSize="11" fontWeight="bold">입력 신호 (노이즈 포함)</text>
+        
+        <path d="M 130 90 A 12 12 0 0 1 154 90 A 12 12 0 0 1 178 90 A 12 12 0 0 1 202 90 A 12 12 0 0 1 226 90" fill="none" stroke="#1E293B" strokeWidth="2.5" />
+        <text x="178" y="60" fill="#1E293B" fontSize="11" fontWeight="bold" textAnchor="middle">인덕터 L</text>
+        
+        <line x1="226" y1="90" x2="350" y2="90" stroke="#065F46" strokeWidth="2.5" />
+        <text x="355" y="94" fill="#065F46" fontSize="11" fontWeight="bold">출력 (노이즈 필터링됨)</text>
+
+        {/* Capacitor to GND */}
+        <line x1="280" y1="90" x2="280" y2="120" stroke="#1E293B" strokeWidth="2" />
+        <line x1="265" y1="120" x2="295" y2="120" stroke="#1E293B" strokeWidth="3" />
+        <line x1="265" y1="127" x2="295" y2="127" stroke="#1E293B" strokeWidth="3" />
+        <line x1="280" y1="127" x2="280" y2="155" stroke="#1E293B" strokeWidth="2" />
+        <line x1="268" y1="155" x2="292" y2="155" stroke="#1E293B" strokeWidth="2" />
+      </svg>
+    );
+  }
+
+  // 4. LED
+  if (icId === 'led') {
+    return (
+      <svg width="420" height="180" viewBox="0 0 420 180" className="select-none">
+        <line x1="40" y1="90" x2="100" y2="90" stroke="#EF4444" strokeWidth="2" />
+        <text x="40" y="75" fill="#EF4444" fontSize="11" fontWeight="bold">5V 전원 또는 출력</text>
+        
+        {/* Resistor */}
+        <path d="M 100 90 L 105 80 L 115 100 L 125 80 L 135 100 L 145 80 L 155 100 L 160 90" fill="none" stroke="#1E293B" strokeWidth="2" />
+        <text x="130" y="65" fill="#1E293B" fontSize="11" fontWeight="bold" textAnchor="middle">330Ω 저항</text>
+
+        <line x1="160" y1="90" x2="230" y2="90" stroke="#1E293B" strokeWidth="2" />
+
+        {/* LED */}
+        <polygon points="230,70 230,110 265,90" fill="#1E293B" />
+        <line x1="265" y1="70" x2="265" y2="110" stroke="#1E293B" strokeWidth="3" />
+        <text x="247.5" y="125" fill="#1E293B" fontSize="11" fontWeight="bold" textAnchor="middle">LED (A-K)</text>
+
+        <line x1="265" y1="90" x2="350" y2="90" stroke="#1E293B" strokeWidth="2" />
+        <line x1="350" y1="90" x2="350" y2="120" stroke="#1E293B" strokeWidth="2" />
+        <line x1="335" y1="120" x2="365" y2="120" stroke="#1E293B" strokeWidth="2.5" />
+        <line x1="342" y1="125" x2="358" y2="125" stroke="#1E293B" strokeWidth="2" />
+        <text x="350" y="145" fill="#1E293B" fontSize="11" fontWeight="bold" textAnchor="middle">GND (0V)</text>
+      </svg>
+    );
+  }
+
+  // 5. TACT SWITCH
+  if (icId === 'tact_switch') {
+    return (
+      <svg width="420" height="180" viewBox="0 0 420 180" className="select-none">
+        <line x1="120" y1="20" x2="120" y2="40" stroke="#EF4444" strokeWidth="2" />
+        <text x="120" y="15" fill="#EF4444" fontSize="11" fontWeight="bold" textAnchor="middle">VCC (+5V)</text>
+        <rect x="110" y="40" width="20" height="35" fill="#FFF" stroke="#1E293B" strokeWidth="1.5" />
+        <text x="140" y="60" fill="#1E293B" fontSize="10">풀업저항 (10kΩ)</text>
+        <circle cx="120" cy="95" r="3" fill="#EA580C" />
+        <line x1="120" y1="95" x2="240" y2="95" stroke="#EA580C" strokeWidth="2" />
+        <text x="245" y="99" fill="#EA580C" fontSize="11" fontWeight="bold">MCU / IC 입력 핀</text>
+
+        <circle cx="120" cy="115" r="3" fill="#1E293B" />
+        <line x1="120" y1="75" x2="120" y2="115" stroke="#1E293B" strokeWidth="2" />
+        <circle cx="120" cy="155" r="3" fill="#1E293B" />
+        <line x1="120" y1="115" x2="140" y2="135" stroke="#1E293B" strokeWidth="2.5" />
+        <line x1="120" y1="155" x2="120" y2="170" stroke="#1E293B" strokeWidth="2" />
+        <line x1="105" y1="170" x2="135" y2="170" stroke="#1E293B" strokeWidth="2" />
+        <text x="145" y="174" fill="#1E293B" fontSize="10" fontWeight="bold">GND (0V)</text>
+      </svg>
+    );
+  }
+
+  // 6. TR / FET
+  if (icId === 'c1815' || icId === 'a1015' || icId === 'mosfet_n') {
+    return (
+      <svg width="420" height="180" viewBox="0 0 420 180" className="select-none">
+        <line x1="210" y1="15" x2="210" y2="40" stroke="#EF4444" strokeWidth="2" />
+        <text x="210" y="12" fill="#EF4444" fontSize="11" fontWeight="bold" textAnchor="middle">VCC (+5V)</text>
+
+        <polygon points="210,40 200,60 220,60" fill="#EF4444" />
+        <text x="230" y="55" fill="#EF4444" fontSize="10" fontWeight="bold">부하 (LED)</text>
+        <line x1="210" y1="60" x2="210" y2="85" stroke="#1E293B" strokeWidth="2" />
+
+        <circle cx="210" cy="110" r="22" fill="#FFF" stroke="#1E293B" strokeWidth="2" />
+        <text x="210" y="114" fill="#1E293B" fontSize="11" fontWeight="bold" textAnchor="middle">{icId.toUpperCase()}</text>
+
+        <line x1="80" y1="110" x2="188" y2="110" stroke="#334155" strokeWidth="2" />
+        <rect x="110" y="104" width="30" height="12" fill="#FFF" stroke="#334155" strokeWidth="1.5" />
+        <text x="125" y="100" fill="#334155" fontSize="9" textAnchor="middle">Rb (1kΩ)</text>
+        <text x="75" y="114" fill="#334155" fontSize="11" fontWeight="bold" textAnchor="end">제어 신호 (0V/5V)</text>
+
+        <line x1="210" y1="132" x2="210" y2="160" stroke="#1E293B" strokeWidth="2" />
+        <line x1="195" y1="160" x2="225" y2="160" stroke="#1E293B" strokeWidth="2" />
+      </svg>
+    );
+  }
+
+  // 7. LOGIC GATES
+  if (['7400', '7402', '7404', '7408', '7432', '7486', 'cd4077'].includes(icId)) {
+    const gateNames = {
+      '7400': 'NAND 게이트', '7402': 'NOR 게이트', '7404': 'NOT 인버터',
+      '7408': 'AND 게이트', '7432': 'OR 게이트', '7486': 'XOR 게이트', 'cd4077': 'XNOR 게이트'
+    };
+    return (
+      <svg width="420" height="180" viewBox="0 0 420 180" className="select-none">
+        <rect x="130" y="35" width="160" height="110" rx="8" fill="#FFFFFF" stroke="#1E293B" strokeWidth="2" />
+        <text x="210" y="85" fill="#1E293B" fontSize="16" fontWeight="extrabold" textAnchor="middle">{gateNames[icId]}</text>
+        <text x="210" y="108" fill="#64748B" fontSize="10" textAnchor="middle">(14핀 IC 내부 1채널)</text>
+
+        <line x1="50" y1="65" x2="130" y2="65" stroke="#334155" strokeWidth="2" />
+        <text x="40" y="69" fill="#334155" fontSize="11" fontWeight="bold" textAnchor="end">입력 A</text>
+
+        {icId !== '7404' && (
+          <>
+            <line x1="50" y1="115" x2="130" y2="115" stroke="#334155" strokeWidth="2" />
+            <text x="40" y="119" fill="#334155" fontSize="11" fontWeight="bold" textAnchor="end">입력 B</text>
+          </>
+        )}
+
+        <line x1="290" y1="90" x2="370" y2="90" stroke="#F97316" strokeWidth="2.5" />
+        <circle cx="370" cy="90" r="4" fill="#F97316" />
+        <text x="378" y="94" fill="#EA580C" fontSize="11" fontWeight="bold">출력 Y</text>
+      </svg>
+    );
+  }
+
+  // Default IC Schematic
+  return (
+    <div className="flex flex-col items-center justify-center p-4 text-center">
+      <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center text-orange-600 mb-2 border border-orange-200">
+        <Zap className="w-6 h-6" />
+      </div>
+      <p className="text-xs font-bold text-stone-800">
+        권장 전원 및 입출력 결선 회로도
+      </p>
+    </div>
+  );
+}
+
+import { createRoot } from 'react-dom/client';
+const bootEl = document.getElementById('boot');
+if (bootEl) bootEl.remove();
+createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+</body>
+</html>

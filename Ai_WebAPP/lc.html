@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LC 계산기 · 김쌔미앙tv</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+  body { background: #0F172A; background-image:none; }
+  #root { min-height:100vh; }
+  #boot {
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:#0F172A; color:#8FA79B; font-family:'JetBrains Mono',monospace; font-size:0.85rem;
+    letter-spacing:0.05em; z-index:1;
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.383.0?external=react"
+  }
+}
+</script>
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+</head>
+<body>
+
+<a class="back-pill" href="../student.html">← 학생용 홈으로</a>
+<div id="boot">불러오는 중...</div>
+<div id="root"></div>
+
+<script type="text/babel" data-type="module" data-presets="react,typescript">
+import React, { useState, useMemo } from 'react';
+import { 
+  Calculator, 
+  Palette, 
+  RotateCcw, 
+  Info, 
+  Copy, 
+  Check, 
+  Zap, 
+  Sparkles,
+  ArrowRightLeft,
+  ChevronRight,
+  BookOpen,
+  Cpu,
+  Layers,
+  Sliders
+} from 'lucide-react';
+
+// ==========================================
+// 1. 색상 데이터 및 상수 정의
+// ==========================================
+const COLOR_MAP = {
+  black: { id: 'black', name: '검정', hex: '#1C1917', digit: 0, mult: 1, tolInd: 20, bgClass: 'bg-stone-900', textClass: 'text-white' },
+  brown: { id: 'brown', name: '갈색', hex: '#78350F', digit: 1, mult: 10, tolInd: 1, bgClass: 'bg-amber-900', textClass: 'text-white' },
+  red: { id: 'red', name: '빨강', hex: '#DC2626', digit: 2, mult: 100, tolInd: 2, bgClass: 'bg-red-600', textClass: 'text-white' },
+  orange: { id: 'orange', name: '주황', hex: '#EA580C', digit: 3, mult: 1000, tolInd: 3, bgClass: 'bg-orange-600', textClass: 'text-white' },
+  yellow: { id: 'yellow', name: '노랑', hex: '#CA8A04', digit: 4, mult: 10000, tolInd: 4, bgClass: 'bg-yellow-500', textClass: 'text-stone-900' },
+  green: { id: 'green', name: '초록', hex: '#16A34A', digit: 5, mult: 100000, tolInd: null, bgClass: 'bg-green-600', textClass: 'text-white' },
+  blue: { id: 'blue', name: '파랑', hex: '#2563EB', digit: 6, mult: 1000000, tolInd: null, bgClass: 'bg-blue-600', textClass: 'text-white' },
+  violet: { id: 'violet', name: '보라', hex: '#9333EA', digit: 7, mult: 10000000, tolInd: null, bgClass: 'bg-purple-600', textClass: 'text-white' },
+  grey: { id: 'grey', name: '회색', hex: '#4B5563', digit: 8, mult: 0.01, tolInd: null, bgClass: 'bg-gray-600', textClass: 'text-white' },
+  white: { id: 'white', name: '흰색', hex: '#F9FAFB', digit: 9, mult: 0.1, tolInd: null, bgClass: 'bg-slate-100 border border-slate-300', textClass: 'text-slate-900' },
+  gold: { id: 'gold', name: '금색', hex: '#D4AF37', digit: null, mult: 0.1, tolInd: 5, bgClass: 'bg-yellow-600', textClass: 'text-white' },
+  silver: { id: 'silver', name: '은색', hex: '#9CA3AF', digit: null, mult: 0.01, tolInd: 10, bgClass: 'bg-slate-400', textClass: 'text-slate-900' },
+};
+
+const DIGIT_COLORS = ['black', 'brown', 'red', 'orange', 'yellow', 'green', 'blue', 'violet', 'grey', 'white'];
+const MULT_COLORS = ['black', 'brown', 'red', 'orange', 'yellow', 'gold', 'silver'];
+const TOL_COLORS_IND = ['black', 'brown', 'red', 'orange', 'yellow', 'gold', 'silver'];
+
+// 커패시터 오차 문자 코드
+const CAP_TOLERANCE_CODES = {
+  B: { code: 'B', val: '±0.1 pF', percent: 0.1, isAbsolute: true },
+  C: { code: 'C', val: '±0.25 pF', percent: 0.25, isAbsolute: true },
+  D: { code: 'D', val: '±0.5 pF', percent: 0.5, isAbsolute: true },
+  F: { code: 'F', val: '±1%', percent: 1 },
+  G: { code: 'G', val: '±2%', percent: 2 },
+  J: { code: 'J', val: '±5%', percent: 5 },
+  K: { code: 'K', val: '±10%', percent: 10 },
+  M: { code: 'M', val: '±20%', percent: 20 },
+  Z: { code: 'Z', val: '+80% / -20%', percent: 80 },
+};
+
+// 커패시터 정격 전압 기호
+const CAP_VOLTAGE_CODES = {
+  'none': { label: '미표기', voltage: '' },
+  '1E': { label: '1E (25V)', voltage: '25V' },
+  '1H': { label: '1H (50V)', voltage: '50V' },
+  '2A': { label: '2A (100V)', voltage: '100V' },
+  '2D': { label: '2D (200V)', voltage: '200V' },
+  '2E': { label: '2E (250V)', voltage: '250V' },
+  '2G': { label: '2G (400V)', voltage: '400V' },
+  '2J': { label: '2J (630V)', voltage: '630V' },
+  '3A': { label: '3A (1000V)', voltage: '1000V' },
+};
+
+// 포맷터 함수들
+function formatCapacitance(pF) {
+  if (isNaN(pF) || pF <= 0) return '0 pF';
+  if (pF >= 1e9) return `${parseFloat((pF / 1e9).toFixed(3))} mF`;
+  if (pF >= 1e6) return `${parseFloat((pF / 1e6).toFixed(3))} µF`;
+  if (pF >= 1e3) return `${parseFloat((pF / 1e3).toFixed(3))} nF`;
+  return `${parseFloat(pF.toFixed(2))} pF`;
+}
+
+function formatInductance(uH) {
+  if (isNaN(uH) || uH <= 0) return '0 µH';
+  if (uH >= 1e6) return `${parseFloat((uH / 1e6).toFixed(3))} H`;
+  if (uH >= 1e3) return `${parseFloat((uH / 1e3).toFixed(3))} mH`;
+  if (uH < 1) return `${parseFloat((uH * 1e3).toFixed(2))} nH`;
+  return `${parseFloat(uH.toFixed(2))} µH`;
+}
+
+// ==========================================
+// 2. 색띠 선택 하위 컴포넌트
+// ==========================================
+function BandSelectorGroup({ label, description, allowedColors, selected, onSelect, isMultiplier = false, isTolerance = false }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div>
+          <span className="text-xs font-semibold text-slate-200 block">{label}</span>
+          <span className="text-[11px] text-slate-400">{description}</span>
+        </div>
+        {selected && COLOR_MAP[selected] && (
+          <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-cyan-400">
+            {isMultiplier 
+              ? `x${COLOR_MAP[selected].mult}`
+              : isTolerance
+                ? `±${COLOR_MAP[selected].tolInd}%`
+                : `${COLOR_MAP[selected].digit} (${COLOR_MAP[selected].name})`}
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+        {allowedColors.map((colorKey) => {
+          const colorObj = COLOR_MAP[colorKey];
+          if (!colorObj) return null;
+          const isSelected = selected === colorKey;
+
+          let displayVal = '';
+          if (isMultiplier) {
+            displayVal = `x${colorObj.mult}`;
+          } else if (isTolerance) {
+            displayVal = colorObj.tolInd !== null ? `±${colorObj.tolInd}%` : '-';
+          } else {
+            displayVal = colorObj.digit !== null ? `${colorObj.digit}` : '';
+          }
+
+          return (
+            <button
+              key={colorKey}
+              onClick={() => onSelect(colorKey)}
+              className={`flex items-center gap-2 p-2 rounded-xl border text-xs transition-all ${
+                isSelected
+                  ? 'bg-slate-700 border-cyan-400 ring-2 ring-cyan-500/50 text-white shadow-md'
+                  : 'bg-slate-900/80 border-slate-700/80 text-slate-300 hover:border-slate-500 hover:bg-slate-800'
+              }`}
+            >
+              <span className={`w-3.5 h-3.5 rounded-full shrink-0 ${colorObj.bgClass} border border-white/20`} />
+              <div className="text-left overflow-hidden">
+                <div className="font-medium truncate text-[11px]">{colorObj.name}</div>
+                <div className="text-[10px] text-slate-400 font-mono truncate">{displayVal}</div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// 3. 메인 App 컴포넌트
+// ==========================================
+export default function App() {
+  const [componentType, setComponentType] = useState('capacitor'); // 'capacitor' | 'inductor'
+  const [calcMode, setCalcMode] = useState('codeToVal'); // 'codeToVal' | 'valToCode' | 'cheatsheet'
+  const [copied, setCopied] = useState(false);
+
+  // ------------------------------------------
+  // Capacitor State
+  // ------------------------------------------
+  const [capDigitCode, setCapDigitCode] = useState('104'); // default 100nF
+  const [capTolCode, setCapTolCode] = useState('K'); // ±10%
+  const [capVoltCode, setCapVoltCode] = useState('1H'); // 50V
+  
+  // Capacitor (Value to Code State)
+  const [capInputValue, setCapInputValue] = useState('100');
+  const [capInputUnit, setCapInputUnit] = useState(1e3); // nF = 1,000 pF
+
+  // ------------------------------------------
+  // Inductor State
+  // ------------------------------------------
+  const [indBands, setIndBands] = useState({
+    b1: 'yellow', // 4
+    b2: 'violet', // 7
+    mult: 'brown', // x10
+    tol: 'gold'   // ±5%
+  });
+  
+  // Inductor (Value to Color State)
+  const [indInputValue, setIndInputValue] = useState('47');
+  const [indInputUnit, setIndInputUnit] = useState(1); // 1 = µH, 1000 = mH
+
+  // ------------------------------------------
+  // 복사 로직 (iframe 권한 호환)
+  // ------------------------------------------
+  const copyToClipboard = (text) => {
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      textarea.style.top = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      if (successful) {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch (err) {
+      console.error('클립보드 복사 실패:', err);
+    }
+  };
+
+  // ------------------------------------------
+  // 1. 커패시터 [코드 → 용량] 계산
+  // ------------------------------------------
+  const capCalculatedFromCode = useMemo(() => {
+    const raw = capDigitCode.trim().toUpperCase();
+    if (!raw) return { error: '코드를 입력해주세요.' };
+
+    let pF = 0;
+    // R을 사용한 소수점 표현 처리 (예: 4R7 = 4.7 pF)
+    if (raw.includes('R')) {
+      const parts = raw.split('R');
+      const val = parseFloat(parts[0] + '.' + (parts[1] || '0'));
+      if (isNaN(val)) return { error: '올바른 숫자 코드가 아닙니다.' };
+      pF = val;
+    } else {
+      const digits = raw.replace(/\D/g, '');
+      if (digits.length === 1 || digits.length === 2) {
+        pF = parseFloat(digits);
+      } else if (digits.length === 3) {
+        const d1 = parseInt(digits[0], 10);
+        const d2 = parseInt(digits[1], 10);
+        const multExp = parseInt(digits[2], 10);
+        pF = (d1 * 10 + d2) * Math.pow(10, multExp);
+      } else {
+        return { error: '3자리 숫자 코드 또는 R 표기법을 사용하세요 (예: 104, 472, 4R7).' };
+      }
+    }
+
+    const tolObj = CAP_TOLERANCE_CODES[capTolCode] || CAP_TOLERANCE_CODES.K;
+    const voltObj = CAP_VOLTAGE_CODES[capVoltCode] || CAP_VOLTAGE_CODES.none;
+
+    return {
+      pF,
+      formatted: formatCapacitance(pF),
+      tolerance: tolObj.val,
+      voltage: voltObj.voltage,
+      fullCode: `${raw}${capTolCode}${capVoltCode !== 'none' ? ' ' + capVoltCode : ''}`
+    };
+  }, [capDigitCode, capTolCode, capVoltCode]);
+
+  // ------------------------------------------
+  // 2. 커패시터 [용량 → 코드] 계산
+  // ------------------------------------------
+  const capCalculatedFromVal = useMemo(() => {
+    const num = parseFloat(capInputValue);
+    if (isNaN(num) || num <= 0) return { error: '유효한 수치를 입력하세요.' };
+
+    const totalPF = num * capInputUnit; // pF 단위 기준
+    let codeStr = '';
+
+    if (totalPF < 10) {
+      codeStr = totalPF.toString().replace('.', 'R');
+    } else {
+      let exp = Math.floor(Math.log10(totalPF));
+      let mantissa = totalPF / Math.pow(10, exp);
+      let digitVal = Math.round(mantissa * 10);
+      let multExp = exp - 1;
+
+      if (digitVal >= 100) {
+        digitVal = Math.floor(digitVal / 10);
+        multExp += 1;
+      }
+
+      if (multExp > 6) return { error: '표준 커패시터 코드 범위를 초과했습니다.' };
+      codeStr = `${digitVal}${multExp}`;
+    }
+
+    const tolObj = CAP_TOLERANCE_CODES[capTolCode] || CAP_TOLERANCE_CODES.K;
+    const voltObj = CAP_VOLTAGE_CODES[capVoltCode] || CAP_VOLTAGE_CODES.none;
+
+    return {
+      totalPF,
+      formatted: formatCapacitance(totalPF),
+      generatedCode: codeStr,
+      tolerance: tolObj.val,
+      voltage: voltObj.voltage,
+      fullDisplayCode: `${codeStr}${capTolCode} ${voltObj.voltage}`
+    };
+  }, [capInputValue, capInputUnit, capTolCode, capVoltCode]);
+
+  // ------------------------------------------
+  // 3. 인덕터 [색띠 → 용량] 계산
+  // ------------------------------------------
+  const indCalculatedFromBands = useMemo(() => {
+    const d1 = COLOR_MAP[indBands.b1]?.digit ?? 0;
+    const d2 = COLOR_MAP[indBands.b2]?.digit ?? 0;
+    const mult = COLOR_MAP[indBands.mult]?.mult ?? 1;
+    const tol = COLOR_MAP[indBands.tol]?.tolInd ?? 5;
+
+    const baseDigits = d1 * 10 + d2;
+    const uH = baseDigits * mult; // microHenry (µH) 기준
+
+    return {
+      uH,
+      formatted: formatInductance(uH),
+      tol,
+      baseDigits
+    };
+  }, [indBands]);
+
+  // ------------------------------------------
+  // 4. 인덕터 [용량 → 색띠 & 코드] 계산
+  // ------------------------------------------
+  const indCalculatedFromVal = useMemo(() => {
+    const num = parseFloat(indInputValue);
+    if (isNaN(num) || num <= 0) return { error: '유효한 수치를 입력하세요.' };
+
+    const totalUH = num * indInputUnit; // µH 기준
+    let exp = Math.floor(Math.log10(totalUH));
+    let mantissa = totalUH / Math.pow(10, exp);
+    let digitVal = Math.round(mantissa * 10);
+    let multExp = exp - 1;
+
+    if (digitVal >= 100) {
+      digitVal = Math.floor(digitVal / 10);
+      multExp += 1;
+    }
+
+    const digitsStr = digitVal.toString().padStart(2, '0');
+    const digitsArr = digitsStr.split('').map(Number);
+
+    // 색상 찾기
+    const findColorByDigit = (d) => DIGIT_COLORS.find(c => COLOR_MAP[c].digit === d) || 'brown';
+    const findColorByMult = (m) => MULT_COLORS.find(c => Math.abs(COLOR_MAP[c].mult - Math.pow(10, m)) < 0.0001 || (m === -1 && COLOR_MAP[c].mult === 0.1) || (m === -2 && COLOR_MAP[c].mult === 0.01)) || 'black';
+
+    const b1Color = findColorByDigit(digitsArr[0]);
+    const b2Color = findColorByDigit(digitsArr[1]);
+    const multColor = findColorByMult(multExp);
+
+    // SMD 인덕터 코드 생성 (예: 4R7 또는 470)
+    let smdCode = '';
+    if (totalUH < 10) {
+      smdCode = totalUH.toString().replace('.', 'R');
+    } else {
+      smdCode = `${digitsStr}${multExp}`;
+    }
+
+    return {
+      totalUH,
+      formatted: formatInductance(totalUH),
+      smdCode,
+      bands: {
+        b1: b1Color,
+        b2: b2Color,
+        mult: multColor,
+        tol: indBands.tol
+      }
+    };
+  }, [indInputValue, indInputUnit, indBands.tol]);
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-white">
+      
+      {/* Header */}
+      <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-gradient-to-tr from-cyan-500 to-emerald-500 rounded-xl shadow-lg shadow-cyan-500/20 text-slate-950 font-extrabold">
+              <Cpu className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="font-bold text-lg md:text-xl text-white flex items-center gap-2">
+                커패시터 & 인덕터 계산기
+                <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800">
+                  Capacitor & Inductor
+                </span>
+              </h1>
+              <p className="text-xs text-slate-400">숫자 코드, 색띠 마킹, 용량 상호 변환 및 시각화</p>
+            </div>
+          </div>
+
+          {/* Component Type Toggle (Capacitor vs Inductor) */}
+          <div className="flex items-center p-1 bg-slate-800 rounded-xl border border-slate-700">
+            <button
+              onClick={() => setComponentType('capacitor')}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition ${
+                componentType === 'capacitor'
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Layers className="w-4 h-4" />
+              커패시터 (Capacitor)
+            </button>
+            <button
+              onClick={() => setComponentType('inductor')}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition ${
+                componentType === 'inductor'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Sliders className="w-4 h-4" />
+              인덕터 (Inductor)
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Container */}
+      <main className="flex-1 max-w-6xl w-full mx-auto p-4 md:p-6 space-y-6">
+
+        {/* Control Sub-Bar: Mode & Preset */}
+        <div className="bg-slate-800/40 border border-slate-800 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
+          
+          {/* Mode Switcher */}
+          <div className="flex items-center p-1 bg-slate-900 rounded-lg border border-slate-700">
+            <button
+              onClick={() => setCalcMode('codeToVal')}
+              className={`px-3 py-1.5 rounded-md text-xs font-bold transition ${
+                calcMode === 'codeToVal'
+                  ? 'bg-cyan-500 text-white shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              {componentType === 'capacitor' ? '코드 → 용량 계산' : '색띠/코드 → 인덕턴스'}
+            </button>
+            <button
+              onClick={() => setCalcMode('valToCode')}
+              className={`px-3 py-1.5 rounded-md text-xs font-bold transition ${
+                calcMode === 'valToCode'
+                  ? 'bg-cyan-500 text-white shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              {componentType === 'capacitor' ? '용량 → 코드 시각화' : '인덕턴스 → 색띠 시각화'}
+            </button>
+            <button
+              onClick={() => setCalcMode('cheatsheet')}
+              className={`px-3 py-1.5 rounded-md text-xs font-bold transition ${
+                calcMode === 'cheatsheet'
+                  ? 'bg-cyan-500 text-white shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              규격 참조표
+            </button>
+          </div>
+
+          {/* Quick Presets */}
+          <div className="flex items-center gap-2 flex-wrap text-xs">
+            <span className="text-slate-400">자주 쓰는 규격:</span>
+            {componentType === 'capacitor' ? (
+              [
+                { label: '100 nF (104)', code: '104' },
+                { label: '10 µF (106)', code: '106' },
+                { label: '1 nF (102)', code: '102' },
+                { label: '47 pF (470)', code: '470' },
+              ].map((p, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setCapDigitCode(p.code);
+                    if (calcMode !== 'codeToVal') setCalcMode('codeToVal');
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700"
+                >
+                  {p.label}
+                </button>
+              ))
+            ) : (
+              [
+                { label: '4.7 µH (노랑-보라-금)', val: '4.7', unit: 1 },
+                { label: '10 µH (갈색-검정-검정)', val: '10', unit: 1 },
+                { label: '100 µH (갈색-검정-갈색)', val: '100', unit: 1 },
+                { label: '1 mH (갈색-검정-빨강)', val: '1', unit: 1000 },
+              ].map((p, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setIndInputValue(p.val);
+                    setIndInputUnit(p.unit);
+                    if (calcMode !== 'valToCode') setCalcMode('valToCode');
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700"
+                >
+                  {p.label}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Visualizer Header SVG Box */}
+        {calcMode !== 'cheatsheet' && (
+          <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-2xl relative overflow-hidden flex flex-col items-center justify-center min-h-[220px]">
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b15_1px,transparent_1px),linear-gradient(to_bottom,#1e293b15_1px,transparent_1px)] bg-[size:24px_24px]" />
+
+            <div className="relative z-10 w-full max-w-2xl flex flex-col items-center">
+              
+              {/* Computed Value Header */}
+              <div className="mb-4 flex items-center gap-3">
+                <span className="text-2xl md:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400">
+                  {componentType === 'capacitor'
+                    ? (calcMode === 'codeToVal' ? capCalculatedFromCode.formatted : capCalculatedFromVal.formatted)
+                    : (calcMode === 'codeToVal' ? indCalculatedFromBands.formatted : indCalculatedFromVal.formatted)
+                  }
+                </span>
+
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-800 text-cyan-300 border border-slate-700">
+                  {componentType === 'capacitor'
+                    ? (calcMode === 'codeToVal' ? capCalculatedFromCode.tolerance : capCalculatedFromVal.tolerance)
+                    : `±${indCalculatedFromBands.tol}%`
+                  }
+                </span>
+
+                <button
+                  onClick={() => copyToClipboard(
+                    componentType === 'capacitor'
+                      ? (calcMode === 'codeToVal' ? capCalculatedFromCode.formatted : capCalculatedFromVal.formatted)
+                      : (calcMode === 'codeToVal' ? indCalculatedFromBands.formatted : indCalculatedFromVal.formatted)
+                  )}
+                  className="p-1.5 text-slate-400 hover:text-white bg-slate-800 rounded-lg border border-slate-700 transition"
+                  title="값 복사하기"
+                >
+                  {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+
+              {/* Graphical Component Representation SVG */}
+              <div className="w-full h-36 flex items-center justify-center">
+                {componentType === 'capacitor' ? (
+                  /* Ceramic Capacitor Graphic */
+                  <svg viewBox="0 0 400 130" className="w-full max-w-md h-full drop-shadow-2xl">
+                    <defs>
+                      <linearGradient id="leadGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="#94a3b8" />
+                        <stop offset="50%" stopColor="#f8fafc" />
+                        <stop offset="100%" stopColor="#64748b" />
+                      </linearGradient>
+                      <linearGradient id="capGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#f97316" />
+                        <stop offset="60%" stopColor="#ea580c" />
+                        <stop offset="100%" stopColor="#c2410c" />
+                      </linearGradient>
+                    </defs>
+
+                    {/* Wire Leads */}
+                    <rect x="170" y="70" width="8" height="55" rx="2" fill="url(#leadGrad)" />
+                    <rect x="222" y="70" width="8" height="55" rx="2" fill="url(#leadGrad)" />
+
+                    {/* Disc Capacitor Body */}
+                    <ellipse cx="200" cy="50" rx="55" ry="42" fill="url(#capGrad)" stroke="#9a3412" strokeWidth="2" />
+                    
+                    {/* Printed Code Label */}
+                    <text x="200" y="48" textAnchor="middle" fill="#ffe4e6" fontSize="16" fontWeight="bold" fontFamily="monospace">
+                      {calcMode === 'codeToVal' ? capCalculatedFromCode.fullCode : capCalculatedFromVal.fullDisplayCode}
+                    </text>
+                    <text x="200" y="65" textAnchor="middle" fill="#ffedd5" fontSize="10" opacity="0.8">
+                      CERAMIC
+                    </text>
+                  </svg>
+                ) : (
+                  /* Axial Molded Inductor Graphic */
+                  <svg viewBox="0 0 500 120" className="w-full max-w-lg h-full drop-shadow-2xl">
+                    <defs>
+                      <linearGradient id="leadGradInd" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="#94a3b8" />
+                        <stop offset="50%" stopColor="#f8fafc" />
+                        <stop offset="100%" stopColor="#64748b" />
+                      </linearGradient>
+                      <linearGradient id="indBodyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="#2dd4bf" />
+                        <stop offset="50%" stopColor="#0f766e" />
+                        <stop offset="100%" stopColor="#115e59" />
+                      </linearGradient>
+                      <filter id="bandShadowInd">
+                        <feDropShadow dx="1" dy="1" stdDeviation="1" floodOpacity="0.3" />
+                      </filter>
+                    </defs>
+
+                    {/* Leads */}
+                    <rect x="10" y="55" width="100" height="10" rx="3" fill="url(#leadGradInd)" />
+                    <rect x="390" y="55" width="100" height="10" rx="3" fill="url(#leadGradInd)" />
+
+                    {/* Inductor Body */}
+                    <path
+                      d="M 110,60 C 110,30 130,25 160,25 L 340,25 C 370,25 390,30 390,60 C 390,90 370,95 340,95 L 160,95 C 130,95 110,90 110,60 Z"
+                      fill="url(#indBodyGrad)"
+                      stroke="#134e4a"
+                      strokeWidth="2"
+                    />
+
+                    {/* Render Color Bands */}
+                    {(() => {
+                      const activeBands = calcMode === 'codeToVal' 
+                        ? [indBands.b1, indBands.b2, indBands.mult, indBands.tol]
+                        : [indCalculatedFromVal.bands.b1, indCalculatedFromVal.bands.b2, indCalculatedFromVal.bands.mult, indCalculatedFromVal.bands.tol];
+
+                      const positions = [160, 205, 255, 330];
+
+                      return activeBands.map((cKey, idx) => {
+                        const cObj = COLOR_MAP[cKey] || COLOR_MAP.grey;
+                        return (
+                          <g key={idx}>
+                            <rect
+                              x={positions[idx]}
+                              y="25"
+                              width={idx === 3 ? 14 : 12}
+                              height="70"
+                              fill={cObj.hex}
+                              filter="url(#bandShadowInd)"
+                            />
+                            <rect
+                              x={positions[idx] + 2}
+                              y="25"
+                              width={3}
+                              height="70"
+                              fill="#ffffff"
+                              opacity="0.25"
+                            />
+                          </g>
+                        );
+                      });
+                    })()}
+                  </svg>
+                )}
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* ---------------------------------------------------- */}
+        {/* CAPACITOR CONTROLS                                    */}
+        {/* ---------------------------------------------------- */}
+        {componentType === 'capacitor' && calcMode === 'codeToVal' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 md:p-6 space-y-5">
+              <div className="border-b border-slate-700/60 pb-3">
+                <h2 className="font-bold text-base text-white flex items-center gap-2">
+                  <Calculator className="w-5 h-5 text-cyan-400" />
+                  커패시터 마킹 코드 입력
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  부품 표면에 적힌 3자리 수치 코드와 문자 기호를 선택하세요.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {/* 3자리 코드 입력 */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                    3자리 숫자 코드 (또는 소수점 R 표기)
+                  </label>
+                  <input
+                    type="text"
+                    value={capDigitCode}
+                    onChange={(e) => setCapDigitCode(e.target.value)}
+                    placeholder="예: 104, 472, 4R7"
+                    className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-500 rounded-xl px-4 py-2.5 text-white font-mono text-base uppercase focus:outline-none"
+                  />
+                  <span className="text-[11px] text-slate-400 mt-1 block">
+                    * 104 = 10 x 10⁴ pF = 100,000 pF = 100 nF = 0.1 µF
+                  </span>
+                </div>
+
+                {/* 허용 오차 문자 선택 */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                    허용 오차 문자기호 (Tolerance Letter)
+                  </label>
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                    {Object.keys(CAP_TOLERANCE_CODES).map((code) => (
+                      <button
+                        key={code}
+                        onClick={() => setCapTolCode(code)}
+                        className={`p-2 rounded-xl border text-xs font-mono font-bold transition ${
+                          capTolCode === code
+                            ? 'bg-cyan-500 text-white border-cyan-400 shadow'
+                            : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'
+                        }`}
+                      >
+                        <div>{code}</div>
+                        <div className="text-[10px] font-normal opacity-80">{CAP_TOLERANCE_CODES[code].val}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 정격 전압 기호 선택 */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                    정격 전압 코드 (Voltage Code)
+                  </label>
+                  <select
+                    value={capVoltCode}
+                    onChange={(e) => setCapVoltCode(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-500 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none"
+                  >
+                    {Object.entries(CAP_VOLTAGE_CODES).map(([k, v]) => (
+                      <option key={k} value={k}>
+                        {v.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* 계산 상세 데이터 */}
+            <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 md:p-6 flex flex-col justify-between space-y-4">
+              <div>
+                <h3 className="font-bold text-base text-white border-b border-slate-700/60 pb-3 flex items-center gap-2">
+                  <Info className="w-5 h-5 text-emerald-400" />
+                  단위별 변환 상세
+                </h3>
+
+                <div className="mt-4 space-y-3 font-mono text-xs">
+                  <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-700 flex justify-between items-center">
+                    <span className="text-slate-400">피코패럿 (pF):</span>
+                    <span className="font-bold text-cyan-300">{capCalculatedFromCode.pF?.toLocaleString()} pF</span>
+                  </div>
+                  <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-700 flex justify-between items-center">
+                    <span className="text-slate-400">나노패럿 (nF):</span>
+                    <span className="font-bold text-emerald-300">{(capCalculatedFromCode.pF / 1e3).toFixed(3)} nF</span>
+                  </div>
+                  <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-700 flex justify-between items-center">
+                    <span className="text-slate-400">마이크로패럿 (µF):</span>
+                    <span className="font-bold text-teal-300">{(capCalculatedFromCode.pF / 1e6).toFixed(4)} µF</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-900/50 rounded-xl border border-slate-700/50 text-xs text-slate-400">
+                세라믹 및 마이카, 적층 필름 커패시터에 가장 폭넓게 사용되는 표준 EIA 표기 규격입니다.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CAPACITOR: Value to Code Mode */}
+        {componentType === 'capacitor' && calcMode === 'valToCode' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 md:p-6 space-y-5">
+              <div className="border-b border-slate-700/60 pb-3">
+                <h2 className="font-bold text-base text-white flex items-center gap-2">
+                  <ArrowRightLeft className="w-5 h-5 text-cyan-400" />
+                  원하는 용량 입력
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  수치와 단위를 입력하면 부품 표면 마킹 코드가 자동 생성됩니다.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">용량 수치 입력</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={capInputValue}
+                    onChange={(e) => setCapInputValue(e.target.value)}
+                    placeholder="예: 100"
+                    className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-500 rounded-xl px-4 py-2.5 text-white font-mono text-base focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">단위 선택</label>
+                  <select
+                    value={capInputUnit}
+                    onChange={(e) => setCapInputUnit(Number(e.target.value))}
+                    className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-500 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none"
+                  >
+                    <option value={1}>pF (피코패럿)</option>
+                    <option value={1e3}>nF (나노패럿)</option>
+                    <option value={1e6}>µF (마이크로패럿)</option>
+                    <option value={1e9}>mF (밀리패럿)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Tolerance & Voltage Selection */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">허용 오차 선택</label>
+                  <select
+                    value={capTolCode}
+                    onChange={(e) => setCapTolCode(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-500 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none"
+                  >
+                    {Object.entries(CAP_TOLERANCE_CODES).map(([k, v]) => (
+                      <option key={k} value={k}>
+                        {k} ({v.val})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">정격 전압 선택</label>
+                  <select
+                    value={capVoltCode}
+                    onChange={(e) => setCapVoltCode(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 focus:border-cyan-500 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none"
+                  >
+                    {Object.entries(CAP_VOLTAGE_CODES).map(([k, v]) => (
+                      <option key={k} value={k}>
+                        {v.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* 변환된 마킹 결과 */}
+            <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 md:p-6 flex flex-col justify-between">
+              <div>
+                <h3 className="font-bold text-base text-white border-b border-slate-700/60 pb-3 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-cyan-400" />
+                  생성된 마킹 코드
+                </h3>
+
+                <div className="mt-5 space-y-4">
+                  <div className="p-4 bg-slate-900 rounded-xl border border-slate-700 text-center">
+                    <span className="text-xs text-slate-400 block mb-1">커패시터 인쇄 코드</span>
+                    <span className="text-3xl font-black font-mono text-cyan-400">
+                      {capCalculatedFromVal.generatedCode || '---'}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-900/50 rounded-xl border border-slate-700/50 space-y-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">전체 인쇄 기호:</span>
+                      <span className="font-bold text-white font-mono">{capCalculatedFromVal.fullDisplayCode}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">환산 pF 수치:</span>
+                      <span className="font-bold text-emerald-400 font-mono">{capCalculatedFromVal.totalPF?.toLocaleString()} pF</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-900/60 border border-slate-700/60 rounded-xl text-xs text-slate-400 mt-4">
+                실제 회로용 커패시터 구매 및 조립 시 위 인쇄 코드를 확인하세요.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ---------------------------------------------------- */}
+        {/* INDUCTOR CONTROLS                                     */}
+        {/* ---------------------------------------------------- */}
+        {componentType === 'inductor' && calcMode === 'codeToVal' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 md:p-6 space-y-6">
+              <div className="border-b border-slate-700/60 pb-3">
+                <h2 className="font-bold text-base text-white flex items-center gap-2">
+                  <Palette className="w-5 h-5 text-emerald-400" />
+                  인덕터 4색띠 선택
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  아кси얼(Axial) 몰드 인덕터의 각 위치별 색상을 선택하세요 (단위: µH).
+                </p>
+              </div>
+
+              <BandSelectorGroup
+                label="첫 번째 색띠 (1st Digit)"
+                description="첫 번째 유효 숫자"
+                allowedColors={DIGIT_COLORS.filter(c => c !== 'black')}
+                selected={indBands.b1}
+                onSelect={(c) => setIndBands(prev => ({ ...prev, b1: c }))}
+              />
+
+              <BandSelectorGroup
+                label="두 번째 색띠 (2nd Digit)"
+                description="두 번째 유효 숫자"
+                allowedColors={DIGIT_COLORS}
+                selected={indBands.b2}
+                onSelect={(c) => setIndBands(prev => ({ ...prev, b2: c }))}
+              />
+
+              <BandSelectorGroup
+                label="세 번째 색띠 (Multiplier - 승수)"
+                description="10의 거듭제곱 곱함수"
+                allowedColors={MULT_COLORS}
+                selected={indBands.mult}
+                onSelect={(c) => setIndBands(prev => ({ ...prev, mult: c }))}
+                isMultiplier
+              />
+
+              <BandSelectorGroup
+                label="네 번째 색띠 (Tolerance - 오차)"
+                description="인덕턴스 허용 오차 (%)"
+                allowedColors={TOL_COLORS_IND}
+                selected={indBands.tol}
+                onSelect={(c) => setIndBands(prev => ({ ...prev, tol: c }))}
+                isTolerance
+              />
+            </div>
+
+            {/* 계산 결과 패널 */}
+            <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 md:p-6 flex flex-col justify-between space-y-4">
+              <div>
+                <h3 className="font-bold text-base text-white border-b border-slate-700/60 pb-3 flex items-center gap-2">
+                  <Calculator className="w-5 h-5 text-emerald-400" />
+                  계산된 인덕턴스
+                </h3>
+
+                <div className="mt-5 space-y-4">
+                  <div className="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                    <span className="text-xs text-slate-400 block mb-1">기준 인덕턴스</span>
+                    <div className="text-2xl font-black text-emerald-400 font-mono">
+                      {indCalculatedFromBands.formatted}
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-900/50 rounded-xl border border-slate-700/50 space-y-2 text-xs font-mono">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">유효 숫자:</span>
+                      <span className="font-bold text-white">{indCalculatedFromBands.baseDigits}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">승수 (x):</span>
+                      <span className="font-bold text-white">{COLOR_MAP[indBands.mult]?.mult}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">허용 오차:</span>
+                      <span className="font-bold text-amber-400">±{indCalculatedFromBands.tol}%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-900/50 rounded-xl border border-slate-700/50 text-xs text-slate-400">
+                색띠 인덕터의 기본 표준 측정 단위는 마이크로헤너리(µH)입니다.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* INDUCTOR: Value to Color Mode */}
+        {componentType === 'inductor' && calcMode === 'valToCode' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 md:p-6 space-y-5">
+              <div className="border-b border-slate-700/60 pb-3">
+                <h2 className="font-bold text-base text-white flex items-center gap-2">
+                  <ArrowRightLeft className="w-5 h-5 text-emerald-400" />
+                  원하는 인덕턴스 수치 입력
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  인덕턴스 값을 입력하면 해당되는 4색띠 조합과 SMD 코드가 생성됩니다.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">인덕턴스 크기 입력</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={indInputValue}
+                    onChange={(e) => setIndInputValue(e.target.value)}
+                    placeholder="예: 47"
+                    className="w-full bg-slate-900 border border-slate-700 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-white font-mono text-base focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">단위 선택</label>
+                  <select
+                    value={indInputUnit}
+                    onChange={(e) => setIndInputUnit(Number(e.target.value))}
+                    className="w-full bg-slate-900 border border-slate-700 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none"
+                  >
+                    <option value={0.001}>nH (나노헤너리)</option>
+                    <option value={1}>µH (마이크로헤너리)</option>
+                    <option value={1000}>mH (밀리헤너리)</option>
+                    <option value={1e6}>H (헤너리)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* 자동 생성된 인덕터 마킹 결과 */}
+            <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 md:p-6 flex flex-col justify-between">
+              <div>
+                <h3 className="font-bold text-base text-white border-b border-slate-700/60 pb-3 flex items-center gap-2">
+                  <Palette className="w-5 h-5 text-emerald-400" />
+                  생성된 색띠 및 SMD 코드
+                </h3>
+
+                <div className="mt-4 space-y-3">
+                  <div className="p-3.5 bg-slate-900/80 rounded-xl border border-slate-700 flex justify-between items-center">
+                    <span className="text-xs text-slate-400">SMD 인덕터 코드:</span>
+                    <span className="font-mono font-bold text-lg text-emerald-400">
+                      {indCalculatedFromVal.smdCode || '---'}
+                    </span>
+                  </div>
+
+                  {Object.entries(indCalculatedFromVal.bands).map(([bKey, cKey], idx) => {
+                    const cObj = COLOR_MAP[cKey];
+                    if (!cObj) return null;
+                    return (
+                      <div key={idx} className="flex items-center justify-between p-2.5 bg-slate-900/60 rounded-xl border border-slate-700/50 text-xs">
+                        <div className="flex items-center gap-2.5">
+                          <span className={`w-4 h-4 rounded-full ${cObj.bgClass} border border-white/20`} />
+                          <span className="font-medium text-white">{cObj.name}</span>
+                        </div>
+                        <span className="text-slate-400 font-mono">
+                          {idx === 0 ? '1st' : idx === 1 ? '2nd' : idx === 2 ? 'Mult' : 'Tol'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-900/50 rounded-xl border border-slate-700/50 text-xs text-slate-400 mt-4">
+                입력 수치에 해당하는 표준 색띠 조합입니다.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ---------------------------------------------------- */}
+        {/* CHEATSHEET TAB                                        */}
+        {/* ---------------------------------------------------- */}
+        {calcMode === 'cheatsheet' && (
+          <div className="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-5 md:p-6 space-y-6">
+            <div className="border-b border-slate-700/60 pb-3">
+              <h2 className="font-bold text-lg text-white flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-cyan-400" />
+                수동 소자 규격 및 코드 통합 참조표
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* 커패시터 오차 코드표 */}
+              <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-700/60 space-y-3">
+                <h3 className="font-bold text-sm text-cyan-300">커패시터 허용 오차 문자 기호 (Capacitor Tolerance)</h3>
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-700 text-slate-400">
+                      <th className="py-2">기호</th>
+                      <th className="py-2">허용 오차 범위</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800 text-slate-300 font-mono">
+                    {Object.entries(CAP_TOLERANCE_CODES).map(([k, v]) => (
+                      <tr key={k}>
+                        <td className="py-1.5 font-bold text-cyan-400">{k}</td>
+                        <td className="py-1.5">{v.val}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 커패시터 전압 코드표 */}
+              <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-700/60 space-y-3">
+                <h3 className="font-bold text-sm text-cyan-300">주요 정격 전압 코드 (Voltage Rating)</h3>
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-700 text-slate-400">
+                      <th className="py-2">코드</th>
+                      <th className="py-2">정격 전압</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800 text-slate-300 font-mono">
+                    {Object.entries(CAP_VOLTAGE_CODES).filter(([k]) => k !== 'none').map(([k, v]) => (
+                      <tr key={k}>
+                        <td className="py-1.5 font-bold text-emerald-400">{k}</td>
+                        <td className="py-1.5">{v.voltage}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-slate-800 bg-slate-950 py-4 mt-8 text-center text-xs text-slate-500">
+        <p>커패시터 & 인덕터 계산기 및 시각화 웹앱 · EIA / IEC 표준 규격 준수</p>
+      </footer>
+    </div>
+  );
+}
+
+import { createRoot } from 'react-dom/client';
+const bootEl = document.getElementById('boot');
+if (bootEl) bootEl.remove();
+createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+</body>
+</html>
