@@ -9,6 +9,14 @@
 <style>
   body { background: #0F172A; background-image:none; }
   #root { min-height:100vh; }
+  @keyframes motor-clockwise {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  @keyframes motor-counterclockwise {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(-360deg); }
+  }
   #boot {
     position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
     background:#0F172A; color:#8FA79B; font-family:'JetBrains Mono',monospace; font-size:0.85rem;
@@ -62,7 +70,12 @@ import {
   Filter,
   RefreshCw,
   Award,
-  CheckSquare
+  CheckSquare,
+  Activity,
+  Gauge,
+  Volume2,
+  ExternalLink,
+  FileText
 } from 'lucide-react';
 
 // --- 아두이노 명령어 데이터베이스 ---
@@ -138,7 +151,7 @@ const COMMANDS_DATA = [
     ],
     returns: '없음 (void)',
     example: `void loop() {\n  for (int brightness = 0; brightness <= 255; brightness += 5) {\n    analogWrite(9, brightness);\n    delay(30);\n  }\n}`,
-    simDemoId: 'potentiometer'
+    simDemoId: 'fade'
   },
   {
     id: 'delay',
@@ -164,7 +177,7 @@ const COMMANDS_DATA = [
     parameters: [],
     returns: 'unsigned long (약 50일 후 0으로 오버플로우)',
     example: `unsigned long previousMillis = 0;\nconst long interval = 1000; // 1초 간격\n\nvoid loop() {\n  unsigned long currentMillis = millis();\n  if (currentMillis - previousMillis >= interval) {\n    previousMillis = currentMillis;\n    Serial.println("1초 경과!");\n  }\n}`,
-    simDemoId: 'serial'
+    simDemoId: 'millis'
   },
   {
     id: 'Serial_begin',
@@ -226,7 +239,7 @@ const COMMANDS_DATA = [
     ],
     returns: 'number (제한된 값)',
     example: `int sensVal = analogRead(A0);\nint safeVal = constrain(sensVal, 100, 800);`,
-    simDemoId: null
+    simDemoId: 'constrain'
   },
   {
     id: 'tone',
@@ -242,7 +255,7 @@ const COMMANDS_DATA = [
     ],
     returns: '없음 (void)',
     example: `void setup() {\n  tone(8, 262, 500); // 8번 핀에서 '도(262Hz)' 음을 0.5초간 출력\n}`,
-    simDemoId: null
+    simDemoId: 'tone'
   }
 ];
 
@@ -760,6 +773,493 @@ const QUIZ_QUESTIONS = [
   }
 ];
 
+// Arduino Uno Rev3 공식 핀아웃 기준 개별 핀 정보
+const UNO_PINOUT = [
+  {
+    id: 'D0', label: 'D0', section: 'digital', filters: ['디지털', 'UART'],
+    title: 'D0 · RX', location: '상단 디지털 헤더', port: 'ATmega328P PD0', voltage: '5V 논리',
+    functions: ['디지털 입출력', 'UART 수신 RX', '핀 변화 인터럽트 PCINT16'],
+    desc: '디지털 0번 핀이며 하드웨어 시리얼 통신의 수신(RX) 핀입니다. USB를 통한 업로드와 시리얼 모니터가 이 통신선을 함께 사용합니다.',
+    example: 'Serial.begin(9600);\n// D0에서 시리얼 데이터 수신',
+    caution: '스케치 업로드나 Serial 통신 중에는 센서·모듈을 D0에 연결하지 않는 편이 안전합니다.'
+  },
+  {
+    id: 'D1', label: 'D1', section: 'digital', filters: ['디지털', 'UART'],
+    title: 'D1 · TX', location: '상단 디지털 헤더', port: 'ATmega328P PD1', voltage: '5V 논리',
+    functions: ['디지털 입출력', 'UART 송신 TX', '핀 변화 인터럽트 PCINT17'],
+    desc: '디지털 1번 핀이며 하드웨어 시리얼 통신의 송신(TX) 핀입니다. USB-시리얼 변환기와 연결되어 컴퓨터로 데이터를 보냅니다.',
+    example: 'Serial.begin(9600);\nSerial.println("Hello");',
+    caution: '외부 장치가 D1 신호를 강제로 구동하면 업로드와 시리얼 출력이 충돌할 수 있습니다.'
+  },
+  {
+    id: 'D2', label: 'D2', section: 'digital', filters: ['디지털', '인터럽트'],
+    title: 'D2 · 외부 인터럽트 INT0', location: '상단 디지털 헤더', port: 'ATmega328P PD2', voltage: '5V 논리',
+    functions: ['디지털 입출력', '외부 인터럽트 INT0', '핀 변화 인터럽트 PCINT18'],
+    desc: '버튼, 엔코더, 센서의 순간 변화를 즉시 감지하는 외부 인터럽트 0번 핀입니다.',
+    example: 'attachInterrupt(digitalPinToInterrupt(2), isr, FALLING);',
+    caution: '인터럽트 서비스 루틴은 짧게 작성하고 delay()나 긴 Serial 출력을 피하세요.'
+  },
+  {
+    id: 'D3', label: 'D3~', section: 'digital', filters: ['디지털', 'PWM', '인터럽트'],
+    title: 'D3 · PWM · 외부 인터럽트 INT1', location: '상단 디지털 헤더', port: 'ATmega328P PD3', voltage: '5V 논리',
+    functions: ['디지털 입출력', 'PWM 출력(약 490Hz)', '외부 인터럽트 INT1', 'Timer2 OC2B'],
+    desc: 'LED 밝기나 모터 속도를 제어하는 PWM과 외부 인터럽트를 모두 지원하는 다기능 핀입니다.',
+    example: 'analogWrite(3, 128); // 약 50% 듀티',
+    caution: 'tone()이 Timer2를 사용하면 D3의 PWM 동작에 영향을 줄 수 있습니다.'
+  },
+  {
+    id: 'D4', label: 'D4', section: 'digital', filters: ['디지털'],
+    title: 'D4 · 범용 디지털 입출력', location: '상단 디지털 헤더', port: 'ATmega328P PD4', voltage: '5V 논리',
+    functions: ['디지털 입출력', '핀 변화 인터럽트 PCINT20', '외부 클록 입력 XCK/T0'],
+    desc: '버튼, LED, 릴레이 제어 등에 쓰는 범용 디지털 핀입니다.',
+    example: 'pinMode(4, OUTPUT);\ndigitalWrite(4, HIGH);',
+    caution: 'LED를 직접 연결할 때는 220~330Ω 전류 제한 저항을 사용하세요.'
+  },
+  {
+    id: 'D5', label: 'D5~', section: 'digital', filters: ['디지털', 'PWM'],
+    title: 'D5 · PWM', location: '상단 디지털 헤더', port: 'ATmega328P PD5', voltage: '5V 논리',
+    functions: ['디지털 입출력', 'PWM 출력(약 980Hz)', 'Timer0 OC0B'],
+    desc: '비교적 빠른 약 980Hz PWM을 지원하여 LED 밝기와 소형 모터 속도 제어에 활용합니다.',
+    example: 'analogWrite(5, 200);',
+    caution: 'Timer0 설정을 직접 바꾸면 delay()와 millis()의 시간 계산도 영향을 받을 수 있습니다.'
+  },
+  {
+    id: 'D6', label: 'D6~', section: 'digital', filters: ['디지털', 'PWM'],
+    title: 'D6 · PWM', location: '상단 디지털 헤더', port: 'ATmega328P PD6', voltage: '5V 논리',
+    functions: ['디지털 입출력', 'PWM 출력(약 980Hz)', 'Timer0 OC0A'],
+    desc: 'D5와 함께 약 980Hz PWM 출력을 지원하는 디지털 핀입니다.',
+    example: 'analogWrite(6, 64);',
+    caution: '모터처럼 전류가 큰 부하는 핀에 직접 연결하지 말고 트랜지스터나 드라이버를 사용하세요.'
+  },
+  {
+    id: 'D7', label: 'D7', section: 'digital', filters: ['디지털'],
+    title: 'D7 · 범용 디지털 입출력', location: '상단 디지털 헤더', port: 'ATmega328P PD7', voltage: '5V 논리',
+    functions: ['디지털 입출력', '핀 변화 인터럽트 PCINT23', '아날로그 비교기 AIN1'],
+    desc: '일반 센서 입력이나 액추에이터 제어에 사용하는 범용 디지털 핀입니다.',
+    example: 'int state = digitalRead(7);',
+    caution: '입력 핀을 연결하지 않은 채 두면 값이 흔들릴 수 있으므로 풀업·풀다운을 적용하세요.'
+  },
+  {
+    id: 'D8', label: 'D8', section: 'digital', filters: ['디지털'],
+    title: 'D8 · 범용 디지털 입출력', location: '상단 디지털 헤더', port: 'ATmega328P PB0', voltage: '5V 논리',
+    functions: ['디지털 입출력', '핀 변화 인터럽트 PCINT0', 'Timer1 입력 캡처 ICP1'],
+    desc: '디지털 입출력과 정밀한 펄스 시간 측정용 Timer1 입력 캡처 기능을 지원합니다.',
+    example: 'pinMode(8, INPUT_PULLUP);',
+    caution: 'INPUT_PULLUP 사용 시 버튼을 누르면 LOW가 읽히는 반전 논리를 기억하세요.'
+  },
+  {
+    id: 'D9', label: 'D9~', section: 'digital', filters: ['디지털', 'PWM'],
+    title: 'D9 · PWM', location: '상단 디지털 헤더', port: 'ATmega328P PB1', voltage: '5V 논리',
+    functions: ['디지털 입출력', 'PWM 출력(약 490Hz)', 'Timer1 OC1A'],
+    desc: 'Timer1 기반 PWM을 출력하며 서보·LED·모터 제어 실습에 자주 사용됩니다.',
+    example: 'analogWrite(9, 180);',
+    caution: 'Servo 라이브러리가 Timer1을 사용하면 D9와 D10의 일반 PWM 출력이 제한될 수 있습니다.'
+  },
+  {
+    id: 'D10', label: 'D10~', section: 'digital', filters: ['디지털', 'PWM', 'SPI'],
+    title: 'D10 · PWM · SPI SS', location: '상단 디지털 헤더', port: 'ATmega328P PB2', voltage: '5V 논리',
+    functions: ['디지털 입출력', 'PWM 출력(약 490Hz)', 'SPI SS/CS', 'Timer1 OC1B'],
+    desc: 'PWM 출력과 SPI 장치 선택(SS/CS)에 사용되는 다기능 핀입니다.',
+    example: 'pinMode(10, OUTPUT); // SPI 마스터 SS 유지',
+    caution: 'SPI 마스터 모드에서는 D10을 OUTPUT으로 유지하는 것이 안전합니다.'
+  },
+  {
+    id: 'D11', label: 'D11~', section: 'digital', filters: ['디지털', 'PWM', 'SPI'],
+    title: 'D11 · PWM · SPI COPI(MOSI)', location: '상단 디지털 헤더', port: 'ATmega328P PB3', voltage: '5V 논리',
+    functions: ['디지털 입출력', 'PWM 출력(약 490Hz)', 'SPI COPI/MOSI', 'Timer2 OC2A'],
+    desc: 'SPI 마스터에서 주변장치로 데이터를 보내는 COPI(기존 MOSI) 선이자 PWM 핀입니다.',
+    example: 'SPI.begin(); // D11=COPI(MOSI)',
+    caution: 'SPI 사용 중에는 일반 LED나 다른 출력과 동시에 공유하지 마세요.'
+  },
+  {
+    id: 'D12', label: 'D12', section: 'digital', filters: ['디지털', 'SPI'],
+    title: 'D12 · SPI CIPO(MISO)', location: '상단 디지털 헤더', port: 'ATmega328P PB4', voltage: '5V 논리',
+    functions: ['디지털 입출력', 'SPI CIPO/MISO', '핀 변화 인터럽트 PCINT4'],
+    desc: 'SPI 주변장치가 마스터로 데이터를 보내는 CIPO(기존 MISO) 선입니다.',
+    example: 'SPI.begin(); // D12=CIPO(MISO)',
+    caution: '3.3V 전용 SPI 모듈은 레벨 변환 필요 여부를 확인하세요.'
+  },
+  {
+    id: 'D13', label: 'D13', section: 'digital', filters: ['디지털', 'SPI'],
+    title: 'D13 · 내장 LED · SPI SCK', location: '상단 디지털 헤더', port: 'ATmega328P PB5', voltage: '5V 논리',
+    functions: ['디지털 입출력', '내장 LED LED_BUILTIN', 'SPI 클록 SCK', '핀 변화 인터럽트 PCINT5'],
+    desc: '보드의 L 표시 내장 LED와 연결된 디지털 핀이며 SPI 클록 신호도 담당합니다.',
+    example: 'digitalWrite(LED_BUILTIN, HIGH);',
+    caution: 'SPI 통신 중에는 내장 LED도 SCK 신호에 따라 깜빡일 수 있습니다.'
+  },
+  {
+    id: 'A0', label: 'A0', section: 'analog', filters: ['아날로그', '디지털'],
+    title: 'A0 · ADC0 · D14', location: '하단 아날로그 헤더', port: 'ATmega328P PC0', voltage: '0~5V 입력',
+    functions: ['10비트 아날로그 입력 ADC0', '디지털 D14', '핀 변화 인터럽트 PCINT8'],
+    desc: '가변저항·조도센서처럼 연속적인 전압을 0~1023 값으로 변환합니다. 디지털 14번으로도 사용할 수 있습니다.',
+    example: 'int value = analogRead(A0);',
+    caution: '입력 전압이 GND 아래나 기준전압(기본 5V) 위로 넘어가지 않게 하세요.'
+  },
+  {
+    id: 'A1', label: 'A1', section: 'analog', filters: ['아날로그', '디지털'],
+    title: 'A1 · ADC1 · D15', location: '하단 아날로그 헤더', port: 'ATmega328P PC1', voltage: '0~5V 입력',
+    functions: ['10비트 아날로그 입력 ADC1', '디지털 D15', '핀 변화 인터럽트 PCINT9'],
+    desc: '두 번째 아날로그 입력 핀이며 디지털 15번으로도 사용할 수 있습니다.',
+    example: 'int value = analogRead(A1);',
+    caution: '여러 아날로그 채널을 빠르게 바꿔 읽을 때는 신호 안정 시간을 고려하세요.'
+  },
+  {
+    id: 'A2', label: 'A2', section: 'analog', filters: ['아날로그', '디지털'],
+    title: 'A2 · ADC2 · D16', location: '하단 아날로그 헤더', port: 'ATmega328P PC2', voltage: '0~5V 입력',
+    functions: ['10비트 아날로그 입력 ADC2', '디지털 D16', '핀 변화 인터럽트 PCINT10'],
+    desc: '세 번째 아날로그 입력 채널로 센서의 연속 전압을 읽습니다.',
+    example: 'float voltage = analogRead(A2) * 5.0 / 1023.0;',
+    caution: '센서와 보드의 GND를 공통으로 연결해야 정확한 전압을 읽을 수 있습니다.'
+  },
+  {
+    id: 'A3', label: 'A3', section: 'analog', filters: ['아날로그', '디지털'],
+    title: 'A3 · ADC3 · D17', location: '하단 아날로그 헤더', port: 'ATmega328P PC3', voltage: '0~5V 입력',
+    functions: ['10비트 아날로그 입력 ADC3', '디지털 D17', '핀 변화 인터럽트 PCINT11'],
+    desc: '네 번째 아날로그 입력 채널이며 필요하면 디지털 입출력으로 전환할 수 있습니다.',
+    example: 'pinMode(A3, OUTPUT);',
+    caution: '아날로그 핀을 디지털로 쓰는 경우 코드에서도 A3처럼 명확히 표기하면 이해하기 쉽습니다.'
+  },
+  {
+    id: 'A4', label: 'A4', section: 'analog', filters: ['아날로그', '디지털', 'I2C'],
+    title: 'A4 · ADC4 · I²C SDA · D18', location: '하단 아날로그 헤더', port: 'ATmega328P PC4', voltage: '0~5V 입력 / 5V 논리',
+    functions: ['10비트 아날로그 입력 ADC4', 'I²C 데이터 SDA', '디지털 D18', '핀 변화 인터럽트 PCINT12'],
+    desc: '아날로그 입력과 I²C 데이터선(SDA)을 겸합니다. 보드 상단의 SDA 핀과 전기적으로 같은 신호입니다.',
+    example: 'Wire.begin(); // A4=SDA',
+    caution: 'I²C 사용 중에는 A4를 일반 입출력이나 아날로그 입력으로 동시에 사용하지 마세요.'
+  },
+  {
+    id: 'A5', label: 'A5', section: 'analog', filters: ['아날로그', '디지털', 'I2C'],
+    title: 'A5 · ADC5 · I²C SCL · D19', location: '하단 아날로그 헤더', port: 'ATmega328P PC5', voltage: '0~5V 입력 / 5V 논리',
+    functions: ['10비트 아날로그 입력 ADC5', 'I²C 클록 SCL', '디지털 D19', '핀 변화 인터럽트 PCINT13'],
+    desc: '아날로그 입력과 I²C 클록선(SCL)을 겸합니다. 보드 상단의 SCL 핀과 전기적으로 같습니다.',
+    example: 'Wire.begin(); // A5=SCL',
+    caution: 'I²C 모듈의 풀업 전압이 Uno의 5V 논리와 호환되는지 확인하세요.'
+  },
+  {
+    id: 'SDA', label: 'SDA', section: 'reference', filters: ['I2C', '통신'],
+    title: 'SDA · I²C 데이터', location: '상단 보조 헤더', port: 'A4 / PC4와 동일', voltage: '5V 논리',
+    functions: ['I²C 데이터 SDA', 'A4와 내부 연결'],
+    desc: 'Rev3에서 추가된 I²C 전용 표기 핀입니다. 별도의 채널이 아니라 A4와 같은 신호선입니다.',
+    example: 'Wire.begin();',
+    caution: 'SDA와 A4는 서로 다른 두 핀이지만 같은 신호이므로 독립적으로 사용할 수 없습니다.'
+  },
+  {
+    id: 'SCL', label: 'SCL', section: 'reference', filters: ['I2C', '통신'],
+    title: 'SCL · I²C 클록', location: '상단 보조 헤더', port: 'A5 / PC5와 동일', voltage: '5V 논리',
+    functions: ['I²C 클록 SCL', 'A5와 내부 연결'],
+    desc: 'Rev3에서 추가된 I²C 전용 표기 핀입니다. 별도의 채널이 아니라 A5와 같은 신호선입니다.',
+    example: 'Wire.begin();',
+    caution: 'SCL과 A5는 전기적으로 연결되어 있어 동시에 다른 용도로 쓸 수 없습니다.'
+  },
+  {
+    id: 'AREF', label: 'AREF', section: 'reference', filters: ['아날로그', '기준전압'],
+    title: 'AREF · 아날로그 기준전압', location: '상단 디지털 헤더 옆', port: 'ATmega328P AREF', voltage: '외부 ADC 기준 입력',
+    functions: ['ADC 외부 기준전압 입력'],
+    desc: 'analogReference(EXTERNAL)을 사용할 때 ADC 변환의 기준전압을 외부에서 입력하는 핀입니다.',
+    example: 'analogReference(EXTERNAL);',
+    caution: 'AREF에 전압을 연결한 상태에서 DEFAULT 기준을 사용하면 보드가 손상될 수 있습니다.'
+  },
+  {
+    id: 'GND_TOP', label: 'GND', section: 'reference', filters: ['전원'],
+    title: 'GND · 상단 접지', location: 'AREF 옆 상단 헤더', port: '공통 접지', voltage: '0V',
+    functions: ['회로 기준 전위', '공통 접지'],
+    desc: 'AREF와 센서 신호의 기준점으로 편리하게 사용할 수 있는 상단 GND 핀입니다.',
+    example: '// 외부 회로 GND와 공통 연결',
+    caution: '외부 전원을 사용할 때에도 Uno와 외부 회로의 GND를 공통으로 연결하세요.'
+  },
+  {
+    id: 'IOREF', label: 'IOREF', section: 'power', filters: ['전원', '기준전압'],
+    title: 'IOREF · 보드 논리전압 기준', location: '하단 전원 헤더', port: '5V 레일', voltage: '5V 출력',
+    functions: ['실드의 보드 전압 감지', '논리전압 기준 출력'],
+    desc: '실드가 연결된 보드의 입출력 논리전압을 확인하도록 제공하는 기준 핀입니다. Uno Rev3에서는 5V입니다.',
+    example: '// 실드 전압 호환성 감지용',
+    caution: '일반 부하에 전원을 공급하는 주 전원 핀으로 쓰기보다 호환성 감지용으로 사용하세요.'
+  },
+  {
+    id: 'NC', label: 'NC', section: 'power', filters: ['전원'],
+    title: 'NC · 미연결 예약 핀', location: '하단 전원 헤더', port: '내부 미연결', voltage: '없음',
+    functions: ['예약 핀', '현재 연결 없음'],
+    desc: '미래 보드 호환성을 위해 마련된 예약 핀으로 Uno Rev3 회로에서는 연결되지 않습니다.',
+    example: '// 연결하지 않음',
+    caution: '전원이나 신호 핀으로 사용하지 마세요.'
+  },
+  {
+    id: 'RESET_PIN', label: 'RESET', section: 'power', filters: ['제어'],
+    title: 'RESET · 외부 리셋 입력', location: '하단 전원 헤더', port: 'ATmega328P PC6/RESET', voltage: 'LOW 활성',
+    functions: ['마이크로컨트롤러 재시작', '외부 리셋 회로 연결'],
+    desc: 'LOW로 당기면 실행 중인 스케치가 멈추고 보드가 setup()부터 다시 시작합니다.',
+    example: '// 순간적으로 RESET과 GND 연결',
+    caution: '지속적으로 LOW에 두면 프로그램이 실행되지 않습니다.'
+  },
+  {
+    id: '3V3', label: '3.3V', section: 'power', filters: ['전원'],
+    title: '3.3V · 저전압 전원 출력', location: '하단 전원 헤더', port: '온보드 3.3V 레귤레이터', voltage: '3.3V 출력',
+    functions: ['3.3V 센서·모듈 전원 공급'],
+    desc: '3.3V 장치에 전원을 공급하는 출력 핀입니다. Uno Rev3 공식 핀아웃의 최대 권장 전류는 50mA입니다.',
+    example: '// 센서 VCC → 3.3V',
+    caution: '50mA를 넘는 부하는 별도의 3.3V 전원 장치를 사용하세요.'
+  },
+  {
+    id: '5V', label: '5V', section: 'power', filters: ['전원'],
+    title: '5V · 주 전원 출력', location: '하단 전원 헤더', port: '보드 5V 레일', voltage: '5V 출력/입력',
+    functions: ['5V 센서·모듈 전원 공급', '보드 5V 레일 접근'],
+    desc: 'USB 또는 온보드 레귤레이터에서 만들어진 5V 전원 레일입니다.',
+    example: '// 센서 VCC → 5V',
+    caution: '5V 핀으로 직접 보드에 전원을 넣을 때는 역전압 보호와 자동 전원 선택 회로를 우회하므로 특히 주의하세요.'
+  },
+  {
+    id: 'GND1', label: 'GND', section: 'power', filters: ['전원'],
+    title: 'GND ① · 공통 접지', location: '하단 전원 헤더', port: '공통 접지', voltage: '0V',
+    functions: ['전원 귀환 경로', '신호 기준점'],
+    desc: '외부 센서와 회로의 전류가 되돌아오는 0V 기준점입니다.',
+    example: '// 모든 모듈의 GND 공통 연결',
+    caution: '공통 접지가 빠지면 센서값이 불안정하거나 통신이 되지 않을 수 있습니다.'
+  },
+  {
+    id: 'GND2', label: 'GND', section: 'power', filters: ['전원'],
+    title: 'GND ② · 공통 접지', location: '하단 전원 헤더', port: '공통 접지', voltage: '0V',
+    functions: ['전원 귀환 경로', '신호 기준점'],
+    desc: '첫 번째 GND와 내부적으로 연결된 두 번째 접지 핀입니다.',
+    example: '// 브레드보드 GND 레일 연결',
+    caution: '모터 전류처럼 큰 전류가 신호용 접지선을 지나지 않도록 배선을 분리해 구성하세요.'
+  },
+  {
+    id: 'VIN', label: 'VIN', section: 'power', filters: ['전원'],
+    title: 'VIN · 외부 입력 전압', location: '하단 전원 헤더', port: '온보드 5V 레귤레이터 입력', voltage: '외부 전원 입력',
+    functions: ['외부 전원 입력', 'DC 잭 입력 전압 접근'],
+    desc: 'DC 잭과 연결된 레귤레이터 입력 전압선입니다. 배터리나 어댑터로 보드에 전원을 공급할 때 사용합니다.',
+    example: '// 외부 전원 + → VIN, - → GND',
+    caution: '극성과 허용 입력 범위를 확인하고, VIN에 5V 센서를 직접 연결하지 마세요.'
+  }
+];
+
+const DIGITAL_HEADER_IDS = ['D13', 'D12', 'D11', 'D10', 'D9', 'D8', 'D7', 'D6', 'D5', 'D4', 'D3', 'D2', 'D1', 'D0'];
+const ANALOG_HEADER_IDS = ['A0', 'A1', 'A2', 'A3', 'A4', 'A5'];
+const POWER_HEADER_IDS = ['IOREF', 'NC', 'RESET_PIN', '3V3', '5V', 'GND1', 'GND2', 'VIN'];
+const AUX_HEADER_IDS = ['SCL', 'SDA', 'AREF', 'GND_TOP'];
+const PIN_FILTERS = ['전체', '디지털', 'PWM', '아날로그', '인터럽트', 'UART', 'SPI', 'I2C', '전원', '기준전압'];
+
+const SIM_CIRCUITS = {
+  blink: {
+    title: '내장 LED 깜빡이기 회로',
+    source: 'Arduino Uno Rev3',
+    target: '내장 LED(L)',
+    parts: ['Arduino Uno Rev3', 'USB 데이터 케이블'],
+    connections: [
+      { from: 'ATmega328P D13', to: '내장 LED 구동 회로', color: '#f59e0b' },
+      { from: 'GND', to: '내장 LED 귀환 경로', color: '#64748b' }
+    ],
+    note: 'Uno 보드의 L 표시 LED가 D13에 이미 연결되어 있어 외부 부품 없이 실습할 수 있습니다. 외부 LED를 사용할 때는 D13과 LED 사이에 220~330Ω 저항을 직렬로 넣으세요.'
+  },
+  potentiometer: {
+    title: '가변저항 입력과 PWM LED 디밍 회로',
+    source: 'Arduino Uno Rev3',
+    target: '가변저항 · LED',
+    parts: ['10kΩ 가변저항', 'LED', '220Ω 저항', '브레드보드', '점퍼선'],
+    connections: [
+      { from: '5V', to: '가변저항 바깥쪽 단자 ①', color: '#ef4444' },
+      { from: 'A0', to: '가변저항 가운데 단자', color: '#22d3ee' },
+      { from: 'GND', to: '가변저항 바깥쪽 단자 ②', color: '#64748b' },
+      { from: 'D9 PWM', to: '220Ω → LED 애노드(+)', color: '#a78bfa' },
+      { from: 'GND', to: 'LED 캐소드(−)', color: '#94a3b8' }
+    ],
+    note: '가변저항의 양 끝에는 5V와 GND, 가운데 단자에는 A0를 연결합니다. LED에는 반드시 220~330Ω 전류 제한 저항을 직렬로 연결하세요.'
+  },
+  button: {
+    title: '푸시버튼 디지털 입력과 내장 LED 회로',
+    source: 'Arduino Uno Rev3',
+    target: '푸시버튼 · 10kΩ',
+    parts: ['푸시버튼', '10kΩ 풀다운 저항', '브레드보드', '점퍼선'],
+    connections: [
+      { from: '5V', to: '버튼 단자 ①', color: '#ef4444' },
+      { from: 'D2 입력', to: '버튼 단자 ② · 저항 접점', color: '#22d3ee' },
+      { from: 'GND', to: '10kΩ 저항 반대쪽', color: '#64748b' },
+      { from: 'D13', to: '내장 LED(L)', color: '#f59e0b' }
+    ],
+    note: '버튼을 놓았을 때 D2가 떠 있지 않도록 D2와 GND 사이에 10kΩ 풀다운 저항을 연결합니다. 버튼을 누르면 D2에 5V(HIGH)가 입력됩니다.'
+  },
+  serial: {
+    title: '아날로그 센서값 시리얼 모니터 전송 회로',
+    source: 'Arduino Uno Rev3',
+    target: '가변저항 · PC',
+    parts: ['10kΩ 가변저항', 'USB 데이터 케이블', '브레드보드', '점퍼선'],
+    connections: [
+      { from: '5V', to: '가변저항 바깥쪽 단자 ①', color: '#ef4444' },
+      { from: 'A0', to: '가변저항 가운데 단자', color: '#22d3ee' },
+      { from: 'GND', to: '가변저항 바깥쪽 단자 ②', color: '#64748b' },
+      { from: 'USB-B 포트', to: 'PC · 시리얼 모니터', color: '#34d399' }
+    ],
+    note: 'USB 데이터 케이블로 Uno와 PC를 연결하고 시리얼 모니터의 속도를 9600 baud로 맞추세요. D0·D1은 USB 시리얼 통신에 사용되므로 다른 장치를 함께 연결하지 않는 것이 안전합니다.'
+  },
+  fade: {
+    title: 'PWM LED 페이드 회로',
+    source: 'Arduino Uno Rev3',
+    target: 'LED · 220Ω',
+    parts: ['LED', '220Ω 저항', '브레드보드', '점퍼선'],
+    connections: [
+      { from: 'D9 PWM', to: '220Ω → LED 애노드(+)', color: '#a78bfa' },
+      { from: 'GND', to: 'LED 캐소드(−)', color: '#64748b' }
+    ],
+    note: 'D9의 PWM 듀티비를 0~255로 바꾸어 평균 전력을 조절합니다. LED 극성과 전류 제한 저항의 직렬 연결을 확인하세요.'
+  },
+  millis: {
+    title: 'millis() 논블로킹 내장 LED 회로',
+    source: 'Arduino Uno Rev3',
+    target: '내장 LED(L)',
+    parts: ['Arduino Uno Rev3', 'USB 데이터 케이블'],
+    connections: [
+      { from: 'ATmega328P D13', to: '내장 LED 구동 회로', color: '#14b8a6' },
+      { from: 'GND', to: '내장 LED 귀환 경로', color: '#64748b' }
+    ],
+    note: '외부 부품 없이 보드의 내장 LED로 실습합니다. millis()는 회로를 멈추지 않고 경과 시간을 비교하므로 대기 중에도 다른 입력을 처리할 수 있습니다.'
+  },
+  constrain: {
+    title: '센서값 제한과 PWM 출력 회로',
+    source: 'Arduino Uno Rev3',
+    target: '가변저항 · LED',
+    parts: ['10kΩ 가변저항', 'LED', '220Ω 저항', '브레드보드', '점퍼선'],
+    connections: [
+      { from: '5V', to: '가변저항 바깥쪽 단자 ①', color: '#ef4444' },
+      { from: 'A0', to: '가변저항 가운데 단자', color: '#22d3ee' },
+      { from: 'GND', to: '가변저항 바깥쪽 단자 ②', color: '#64748b' },
+      { from: 'D9 PWM', to: '220Ω → LED 애노드(+)', color: '#f59e0b' },
+      { from: 'GND', to: 'LED 캐소드(−)', color: '#94a3b8' }
+    ],
+    note: 'A0 입력을 constrain()으로 100~800 범위에 제한한 뒤 D9 PWM으로 출력합니다. 가변저항과 LED가 같은 GND 기준을 사용하도록 연결하세요.'
+  },
+  tone: {
+    title: '피에조 부저 음높이 출력 회로',
+    source: 'Arduino Uno Rev3',
+    target: '수동 피에조 부저',
+    parts: ['수동 피에조 부저', '100Ω 저항(선택)', '브레드보드', '점퍼선'],
+    connections: [
+      { from: 'D8 출력', to: '부저 +(긴 다리)', color: '#22d3ee' },
+      { from: 'GND', to: '부저 −(짧은 다리)', color: '#64748b' }
+    ],
+    note: '주파수에 따라 음높이가 바뀌는 수동 피에조 부저를 사용하세요. 능동 부저는 내부 발진기가 있어 tone()의 주파수 변화가 제대로 들리지 않을 수 있습니다.'
+  },
+  ultrasonic: {
+    title: 'HC-SR04 초음파 거리 측정 회로',
+    source: 'Arduino Uno Rev3',
+    target: 'HC-SR04',
+    parts: ['HC-SR04 초음파 센서', '점퍼선 4개', '브레드보드(선택)'],
+    connections: [
+      { from: '5V', to: 'VCC', color: '#ef4444' },
+      { from: 'GND', to: 'GND', color: '#64748b' },
+      { from: 'D9 출력', to: 'TRIG', color: '#f59e0b' },
+      { from: 'D10 입력', to: 'ECHO', color: '#22d3ee' }
+    ],
+    note: 'Arduino Uno는 5V 논리로 동작하므로 HC-SR04의 ECHO를 D10에 직접 연결할 수 있습니다. 센서 정면 약 2~400cm 범위에서 측정하세요.'
+  },
+  motor: {
+    title: 'L298N 드라이버 DC 모터 제어 회로',
+    source: 'Uno · 전원 · L298N',
+    target: 'L298N · DC 모터',
+    parts: ['L298N 모터 드라이버', 'DC 모터', '6~12V 외부전원', '점퍼선'],
+    connections: [
+      { from: 'D5 PWM', to: 'ENA', color: '#a78bfa' },
+      { from: 'D7', to: 'IN1', color: '#f59e0b' },
+      { from: 'D8', to: 'IN2', color: '#22d3ee' },
+      { from: 'Uno GND', to: 'L298N GND', color: '#64748b' },
+      { from: '외부전원 +', to: '12V/VIN', color: '#ef4444' },
+      { from: '외부전원 −', to: 'L298N GND', color: '#94a3b8' },
+      { from: 'L298N OUT1 · OUT2', to: '모터 양단', color: '#34d399' }
+    ],
+    note: '모터를 Uno 5V 핀에서 직접 구동하지 마세요. Uno·L298N·외부전원의 GND를 공통으로 연결하고, L298N 보드의 5V-EN 점퍼 상태와 사용 전압을 먼저 확인하세요.'
+  },
+  servo: {
+    title: '서보모터 각도 제어 회로',
+    source: 'Uno · 외부 5V',
+    target: '서보모터',
+    parts: ['SG90 등 5V 서보모터', '안정된 외부 5V 전원', '점퍼선'],
+    connections: [
+      { from: 'D9', to: 'SIGNAL(주황/황색)', color: '#f59e0b' },
+      { from: '외부 5V +', to: 'VCC(적색)', color: '#ef4444' },
+      { from: '외부전원 GND', to: 'GND(갈색/흑색)', color: '#64748b' },
+      { from: 'Uno GND', to: '공통 GND', color: '#22d3ee' }
+    ],
+    note: '서보의 순간 전류 때문에 외부 5V 전원을 권장합니다. 신호 기준을 맞추기 위해 외부전원 GND와 Uno GND를 공통으로 연결하세요.'
+  },
+  lcd: {
+    title: 'I²C LCD1602 문자 표시 회로',
+    source: 'Arduino Uno Rev3',
+    target: 'I²C LCD1602',
+    parts: ['I²C 백팩 장착 LCD1602', '점퍼선 4개', 'LiquidCrystal_I2C 라이브러리'],
+    connections: [
+      { from: '5V', to: 'VCC', color: '#ef4444' },
+      { from: 'GND', to: 'GND', color: '#64748b' },
+      { from: 'A4 · SDA', to: 'SDA', color: '#22d3ee' },
+      { from: 'A5 · SCL', to: 'SCL', color: '#a78bfa' }
+    ],
+    note: '대부분의 I²C LCD 주소는 0x27 또는 0x3F입니다. 글자가 보이지 않으면 주소와 백팩의 대비 조절 나사를 확인하세요.'
+  }
+};
+
+function CircuitDiagram({ project, isOpen, onToggle }) {
+  const circuit = SIM_CIRCUITS[project];
+  if (!circuit) return null;
+  const rowGap = Math.min(42, 168 / Math.max(circuit.connections.length - 1, 1));
+
+  return (
+    <section className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-700/40 transition"
+        aria-expanded={isOpen}
+      >
+        <span className="flex items-center gap-2 text-sm font-bold text-white">
+          <Layers className="w-4 h-4 text-teal-400" />
+          실습 회로 연결도 · {circuit.title}
+        </span>
+        <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="px-5 pb-5 space-y-4 animate-fadeIn">
+          <div className="overflow-x-auto rounded-xl border border-slate-700 bg-slate-950 p-3">
+            <svg viewBox="0 0 760 320" className="w-full min-w-[680px] h-auto" role="img" aria-label={`${circuit.title} 배선도`}>
+              <rect x="20" y="35" width="225" height="245" rx="18" fill="#0f766e" stroke="#5eead4" strokeWidth="2" />
+              <rect x="515" y="35" width="225" height="245" rx="18" fill="#1e293b" stroke="#94a3b8" strokeWidth="2" />
+              <text x="132" y="64" textAnchor="middle" fill="#ffffff" fontSize="17" fontWeight="700">{circuit.source}</text>
+              <text x="628" y="64" textAnchor="middle" fill="#ffffff" fontSize="17" fontWeight="700">{circuit.target}</text>
+              {circuit.connections.map((wire, index) => {
+                const y = 92 + index * rowGap;
+                return (
+                  <g key={`${wire.from}-${wire.to}`}>
+                    <circle cx="232" cy={y} r="5" fill={wire.color} />
+                    <circle cx="528" cy={y} r="5" fill={wire.color} />
+                    <path d={`M 232 ${y} C 330 ${y - 12}, 430 ${y + 12}, 528 ${y}`} fill="none" stroke={wire.color} strokeWidth="4" />
+                    <text x="218" y={y + 5} textAnchor="end" fill="#e2e8f0" fontSize="13" fontWeight="600">{wire.from}</text>
+                    <text x="542" y={y + 5} textAnchor="start" fill="#e2e8f0" fontSize="13" fontWeight="600">{wire.to}</text>
+                  </g>
+                );
+              })}
+              <text x="132" y="302" textAnchor="middle" fill="#99f6e4" fontSize="12">제어·전원 연결</text>
+              <text x="628" y="302" textAnchor="middle" fill="#cbd5e1" fontSize="12">센서·구동장치</text>
+            </svg>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <div className="bg-slate-900/70 border border-slate-700 rounded-xl p-4">
+              <h4 className="text-xs font-bold text-teal-300 mb-2">준비 부품</h4>
+              <div className="flex flex-wrap gap-1.5">
+                {circuit.parts.map(part => (
+                  <span key={part} className="text-[11px] text-slate-300 bg-slate-800 border border-slate-700 px-2 py-1 rounded-lg">{part}</span>
+                ))}
+              </div>
+            </div>
+            <div className="bg-amber-950/20 border border-amber-800/50 rounded-xl p-4">
+              <h4 className="text-xs font-bold text-amber-300 mb-1">연결 전 확인</h4>
+              <p className="text-[11px] leading-relaxed text-amber-100/80">{circuit.note}</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('theory'); // theory, commands, simulator, quiz
   const [searchQuery, setSearchQuery] = useState('');
@@ -768,7 +1268,7 @@ export default function App() {
   const [copiedCode, setCopiedCode] = useState(false);
 
   // 시뮬레이터 상태
-  const [simProject, setSimProject] = useState('blink'); // blink, potentiometer, button, serial
+  const [simProject, setSimProject] = useState('blink');
   const [simIsRunning, setSimIsRunning] = useState(false);
   const [simDelayTime, setSimDelayTime] = useState(1000); // Blink delay
   const [simPotValue, setSimPotValue] = useState(512); // Potentiometer 0-1023
@@ -776,9 +1276,27 @@ export default function App() {
   const [simLedState, setSimLedState] = useState(false);
   const [simLedBrightness, setSimLedBrightness] = useState(0); // 0-255 for PWM
   const [simSerialLogs, setSimSerialLogs] = useState([]);
+  const [simFadeDelay, setSimFadeDelay] = useState(20);
+  const [simMillisElapsed, setSimMillisElapsed] = useState(0);
+  const [simMillisInterval, setSimMillisInterval] = useState(1000);
+  const [simSensorRaw, setSimSensorRaw] = useState(512);
+  const [simToneFrequency, setSimToneFrequency] = useState(440);
+  const [simDistance, setSimDistance] = useState(75);
+  const [simMotorSpeed, setSimMotorSpeed] = useState(180);
+  const [simMotorDirection, setSimMotorDirection] = useState('forward');
+  const [simServoAngle, setSimServoAngle] = useState(90);
+  const [simLcdLine1, setSimLcdLine1] = useState('ARDUINO UNO');
+  const [simLcdLine2, setSimLcdLine2] = useState('READY!');
+  const [simCircuitOpen, setSimCircuitOpen] = useState(true);
+  const simFadeDirectionRef = useRef(1);
+  const audioContextRef = useRef(null);
+  const toneOscillatorRef = useRef(null);
+  const toneGainRef = useRef(null);
+  const tonePulseTimerRef = useRef(null);
 
   // 아두이노 보드 인터랙티브 핀 정보
-  const [activePinInfo, setActivePinInfo] = useState(null);
+  const [activePinInfo, setActivePinInfo] = useState(UNO_PINOUT.find(pin => pin.id === 'D13'));
+  const [pinFilter, setPinFilter] = useState('전체');
 
   // 60문항 퀴즈 상태
   const [currentQuizIdx, setCurrentQuizIdx] = useState(0);
@@ -787,6 +1305,68 @@ export default function App() {
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [showGridModal, setShowGridModal] = useState(false);
   const [reviewFilter, setReviewFilter] = useState('all'); // 'all', 'wrong', 'correct'
+
+  const stopToneAudio = () => {
+    if (tonePulseTimerRef.current) {
+      clearInterval(tonePulseTimerRef.current);
+      tonePulseTimerRef.current = null;
+    }
+    if (toneOscillatorRef.current) {
+      try { toneOscillatorRef.current.stop(); } catch (error) {}
+      toneOscillatorRef.current.disconnect();
+      toneOscillatorRef.current = null;
+    }
+    if (toneGainRef.current) {
+      toneGainRef.current.disconnect();
+      toneGainRef.current = null;
+    }
+  };
+
+  const startToneAudio = async () => {
+    stopToneAudio();
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    let audioContext = audioContextRef.current;
+    if (!audioContext || audioContext.state === 'closed') {
+      audioContext = new AudioContextClass();
+      audioContextRef.current = audioContext;
+    }
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume();
+    }
+
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    oscillator.type = 'square';
+    oscillator.frequency.setValueAtTime(simToneFrequency, audioContext.currentTime);
+    gain.gain.setValueAtTime(0, audioContext.currentTime);
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+    oscillator.start();
+    toneOscillatorRef.current = oscillator;
+    toneGainRef.current = gain;
+
+    const playPulse = () => {
+      const now = audioContext.currentTime;
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(0.075, now);
+      gain.gain.setValueAtTime(0.075, now + 0.48);
+      gain.gain.linearRampToValueAtTime(0, now + 0.5);
+    };
+    playPulse();
+    tonePulseTimerRef.current = setInterval(playPulse, 700);
+  };
+
+  const handleSimulatorPower = () => {
+    if (simIsRunning) {
+      setSimIsRunning(false);
+      stopToneAudio();
+      return;
+    }
+    setSimIsRunning(true);
+    if (simProject === 'tone') startToneAudio();
+  };
 
   // --- 시뮬레이터 타이머 루프 ---
   useEffect(() => {
@@ -814,18 +1394,106 @@ export default function App() {
             ...prev.slice(0, 15)
           ]);
         }, 800);
+      } else if (simProject === 'fade') {
+        interval = setInterval(() => {
+          setSimLedBrightness(prev => {
+            let next = prev + (simFadeDirectionRef.current * 5);
+            if (next >= 255) {
+              next = 255;
+              simFadeDirectionRef.current = -1;
+            } else if (next <= 0) {
+              next = 0;
+              simFadeDirectionRef.current = 1;
+            }
+            return next;
+          });
+        }, simFadeDelay);
+      } else if (simProject === 'millis') {
+        interval = setInterval(() => {
+          setSimMillisElapsed(prev => {
+            const next = prev + 100;
+            if (Math.floor(next / simMillisInterval) > Math.floor(prev / simMillisInterval)) {
+              setSimLedState(led => !led);
+            }
+            return next;
+          });
+        }, 100);
+      } else if (simProject === 'constrain') {
+        interval = setInterval(() => {
+          const safeValue = Math.max(100, Math.min(800, simSensorRaw));
+          const pwmValue = Math.round(((safeValue - 100) / 700) * 255);
+          setSimLedBrightness(pwmValue);
+        }, 100);
       }
     } else {
       setSimLedState(false);
     }
     return () => clearInterval(interval);
-  }, [simIsRunning, simProject, simDelayTime, simPotValue, simButtonPressed]);
+  }, [simIsRunning, simProject, simDelayTime, simPotValue, simButtonPressed, simFadeDelay, simMillisInterval, simSensorRaw]);
+
+  useEffect(() => {
+    if (toneOscillatorRef.current && simProject === 'tone' && simIsRunning) {
+      toneOscillatorRef.current.frequency.setTargetAtTime(
+        simToneFrequency,
+        audioContextRef.current.currentTime,
+        0.01
+      );
+    }
+  }, [simToneFrequency, simProject, simIsRunning]);
+
+  useEffect(() => {
+    if (activeTab !== 'simulator' || simProject !== 'tone' || !simIsRunning) {
+      stopToneAudio();
+    }
+  }, [activeTab, simProject, simIsRunning]);
+
+  useEffect(() => () => {
+    stopToneAudio();
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close();
+    }
+  }, []);
 
   // 코드 복사 핸들러
   const handleCopyCode = (codeText) => {
     navigator.clipboard.writeText(codeText);
     setCopiedCode(true);
     setTimeout(() => setCopiedCode(false), 2000);
+  };
+
+  const resetSimulator = () => {
+    stopToneAudio();
+    setSimIsRunning(false);
+    setSimLedState(false);
+    setSimLedBrightness(0);
+    setSimSerialLogs([]);
+    setSimMillisElapsed(0);
+    simFadeDirectionRef.current = 1;
+  };
+
+  const getSimulatorCode = () => {
+    const lcdLine1 = simLcdLine1.replace(/\\/g, '\\\\').replace(/"/g, '\\"').slice(0, 16);
+    const lcdLine2 = simLcdLine2.replace(/\\/g, '\\\\').replace(/"/g, '\\"').slice(0, 16);
+    const motorDirectionCode = simMotorDirection === 'reverse'
+      ? 'digitalWrite(IN1, LOW);\n  digitalWrite(IN2, HIGH);'
+      : simMotorDirection === 'stop'
+        ? 'digitalWrite(IN1, LOW);\n  digitalWrite(IN2, LOW);'
+        : 'digitalWrite(IN1, HIGH);\n  digitalWrite(IN2, LOW);';
+    const codeMap = {
+      blink: `void setup() {\n  pinMode(13, OUTPUT);\n}\n\nvoid loop() {\n  digitalWrite(13, HIGH);\n  delay(${simDelayTime});\n  digitalWrite(13, LOW);\n  delay(${simDelayTime});\n}`,
+      potentiometer: `void setup() {\n  pinMode(9, OUTPUT);\n}\n\nvoid loop() {\n  int sensorVal = analogRead(A0);\n  int pwmVal = map(sensorVal, 0, 1023, 0, 255);\n  analogWrite(9, pwmVal);\n  delay(30);\n}`,
+      button: `void setup() {\n  pinMode(2, INPUT);\n  pinMode(13, OUTPUT);\n}\n\nvoid loop() {\n  int buttonState = digitalRead(2);\n  if (buttonState == HIGH) {\n    digitalWrite(13, HIGH);\n  } else {\n    digitalWrite(13, LOW);\n  }\n}`,
+      serial: `void setup() {\n  Serial.begin(9600);\n}\n\nvoid loop() {\n  int val = analogRead(A0);\n  Serial.print("A0 센서: ");\n  Serial.println(val);\n  delay(800);\n}`,
+      fade: `const int LED_PIN = 9;\n\nvoid setup() {\n  pinMode(LED_PIN, OUTPUT);\n}\n\nvoid loop() {\n  for (int brightness = 0; brightness <= 255; brightness += 5) {\n    analogWrite(LED_PIN, brightness);\n    delay(${simFadeDelay});\n  }\n  for (int brightness = 255; brightness >= 0; brightness -= 5) {\n    analogWrite(LED_PIN, brightness);\n    delay(${simFadeDelay});\n  }\n}`,
+      millis: `const int LED_PIN = 13;\nunsigned long previousMillis = 0;\nconst unsigned long interval = ${simMillisInterval};\nbool ledState = LOW;\n\nvoid setup() {\n  pinMode(LED_PIN, OUTPUT);\n}\n\nvoid loop() {\n  unsigned long currentMillis = millis();\n  if (currentMillis - previousMillis >= interval) {\n    previousMillis = currentMillis;\n    ledState = !ledState;\n    digitalWrite(LED_PIN, ledState);\n  }\n  // 대기 중에도 다른 센서와 버튼을 처리할 수 있습니다.\n}`,
+      constrain: `void setup() {\n  pinMode(9, OUTPUT);\n  Serial.begin(9600);\n}\n\nvoid loop() {\n  int rawValue = analogRead(A0);\n  int safeValue = constrain(rawValue, 100, 800);\n  int pwmValue = map(safeValue, 100, 800, 0, 255);\n  analogWrite(9, pwmValue);\n\n  Serial.print("원본: ");\n  Serial.print(rawValue);\n  Serial.print(" / 제한값: ");\n  Serial.println(safeValue);\n  delay(100);\n}`,
+      tone: `const int BUZZER_PIN = 8;\n\nvoid setup() {\n}\n\nvoid loop() {\n  tone(BUZZER_PIN, ${simToneFrequency}, 500);\n  delay(700);\n}`,
+      ultrasonic: `const byte TRIG_PIN = 9;\nconst byte ECHO_PIN = 10;\n\nvoid setup() {\n  Serial.begin(9600);\n  pinMode(TRIG_PIN, OUTPUT);\n  pinMode(ECHO_PIN, INPUT);\n}\n\nvoid loop() {\n  digitalWrite(TRIG_PIN, LOW);\n  delayMicroseconds(2);\n  digitalWrite(TRIG_PIN, HIGH);\n  delayMicroseconds(10);\n  digitalWrite(TRIG_PIN, LOW);\n\n  unsigned long duration = pulseIn(ECHO_PIN, HIGH, 30000);\n  float distanceCm = duration * 0.0343 / 2.0;\n\n  Serial.print("거리: ");\n  Serial.print(distanceCm);\n  Serial.println(" cm");\n  delay(100);\n}`,
+      motor: `const byte ENA = 5;  // PWM 속도\nconst byte IN1 = 7;\nconst byte IN2 = 8;\n\nvoid setup() {\n  pinMode(ENA, OUTPUT);\n  pinMode(IN1, OUTPUT);\n  pinMode(IN2, OUTPUT);\n}\n\nvoid loop() {\n  ${motorDirectionCode}\n  analogWrite(ENA, ${simMotorDirection === 'stop' ? 0 : simMotorSpeed});\n}`,
+      servo: `#include <Servo.h>\n\nServo myServo;\nconst byte SERVO_PIN = 9;\n\nvoid setup() {\n  myServo.attach(SERVO_PIN);\n}\n\nvoid loop() {\n  myServo.write(${simServoAngle});\n  delay(20);\n}`,
+      lcd: `#include <Wire.h>\n#include <LiquidCrystal_I2C.h>\n\nLiquidCrystal_I2C lcd(0x27, 16, 2);\n\nvoid setup() {\n  lcd.init();\n  lcd.backlight();\n  lcd.setCursor(0, 0);\n  lcd.print("${lcdLine1}");\n  lcd.setCursor(0, 1);\n  lcd.print("${lcdLine2}");\n}\n\nvoid loop() {\n}`
+    };
+    return codeMap[simProject] || '';
   };
 
   // 명령어 필터링
@@ -953,6 +1621,7 @@ export default function App() {
                   </button>
                 </div>
               </div>
+
             </div>
 
             {/* 인터랙티브 아두이노 UNO 보드 핀맵 가이드 */}
@@ -963,7 +1632,7 @@ export default function App() {
                     <Cpu className="text-teal-400 w-5 h-5" />
                     아두이노 UNO 하드웨어 구조 및 핀배치
                   </h2>
-                  <p className="text-xs text-slate-400">보드의 각 영역을 클릭하여 어떤 용도로 쓰이는지 확인하세요.</p>
+                  <p className="text-xs text-slate-400">보드의 핀을 하나씩 선택하여 기본 기능과 겸용 기능, 주의사항을 확인하세요.</p>
                 </div>
                 <div className="text-xs text-teal-400 bg-teal-950/60 border border-teal-800 px-3 py-1 rounded-lg">
                   Arduino Uno Rev3 기준
@@ -993,47 +1662,93 @@ export default function App() {
                     />
                     <text x="270" y="217" fill="#94A3B8" fontSize="12" fontWeight="bold" textAnchor="middle">ATmega328P-PU</text>
 
-                    <g 
-                      className="cursor-pointer group"
-                      onClick={() => setActivePinInfo({
-                        title: '디지털 입출력 핀 (Digital Pins 0~13)',
-                        desc: '0과 1 (HIGH/LOW) 두 가지 디지털 신호를 주고받습니다. ~ 물결 표시가 있는 핀(3,5,6,9,10,11)은 analogWrite()를 통한 PWM 출력이 가능합니다.'
-                      })}
-                    >
-                      <rect x="180" y="30" width="280" height="25" rx="3" fill="#1E293B" stroke="#334155" />
-                      <text x="320" y="20" fill="#E2E8F0" fontSize="11" fontWeight="bold" textAnchor="middle">디지털 I/O 핀 (0 ~ 13 / PWM ~)</text>
-                      {[...Array(14)].map((_, i) => (
-                        <circle key={i} cx={195 + i * 19} cy={42.5} r="4" fill="#FFD700" className="group-hover:fill-teal-300 transition" />
-                      ))}
-                    </g>
+                    <rect x="180" y="30" width="280" height="36" rx="4" fill="#1E293B" stroke="#334155" />
+                    <text x="320" y="20" fill="#E2E8F0" fontSize="11" fontWeight="bold" textAnchor="middle">디지털 D13 → D0 · 각 핀 개별 선택</text>
+                    {DIGITAL_HEADER_IDS.map((pinId, i) => {
+                      const pin = UNO_PINOUT.find(item => item.id === pinId);
+                      const selected = activePinInfo?.id === pinId;
+                      return (
+                        <g
+                          key={pinId}
+                          className="cursor-pointer"
+                          role="button"
+                          tabIndex="0"
+                          aria-label={`${pin.title} 설명 보기`}
+                          onClick={() => setActivePinInfo(pin)}
+                          onKeyDown={(event) => (event.key === 'Enter' || event.key === ' ') && setActivePinInfo(pin)}
+                        >
+                          <circle cx={195 + i * 19} cy="43" r={selected ? 6.5 : 5} fill={selected ? '#2DD4BF' : '#FFD700'} stroke={selected ? '#CCFBF1' : '#A16207'} strokeWidth={selected ? 2 : 1} />
+                          <text x={195 + i * 19} y="61" fill={selected ? '#99F6E4' : '#CBD5E1'} fontSize="7.5" fontWeight="bold" textAnchor="middle">
+                            {pin.label.replace('D', '')}
+                          </text>
+                        </g>
+                      );
+                    })}
 
-                    <g 
-                      className="cursor-pointer group"
-                      onClick={() => setActivePinInfo({
-                        title: '아날로그 입력 핀 (Analog Inputs A0~A5)',
-                        desc: '0V부터 5V까지의 연속 전압 값을 읽어들입니다. 가변저항, 조도센서 등의 수치를 0~1023 정수 디지털 값으로 변환합니다.'
-                      })}
-                    >
-                      <rect x="330" y="280" width="130" height="25" rx="3" fill="#1E293B" stroke="#334155" />
-                      <text x="395" y="320" fill="#E2E8F0" fontSize="11" fontWeight="bold" textAnchor="middle">아날로그 입력 (A0 ~ A5)</text>
-                      {[...Array(6)].map((_, i) => (
-                        <circle key={i} cx={345 + i * 20} cy={292.5} r="4" fill="#FFD700" className="group-hover:fill-teal-300 transition" />
-                      ))}
-                    </g>
+                    <rect x="330" y="276" width="130" height="35" rx="4" fill="#1E293B" stroke="#334155" />
+                    <text x="395" y="325" fill="#E2E8F0" fontSize="11" fontWeight="bold" textAnchor="middle">아날로그 A0 → A5</text>
+                    {ANALOG_HEADER_IDS.map((pinId, i) => {
+                      const pin = UNO_PINOUT.find(item => item.id === pinId);
+                      const selected = activePinInfo?.id === pinId;
+                      return (
+                        <g
+                          key={pinId}
+                          className="cursor-pointer"
+                          role="button"
+                          tabIndex="0"
+                          aria-label={`${pin.title} 설명 보기`}
+                          onClick={() => setActivePinInfo(pin)}
+                          onKeyDown={(event) => (event.key === 'Enter' || event.key === ' ') && setActivePinInfo(pin)}
+                        >
+                          <circle cx={345 + i * 20} cy="292" r={selected ? 6.5 : 5} fill={selected ? '#38BDF8' : '#FFD700'} stroke={selected ? '#E0F2FE' : '#A16207'} strokeWidth={selected ? 2 : 1} />
+                          <text x={345 + i * 20} y="307" fill={selected ? '#BAE6FD' : '#CBD5E1'} fontSize="7.5" fontWeight="bold" textAnchor="middle">{pin.label}</text>
+                        </g>
+                      );
+                    })}
 
-                    <g 
-                      className="cursor-pointer group"
-                      onClick={() => setActivePinInfo({
-                        title: '전원 공급 핀 (Power Pins)',
-                        desc: '5V, 3.3V, GND(Ground 0V), VIN 등 외부 센서 및 회로 부품에 전압을 공급하는 단자입니다.'
-                      })}
-                    >
-                      <rect x="180" y="280" width="130" height="25" rx="3" fill="#1E293B" stroke="#334155" />
-                      <text x="245" y="320" fill="#E2E8F0" fontSize="11" fontWeight="bold" textAnchor="middle">전원 (5V, 3.3V, GND)</text>
-                      {[...Array(6)].map((_, i) => (
-                        <circle key={i} cx={195 + i * 20} cy={292.5} r="4" fill="#FFD700" className="group-hover:fill-teal-300 transition" />
-                      ))}
-                    </g>
+                    <rect x="135" y="276" width="178" height="35" rx="4" fill="#1E293B" stroke="#334155" />
+                    <text x="224" y="325" fill="#E2E8F0" fontSize="11" fontWeight="bold" textAnchor="middle">전원 · 기준 · RESET</text>
+                    {POWER_HEADER_IDS.map((pinId, i) => {
+                      const pin = UNO_PINOUT.find(item => item.id === pinId);
+                      const selected = activePinInfo?.id === pinId;
+                      return (
+                        <g
+                          key={pinId}
+                          className="cursor-pointer"
+                          role="button"
+                          tabIndex="0"
+                          aria-label={`${pin.title} 설명 보기`}
+                          onClick={() => setActivePinInfo(pin)}
+                          onKeyDown={(event) => (event.key === 'Enter' || event.key === ' ') && setActivePinInfo(pin)}
+                        >
+                          <circle cx={150 + i * 21} cy="292" r={selected ? 6.5 : 5} fill={selected ? '#FB7185' : '#FFD700'} stroke={selected ? '#FFE4E6' : '#A16207'} strokeWidth={selected ? 2 : 1} />
+                          <text x={150 + i * 21} y="307" fill={selected ? '#FECDD3' : '#CBD5E1'} fontSize="6.5" fontWeight="bold" textAnchor="middle">
+                            {pin.label === 'RESET' ? 'RST' : pin.label}
+                          </text>
+                        </g>
+                      );
+                    })}
+
+                    <rect x="116" y="30" width="58" height="36" rx="4" fill="#1E293B" stroke="#334155" />
+                    <text x="145" y="20" fill="#E2E8F0" fontSize="8" fontWeight="bold" textAnchor="middle">I²C · REF</text>
+                    {AUX_HEADER_IDS.map((pinId, i) => {
+                      const pin = UNO_PINOUT.find(item => item.id === pinId);
+                      const selected = activePinInfo?.id === pinId;
+                      return (
+                        <g
+                          key={pinId}
+                          className="cursor-pointer"
+                          role="button"
+                          tabIndex="0"
+                          aria-label={`${pin.title} 설명 보기`}
+                          onClick={() => setActivePinInfo(pin)}
+                          onKeyDown={(event) => (event.key === 'Enter' || event.key === ' ') && setActivePinInfo(pin)}
+                        >
+                          <circle cx={124 + i * 14} cy="43" r={selected ? 5.5 : 4} fill={selected ? '#A78BFA' : '#FFD700'} stroke={selected ? '#EDE9FE' : '#A16207'} strokeWidth={selected ? 2 : 1} />
+                          <text x={124 + i * 14} y="61" fill={selected ? '#DDD6FE' : '#CBD5E1'} fontSize="5.5" fontWeight="bold" textAnchor="middle">{pin.label === 'GND' ? 'G' : pin.label.slice(0, 3)}</text>
+                        </g>
+                      );
+                    })}
 
                     <g 
                       className="cursor-pointer"
@@ -1065,7 +1780,7 @@ export default function App() {
                   <div>
                     <div className="flex items-center space-x-2 text-teal-400 font-semibold mb-2 text-sm">
                       <Info className="w-4 h-4" />
-                      <span>클릭한 구성요소 상세 정보</span>
+                      <span>선택한 핀 상세 정보</span>
                     </div>
                     {activePinInfo ? (
                       <div className="space-y-3 animate-fadeIn">
@@ -1075,6 +1790,34 @@ export default function App() {
                         <p className="text-slate-300 text-sm leading-relaxed">
                           {activePinInfo.desc}
                         </p>
+                        {activePinInfo.functions && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {activePinInfo.functions.map(func => (
+                              <span key={func} className="px-2 py-1 rounded-md bg-teal-500/10 border border-teal-500/25 text-[10px] text-teal-200">
+                                {func}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {(activePinInfo.location || activePinInfo.port || activePinInfo.voltage) && (
+                          <div className="grid grid-cols-1 gap-1.5 text-xs">
+                            {activePinInfo.location && <div className="flex justify-between gap-3 rounded-lg bg-slate-800/70 px-3 py-2"><span className="text-slate-500">보드 위치</span><span className="text-slate-200 text-right">{activePinInfo.location}</span></div>}
+                            {activePinInfo.port && <div className="flex justify-between gap-3 rounded-lg bg-slate-800/70 px-3 py-2"><span className="text-slate-500">MCU 연결</span><span className="text-slate-200 text-right font-mono">{activePinInfo.port}</span></div>}
+                            {activePinInfo.voltage && <div className="flex justify-between gap-3 rounded-lg bg-slate-800/70 px-3 py-2"><span className="text-slate-500">전압 기준</span><span className="text-slate-200 text-right">{activePinInfo.voltage}</span></div>}
+                          </div>
+                        )}
+                        {activePinInfo.example && (
+                          <div>
+                            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1.5">간단 사용 예</div>
+                            <pre className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-[10px] text-emerald-300 font-mono whitespace-pre-wrap overflow-x-auto">{activePinInfo.example}</pre>
+                          </div>
+                        )}
+                        {activePinInfo.caution && (
+                          <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/25 p-3 text-[11px] text-amber-100/90 leading-relaxed">
+                            <Info className="w-3.5 h-3.5 text-amber-300 shrink-0 mt-0.5" />
+                            <span>{activePinInfo.caution}</span>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="text-center py-10 text-slate-500 text-sm space-y-2">
@@ -1085,8 +1828,94 @@ export default function App() {
                   </div>
 
                   <div className="bg-slate-800/80 p-3 rounded-lg border border-slate-700/50 text-xs text-slate-400 mt-4">
-                    💡 <strong className="text-slate-200">Tip:</strong> 보드 하단의 60문항 퀴즈 탭으로 이동하여 학습 수치를 바로 검증할 수 있습니다.
+                    💡 <strong className="text-slate-200">핵심 안전:</strong> Uno Rev3의 I/O 핀 권장 최대 전류는 핀당 20mA이며, 3.3V 핀은 최대 50mA입니다.
                   </div>
+                </div>
+              </div>
+
+              {/* 기능별 필터와 전체 개별 핀 목록 */}
+              <div className="space-y-4 border-t border-slate-700 pt-5">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-white">기능별 핀 빠른 찾기</h3>
+                    <p className="text-xs text-slate-400 mt-1">필터를 고른 뒤 핀 카드를 누르면 위 설명창과 보드 위치가 함께 바뀝니다.</p>
+                  </div>
+                  <a
+                    href="https://docs.arduino.cc/resources/pinouts/A000066-full-pinout.pdf"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs text-teal-300 hover:text-teal-200 bg-teal-500/10 border border-teal-500/25 px-3 py-2 rounded-lg shrink-0"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    Arduino 공식 전체 핀아웃
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+
+                <div className="flex flex-wrap gap-2" role="group" aria-label="핀 기능 필터">
+                  {PIN_FILTERS.map(filter => (
+                    <button
+                      key={filter}
+                      onClick={() => setPinFilter(filter)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                        pinFilter === filter
+                          ? 'bg-teal-500 text-slate-950 border-teal-400 shadow shadow-teal-500/20'
+                          : 'bg-slate-900 text-slate-300 border-slate-700 hover:border-teal-500/50 hover:text-teal-200'
+                      }`}
+                    >
+                      {filter}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5">
+                  {UNO_PINOUT
+                    .filter(pin => pinFilter === '전체' || pin.filters.includes(pinFilter))
+                    .map(pin => {
+                      const selected = activePinInfo?.id === pin.id;
+                      const sectionStyle = pin.section === 'digital'
+                        ? 'text-teal-300 bg-teal-500/10 border-teal-500/25'
+                        : pin.section === 'analog'
+                          ? 'text-sky-300 bg-sky-500/10 border-sky-500/25'
+                          : pin.section === 'power'
+                            ? 'text-rose-300 bg-rose-500/10 border-rose-500/25'
+                            : 'text-violet-300 bg-violet-500/10 border-violet-500/25';
+                      return (
+                        <button
+                          key={pin.id}
+                          onClick={() => setActivePinInfo(pin)}
+                          className={`text-left rounded-xl border p-3 transition min-h-[104px] ${
+                            selected
+                              ? 'bg-teal-500/15 border-teal-400 ring-2 ring-teal-400/25 -translate-y-0.5'
+                              : 'bg-slate-900/70 border-slate-700 hover:border-slate-500 hover:bg-slate-900'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="font-mono font-extrabold text-white text-sm">{pin.label}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] border ${sectionStyle}`}>
+                              {pin.section === 'digital' ? 'DIGITAL' : pin.section === 'analog' ? 'ANALOG' : pin.section === 'power' ? 'POWER' : 'AUX'}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-[10px] text-slate-400 leading-relaxed line-clamp-2">{pin.functions.slice(0, 2).join(' · ')}</div>
+                          <div className="mt-2 text-[9px] text-slate-500 font-mono truncate">{pin.port}</div>
+                        </button>
+                      );
+                    })}
+                </div>
+
+                <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-2 text-[10px]">
+                  {[
+                    ['PWM', 'D3 · D5 · D6 · D9 · D10 · D11'],
+                    ['외부 인터럽트', 'D2(INT0) · D3(INT1)'],
+                    ['UART', 'D0(RX) · D1(TX)'],
+                    ['SPI', 'D10(SS) · D11(COPI) · D12(CIPO) · D13(SCK)'],
+                    ['I²C', 'A4/SDA · A5/SCL']
+                  ].map(([name, pins]) => (
+                    <div key={name} className="rounded-lg bg-slate-900/70 border border-slate-700 px-3 py-2">
+                      <div className="font-bold text-slate-200 mb-1">{name}</div>
+                      <div className="text-slate-500 leading-relaxed">{pins}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -1130,6 +1959,72 @@ export default function App() {
                 </p>
               </div>
             </div>
+
+            {/* 공식 학습 플랫폼 및 온라인 실습 도구 */}
+            <section className="bg-slate-800 p-6 rounded-2xl border border-slate-700 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b border-slate-700 pb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-teal-400" />
+                    더 배우고 직접 실습하기
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    공식 문서로 개념을 확인하고, 온라인 IDE와 회로 시뮬레이터에서 바로 코드를 실행해 보세요.
+                  </p>
+                </div>
+                <span className="text-[11px] text-teal-300 bg-teal-950/60 border border-teal-800 px-3 py-1 rounded-lg">
+                  외부 사이트는 새 창에서 열립니다
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[
+                  {
+                    title: '아두이노 독스',
+                    subtitle: '아두이노 직영 학습 플랫폼',
+                    description: '보드별 사양, 함수 레퍼런스, 튜토리얼과 프로젝트 예제를 공식 문서로 확인합니다.',
+                    href: 'https://docs.arduino.cc/',
+                    color: 'teal'
+                  },
+                  {
+                    title: '웹 기반 아두이노 IDE',
+                    subtitle: '온라인 기반 Arduino IDE',
+                    description: '웹브라우저에서 스케치를 작성·컴파일하고 연결된 아두이노 보드에 업로드합니다.',
+                    href: 'https://app.arduino.cc/',
+                    color: 'blue'
+                  },
+                  {
+                    title: '오토데스크 틴커캐드',
+                    subtitle: '온라인 회로·코딩 학습 플랫폼',
+                    description: '가상 브레드보드에 회로를 연결하고 아두이노 코드의 동작을 시뮬레이션합니다.',
+                    href: 'https://www.tinkercad.com/learn/circuits',
+                    color: 'amber'
+                  }
+                ].map(resource => (
+                  <a
+                    key={resource.href}
+                    href={resource.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group bg-slate-900/80 p-5 rounded-xl border border-slate-700 hover:border-teal-500/70 hover:-translate-y-0.5 transition-all flex flex-col justify-between min-h-[190px]"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="font-bold text-white group-hover:text-teal-300 transition">{resource.title}</h3>
+                          <p className="text-[11px] text-teal-400 mt-0.5">{resource.subtitle}</p>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-teal-400 shrink-0" />
+                      </div>
+                      <p className="text-xs text-slate-400 leading-relaxed">{resource.description}</p>
+                    </div>
+                    <span className="text-xs font-semibold text-slate-300 group-hover:text-white mt-4">
+                      사이트로 이동하기 →
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </section>
           </div>
         )}
 
@@ -1222,6 +2117,7 @@ export default function App() {
                       {selectedCommand.simDemoId && (
                         <button
                           onClick={() => {
+                            resetSimulator();
                             setSimProject(selectedCommand.simDemoId);
                             setActiveTab('simulator');
                           }}
@@ -1312,7 +2208,15 @@ export default function App() {
                   { id: 'blink', label: '1. LED 깜빡이기 (Blink)', icon: Lightbulb },
                   { id: 'potentiometer', label: '2. 가변저항 & LED 디밍 (PWM)', icon: Sliders },
                   { id: 'button', label: '3. 푸시버튼 디지털 입력', icon: Layers },
-                  { id: 'serial', label: '4. 시리얼 모니터 로거', icon: Terminal }
+                  { id: 'serial', label: '4. 시리얼 모니터 로거', icon: Terminal },
+                  { id: 'fade', label: '5. PWM LED 페이드', icon: Lightbulb },
+                  { id: 'millis', label: '6. millis() 논블로킹 타이머', icon: Activity },
+                  { id: 'constrain', label: '7. 센서값 안전 범위 제한', icon: Gauge },
+                  { id: 'tone', label: '8. 피에조 부저 음높이', icon: Volume2 },
+                  { id: 'ultrasonic', label: '9. HC-SR04 초음파 거리', icon: Activity },
+                  { id: 'motor', label: '10. L298N DC 모터 제어', icon: RotateCcw },
+                  { id: 'servo', label: '11. 서보모터 각도 제어', icon: Gauge },
+                  { id: 'lcd', label: '12. I²C LCD1602 표시', icon: Terminal }
                 ].map(proj => {
                   const Icon = proj.icon;
                   const isActive = simProject === proj.id;
@@ -1320,8 +2224,8 @@ export default function App() {
                     <button
                       key={proj.id}
                       onClick={() => {
+                        resetSimulator();
                         setSimProject(proj.id);
-                        setSimIsRunning(false);
                       }}
                       className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
                         isActive
@@ -1337,6 +2241,31 @@ export default function App() {
               </div>
             </div>
 
+            <div className="bg-slate-800/70 px-4 py-3 rounded-xl border border-slate-700/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-bold text-slate-400">현재 예제의 핵심 명령어:</span>
+                {{
+                  blink: ['pinMode()', 'digitalWrite()', 'delay()'],
+                  potentiometer: ['analogRead()', 'map()', 'analogWrite()'],
+                  button: ['pinMode()', 'digitalRead()', 'digitalWrite()'],
+                  serial: ['Serial.begin()', 'Serial.print()', 'Serial.println()'],
+                  fade: ['pinMode()', 'analogWrite()', 'delay()'],
+                  millis: ['millis()', 'digitalWrite()'],
+                  constrain: ['analogRead()', 'constrain()', 'map()', 'analogWrite()'],
+                  tone: ['tone()', 'delay()'],
+                  ultrasonic: ['pinMode()', 'digitalWrite()', 'delayMicroseconds()', 'pulseIn()'],
+                  motor: ['pinMode()', 'digitalWrite()', 'analogWrite()'],
+                  servo: ['Servo.attach()', 'Servo.write()'],
+                  lcd: ['Wire', 'lcd.init()', 'lcd.setCursor()', 'lcd.print()']
+                }[simProject].map(command => (
+                  <span key={command} className="font-mono text-[11px] text-teal-300 bg-teal-950/60 border border-teal-800/80 px-2 py-1 rounded-lg">
+                    {command}
+                  </span>
+                ))}
+              </div>
+              <span className="text-[11px] text-slate-500">명령어 사전의 실행 버튼과 연동됩니다.</span>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               
               <div className="lg:col-span-7 bg-slate-800 p-6 rounded-2xl border border-slate-700 space-y-6 flex flex-col justify-between">
@@ -1344,7 +2273,7 @@ export default function App() {
                 <div className="flex items-center justify-between border-b border-slate-700 pb-4">
                   <div className="flex items-center space-x-3">
                     <button
-                      onClick={() => setSimIsRunning(!simIsRunning)}
+                      onClick={handleSimulatorPower}
                       className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg transition ${
                         simIsRunning 
                           ? 'bg-amber-500 hover:bg-amber-400 text-slate-950' 
@@ -1356,12 +2285,7 @@ export default function App() {
                     </button>
 
                     <button
-                      onClick={() => {
-                        setSimIsRunning(false);
-                        setSimLedState(false);
-                        setSimLedBrightness(0);
-                        setSimSerialLogs([]);
-                      }}
+                      onClick={resetSimulator}
                       className="p-2.5 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-xl transition"
                       title="초기화"
                     >
@@ -1496,6 +2420,237 @@ export default function App() {
                       </div>
                     </div>
                   )}
+
+                  {simProject === 'fade' && (
+                    <div className="flex flex-col items-center space-y-6 animate-fadeIn">
+                      <div className="relative">
+                        <div
+                          className="absolute -inset-6 bg-violet-500/40 rounded-full blur-2xl transition-opacity"
+                          style={{ opacity: simIsRunning ? simLedBrightness / 255 : 0 }}
+                        ></div>
+                        <div
+                          className="relative w-24 h-24 rounded-full flex items-center justify-center border-4 transition-all"
+                          style={{
+                            backgroundColor: `rgba(139, 92, 246, ${Math.max(0.08, simLedBrightness / 255)})`,
+                            borderColor: `rgba(196, 181, 253, ${Math.max(0.25, simLedBrightness / 255)})`,
+                            boxShadow: simIsRunning ? `0 0 ${simLedBrightness / 4}px rgba(139, 92, 246, 0.9)` : 'none'
+                          }}
+                        >
+                          <Lightbulb className="w-11 h-11 text-white" />
+                        </div>
+                      </div>
+                      <div className="w-full max-w-sm space-y-2 text-center">
+                        <div className="font-mono text-sm text-slate-200">
+                          analogWrite(9, <strong className="text-violet-300">{simLedBrightness}</strong>)
+                        </div>
+                        <div className="h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-violet-900 to-violet-300 transition-all" style={{ width: `${(simLedBrightness / 255) * 100}%` }}></div>
+                        </div>
+                        <p className="text-xs text-slate-400">PWM 듀티비를 0~255 사이로 반복 변화시켜 LED가 서서히 밝아지고 어두워집니다.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {simProject === 'millis' && (
+                    <div className="w-full max-w-lg space-y-5 animate-fadeIn">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                          <Activity className="w-7 h-7 text-teal-400 mx-auto mb-2" />
+                          <div className="text-2xl font-mono font-bold text-white">{(simMillisElapsed / 1000).toFixed(1)}s</div>
+                          <div className="text-[11px] text-slate-500 mt-1">millis() 경과 시간</div>
+                        </div>
+                        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center flex flex-col items-center justify-center">
+                          <div className={`w-12 h-12 rounded-full border-4 flex items-center justify-center transition ${
+                            simLedState ? 'bg-amber-400 border-amber-200 shadow-[0_0_24px_rgba(251,191,36,0.75)]' : 'bg-slate-800 border-slate-700'
+                          }`}>
+                            <Lightbulb className={`w-6 h-6 ${simLedState ? 'text-white' : 'text-slate-600'}`} />
+                          </div>
+                          <div className="text-[11px] text-slate-500 mt-2">{simMillisInterval}ms마다 토글</div>
+                        </div>
+                      </div>
+                      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex items-center justify-between text-xs">
+                        <span className="text-slate-400">동시에 수행하는 가상 센서 읽기</span>
+                        <span className={`font-mono ${simIsRunning ? 'text-emerald-400 animate-pulse' : 'text-slate-600'}`}>
+                          {simIsRunning ? '계속 처리 중…' : '대기 중'}
+                        </span>
+                      </div>
+                      <p className="text-center text-xs text-slate-400">delay() 없이 시간 차이를 계산하므로 LED 대기 중에도 다른 작업을 계속할 수 있습니다.</p>
+                    </div>
+                  )}
+
+                  {simProject === 'constrain' && (
+                    <div className="w-full max-w-lg space-y-5 animate-fadeIn">
+                      <div className="grid grid-cols-3 gap-2 text-center font-mono">
+                        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
+                          <div className="text-[10px] text-slate-500 mb-1">원본 센서값</div>
+                          <div className="text-lg font-bold text-rose-300">{simSensorRaw}</div>
+                        </div>
+                        <div className="bg-slate-900 border border-teal-700/60 rounded-xl p-3">
+                          <div className="text-[10px] text-slate-500 mb-1">constrain()</div>
+                          <div className="text-lg font-bold text-teal-300">{Math.max(100, Math.min(800, simSensorRaw))}</div>
+                        </div>
+                        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
+                          <div className="text-[10px] text-slate-500 mb-1">PWM 변환값</div>
+                          <div className="text-lg font-bold text-amber-300">{Math.round(((Math.max(100, Math.min(800, simSensorRaw)) - 100) / 700) * 255)}</div>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="relative h-5 rounded-full overflow-hidden flex bg-slate-800">
+                          <div className="w-[9.8%] bg-rose-500/50"></div>
+                          <div className="w-[68.5%] bg-teal-500/60"></div>
+                          <div className="flex-1 bg-rose-500/50"></div>
+                          <div className="absolute top-0 h-full w-1 bg-white shadow transition-all" style={{ left: `${(simSensorRaw / 1023) * 100}%` }}></div>
+                        </div>
+                        <div className="flex justify-between text-[10px] font-mono text-slate-500">
+                          <span>0</span><span className="text-teal-400">안전 하한 100</span><span className="text-teal-400">안전 상한 800</span><span>1023</span>
+                        </div>
+                      </div>
+                      <p className="text-center text-xs text-slate-400">범위를 벗어난 입력은 가장 가까운 한계값으로 고정되어 출력 장치를 안전하게 제어합니다.</p>
+                    </div>
+                  )}
+
+                  {simProject === 'tone' && (
+                    <div className="flex flex-col items-center space-y-6 animate-fadeIn">
+                      <div className="relative flex items-center justify-center w-36 h-36">
+                        {simIsRunning && (
+                          <>
+                            <div className="absolute w-24 h-24 rounded-full border-2 border-cyan-400/70 animate-ping"></div>
+                            <div className="absolute w-32 h-32 rounded-full border border-cyan-400/40 animate-pulse"></div>
+                          </>
+                        )}
+                        <div className={`relative w-20 h-20 rounded-full border-4 flex items-center justify-center transition ${
+                          simIsRunning ? 'bg-cyan-500 border-cyan-200 shadow-[0_0_35px_rgba(6,182,212,0.75)]' : 'bg-slate-800 border-slate-700'
+                        }`}>
+                          <Volume2 className={`w-9 h-9 ${simIsRunning ? 'text-white' : 'text-slate-600'}`} />
+                        </div>
+                      </div>
+                      <div className="text-center space-y-2">
+                        <div className="font-mono text-lg font-bold text-cyan-300">{simToneFrequency} Hz</div>
+                        <div className="text-xs text-slate-400">tone(8, {simToneFrequency}, 500)</div>
+                        <p className={`text-[11px] ${simIsRunning ? 'text-cyan-300' : 'text-slate-500'}`}>
+                          {simIsRunning ? '브라우저 스피커로 0.5초 길이의 피에조 부저 음을 재생합니다.' : '전원을 켜면 선택한 주파수의 부저 소리가 재생됩니다.'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {simProject === 'ultrasonic' && (
+                    <div className="w-full max-w-xl space-y-6 animate-fadeIn">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="shrink-0 bg-slate-800 border-2 border-cyan-500/70 rounded-xl p-3 text-center">
+                          <div className="flex gap-2 justify-center mb-2">
+                            <span className="w-9 h-9 rounded-full border-4 border-slate-500 bg-slate-950"></span>
+                            <span className="w-9 h-9 rounded-full border-4 border-slate-500 bg-slate-950"></span>
+                          </div>
+                          <span className="text-[10px] font-mono text-cyan-300">HC-SR04</span>
+                        </div>
+                        <div className="relative flex-1 h-16 flex items-center">
+                          <div className={`w-full h-1 bg-gradient-to-r from-cyan-400 via-cyan-300/50 to-transparent ${simIsRunning ? 'animate-pulse' : 'opacity-20'}`}></div>
+                          {simIsRunning && (
+                            <span className="absolute left-0 w-10 h-10 rounded-full border-2 border-cyan-300 animate-ping"></span>
+                          )}
+                        </div>
+                        <div className="shrink-0 w-12 h-24 bg-amber-700/70 border-2 border-amber-400 rounded-lg flex items-center justify-center">
+                          <span className="text-[10px] text-amber-100 -rotate-90 whitespace-nowrap">측정 물체</span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-center">
+                        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
+                          <div className={`text-2xl font-mono font-bold ${simIsRunning ? 'text-cyan-300' : 'text-slate-600'}`}>
+                            {simIsRunning ? `${simDistance} cm` : '-- cm'}
+                          </div>
+                          <div className="text-[11px] text-slate-500">{simIsRunning ? '계산된 거리' : '전원 OFF · 미측정'}</div>
+                        </div>
+                        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
+                          <div className={`text-2xl font-mono font-bold ${simIsRunning ? 'text-amber-300' : 'text-slate-600'}`}>
+                            {simIsRunning ? `${Math.round((simDistance * 2) / 0.0343)} μs` : '-- μs'}
+                          </div>
+                          <div className="text-[11px] text-slate-500">{simIsRunning ? 'ECHO 왕복 시간' : 'TRIG 신호 없음'}</div>
+                        </div>
+                      </div>
+                      <p className="text-center text-xs text-slate-400">
+                        {simIsRunning ? 'TRIG에서 10μs 펄스를 보내고 ECHO의 왕복 시간을 거리로 환산합니다.' : '전원 켜기 버튼을 누르면 거리 측정을 시작합니다.'}
+                      </p>
+                    </div>
+                  )}
+
+                  {simProject === 'motor' && (
+                    <div className="flex flex-col items-center space-y-6 animate-fadeIn">
+                      <div className="flex items-center gap-8">
+                        <div className="bg-slate-800 border border-violet-500/60 rounded-xl p-4 text-center">
+                          <div className="font-bold text-violet-300">L298N</div>
+                          <div className="text-[10px] text-slate-500 mt-1">모터 드라이버</div>
+                        </div>
+                        <ChevronRight className={`w-6 h-6 ${simIsRunning && simMotorDirection !== 'stop' ? 'text-emerald-400' : 'text-slate-600'}`} />
+                        <div className={`relative w-28 h-28 rounded-full border-[10px] flex items-center justify-center ${simIsRunning && simMotorDirection !== 'stop' ? 'border-emerald-500/80 bg-emerald-500/10' : 'border-slate-700 bg-slate-800'}`}>
+                          {simMotorDirection === 'reverse' ? (
+                            <RotateCcw
+                              className={`w-14 h-14 ${simIsRunning ? 'text-cyan-300' : 'text-slate-600'}`}
+                              style={{
+                                animation: simIsRunning ? `motor-counterclockwise ${Math.max(180, 1250 - simMotorSpeed * 4)}ms linear infinite` : 'none'
+                              }}
+                              aria-label="역회전 · 반시계 방향"
+                            />
+                          ) : (
+                            <RefreshCw
+                              className={`w-14 h-14 ${simIsRunning && simMotorDirection !== 'stop' ? 'text-emerald-300' : 'text-slate-600'}`}
+                              style={{
+                                animation: simIsRunning && simMotorDirection !== 'stop' ? `motor-clockwise ${Math.max(180, 1250 - simMotorSpeed * 4)}ms linear infinite` : 'none'
+                              }}
+                              aria-label="정회전 · 시계 방향"
+                            />
+                          )}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 w-full max-w-sm text-center">
+                        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
+                          <div className="text-lg font-mono font-bold text-violet-300">PWM {simMotorDirection === 'stop' ? 0 : simMotorSpeed}</div>
+                          <div className="text-[11px] text-slate-500">ENA · D5</div>
+                        </div>
+                        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3">
+                          <div className="text-lg font-bold text-emerald-300">{{ forward: '정회전', reverse: '역회전', stop: '정지' }[simMotorDirection]}</div>
+                          <div className="text-[11px] text-slate-500">
+                            {{ forward: '↻ 시계 방향', reverse: '↺ 반시계 방향', stop: 'IN1 · IN2 LOW' }[simMotorDirection]}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {simProject === 'servo' && (
+                    <div className="flex flex-col items-center space-y-6 animate-fadeIn">
+                      <div className="relative w-52 h-32 overflow-hidden">
+                        <div className="absolute left-6 right-6 top-5 h-36 rounded-full border-[12px] border-slate-700 border-b-transparent"></div>
+                        <div className="absolute left-1/2 top-[92px] w-4 h-4 -translate-x-1/2 -translate-y-1/2 bg-amber-300 rounded-full border-2 border-white z-20"></div>
+                        <div
+                          className="absolute left-1/2 top-[89px] w-2 h-20 origin-bottom bg-gradient-to-t from-amber-500 to-amber-200 rounded-full transition-transform duration-500 z-10"
+                          style={{ transform: `translate(-50%, -100%) rotate(${simIsRunning ? simServoAngle - 90 : 0}deg)` }}
+                        ></div>
+                        <span className="absolute left-3 bottom-0 text-[10px] text-slate-500">0°</span>
+                        <span className="absolute right-1 bottom-0 text-[10px] text-slate-500">180°</span>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-3xl font-mono font-bold text-amber-300">{simIsRunning ? simServoAngle : 90}°</div>
+                        <div className="text-xs text-slate-400 mt-1">Servo.write({simServoAngle}) · 신호 D9</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {simProject === 'lcd' && (
+                    <div className="w-full max-w-md space-y-5 animate-fadeIn">
+                      <div className={`rounded-xl border-8 p-5 shadow-inner transition ${simIsRunning ? 'bg-[#9bbc0f] border-emerald-800 shadow-[0_0_30px_rgba(163,230,53,0.25)]' : 'bg-slate-800 border-slate-700'}`}>
+                        <div className={`font-mono text-2xl leading-relaxed tracking-widest ${simIsRunning ? 'text-[#0f380f]' : 'text-slate-600'}`}>
+                          <div className="whitespace-pre">{simIsRunning ? simLcdLine1.padEnd(16, ' ').slice(0, 16) : '                '}</div>
+                          <div className="whitespace-pre">{simIsRunning ? simLcdLine2.padEnd(16, ' ').slice(0, 16) : '                '}</div>
+                        </div>
+                      </div>
+                      <div className="flex justify-center gap-4 text-[11px] font-mono text-slate-400">
+                        <span>A4 → SDA</span>
+                        <span>A5 → SCL</span>
+                        <span>주소 0x27</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="bg-slate-900 p-4 rounded-xl border border-slate-700/80 space-y-3">
@@ -1550,6 +2705,205 @@ export default function App() {
                       실시간 센서 전압 신호 데이터 수치를 시리얼 통신으로 전송합니다.
                     </p>
                   )}
+
+                  {simProject === 'fade' && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-slate-300 font-mono">
+                        <span>밝기 변화 단계 대기시간:</span>
+                        <span className="text-violet-300 font-bold">{simFadeDelay}ms</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="5"
+                        max="60"
+                        step="5"
+                        value={simFadeDelay}
+                        onChange={(e) => setSimFadeDelay(Number(e.target.value))}
+                        className="w-full accent-violet-500 cursor-pointer"
+                      />
+                      <p className="text-[11px] text-slate-500">값이 작을수록 LED 밝기가 더 빠르게 변합니다.</p>
+                    </div>
+                  )}
+
+                  {simProject === 'millis' && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-slate-300 font-mono">
+                        <span>LED 토글 간격:</span>
+                        <span className="text-teal-300 font-bold">{simMillisInterval}ms</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="500"
+                        max="3000"
+                        step="250"
+                        value={simMillisInterval}
+                        onChange={(e) => {
+                          setSimMillisInterval(Number(e.target.value));
+                          setSimMillisElapsed(0);
+                          setSimLedState(false);
+                        }}
+                        className="w-full accent-teal-500 cursor-pointer"
+                      />
+                    </div>
+                  )}
+
+                  {simProject === 'constrain' && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-slate-300 font-mono">
+                        <span>가상 센서 원본값 (0~1023):</span>
+                        <span className="text-rose-300 font-bold">{simSensorRaw}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1023"
+                        value={simSensorRaw}
+                        onChange={(e) => setSimSensorRaw(Number(e.target.value))}
+                        className="w-full accent-rose-500 cursor-pointer"
+                      />
+                      <p className="text-[11px] text-slate-500">100보다 작은 값은 100으로, 800보다 큰 값은 800으로 제한됩니다.</p>
+                    </div>
+                  )}
+
+                  {simProject === 'tone' && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-slate-300 font-mono">
+                        <span>부저 주파수:</span>
+                        <span className="text-cyan-300 font-bold">{simToneFrequency}Hz</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="131"
+                        max="1047"
+                        step="1"
+                        value={simToneFrequency}
+                        onChange={(e) => setSimToneFrequency(Number(e.target.value))}
+                        className="w-full accent-cyan-500 cursor-pointer"
+                      />
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {[
+                          { label: '도', value: 262 },
+                          { label: '레', value: 294 },
+                          { label: '미', value: 330 },
+                          { label: '파', value: 349 },
+                          { label: '솔', value: 392 },
+                          { label: '라', value: 440 },
+                          { label: '시', value: 494 }
+                        ].map(note => (
+                          <button
+                            key={note.label}
+                            onClick={() => setSimToneFrequency(note.value)}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition ${
+                              simToneFrequency === note.value
+                                ? 'bg-cyan-500 text-slate-950 border-cyan-400'
+                                : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-cyan-500'
+                            }`}
+                          >
+                            {note.label} {note.value}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {simProject === 'ultrasonic' && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs text-slate-300 font-mono">
+                        <span>가상 물체까지 거리:</span>
+                        <span className="text-cyan-300 font-bold">{simDistance}cm</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="2"
+                        max="400"
+                        value={simDistance}
+                        onChange={(e) => setSimDistance(Number(e.target.value))}
+                        className="w-full accent-cyan-500 cursor-pointer"
+                      />
+                      <p className="text-[11px] text-slate-500">HC-SR04의 일반적인 측정 범위인 2~400cm에서 물체 위치를 바꿉니다.</p>
+                    </div>
+                  )}
+
+                  {simProject === 'motor' && (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { id: 'forward', label: '정회전 ↻' },
+                          { id: 'reverse', label: '역회전 ↺' },
+                          { id: 'stop', label: '정지' }
+                        ].map(direction => (
+                          <button
+                            key={direction.id}
+                            onClick={() => setSimMotorDirection(direction.id)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                              simMotorDirection === direction.id
+                                ? 'bg-emerald-500 text-slate-950 border-emerald-400'
+                                : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-emerald-500'
+                            }`}
+                          >
+                            {direction.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex justify-between text-xs text-slate-300 font-mono">
+                        <span>모터 속도 PWM:</span>
+                        <span className="text-violet-300 font-bold">{simMotorSpeed} / 255</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="255"
+                        value={simMotorSpeed}
+                        onChange={(e) => setSimMotorSpeed(Number(e.target.value))}
+                        className="w-full accent-violet-500 cursor-pointer"
+                      />
+                    </div>
+                  )}
+
+                  {simProject === 'servo' && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs text-slate-300 font-mono">
+                        <span>서보 목표 각도:</span>
+                        <span className="text-amber-300 font-bold">{simServoAngle}°</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="180"
+                        value={simServoAngle}
+                        onChange={(e) => setSimServoAngle(Number(e.target.value))}
+                        className="w-full accent-amber-500 cursor-pointer"
+                      />
+                      <div className="flex justify-between">
+                        {[0, 45, 90, 135, 180].map(angle => (
+                          <button key={angle} onClick={() => setSimServoAngle(angle)} className="text-[11px] text-slate-400 hover:text-amber-300">{angle}°</button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {simProject === 'lcd' && (
+                    <div className="space-y-3">
+                      <label className="block text-xs text-slate-300">
+                        첫째 줄(최대 16자)
+                        <input
+                          value={simLcdLine1}
+                          onChange={(e) => setSimLcdLine1(e.target.value.slice(0, 16))}
+                          maxLength="16"
+                          className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 font-mono text-teal-200 outline-none focus:border-teal-500"
+                        />
+                      </label>
+                      <label className="block text-xs text-slate-300">
+                        둘째 줄(최대 16자)
+                        <input
+                          value={simLcdLine2}
+                          onChange={(e) => setSimLcdLine2(e.target.value.slice(0, 16))}
+                          maxLength="16"
+                          className="mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 font-mono text-teal-200 outline-none focus:border-teal-500"
+                        />
+                      </label>
+                    </div>
+                  )}
                 </div>
 
               </div>
@@ -1562,15 +2916,7 @@ export default function App() {
                       Arduino Sketch (.ino)
                     </span>
                     <button
-                      onClick={() => {
-                        const codeMap = {
-                          blink: `void setup() {\n  pinMode(13, OUTPUT);\n}\n\nvoid loop() {\n  digitalWrite(13, HIGH);\n  delay(${simDelayTime});\n  digitalWrite(13, LOW);\n  delay(${simDelayTime});\n}`,
-                          potentiometer: `void setup() {\n  pinMode(9, OUTPUT);\n}\n\nvoid loop() {\n  int sensorVal = analogRead(A0);\n  int pwmVal = map(sensorVal, 0, 1023, 0, 255);\n  analogWrite(9, pwmVal);\n  delay(30);\n}`,
-                          button: `void setup() {\n  pinMode(2, INPUT);\n  pinMode(13, OUTPUT);\n}\n\nvoid loop() {\n  int buttonState = digitalRead(2);\n  if (buttonState == HIGH) {\n    digitalWrite(13, HIGH);\n  } else {\n    digitalWrite(13, LOW);\n  }\n}`,
-                          serial: `void setup() {\n  Serial.begin(9600);\n}\n\nvoid loop() {\n  int val = analogRead(A0);\n  Serial.print("A0 센서: ");\n  Serial.println(val);\n  delay(800);\n}`
-                        };
-                        handleCopyCode(codeMap[simProject]);
-                      }}
+                      onClick={() => handleCopyCode(getSimulatorCode())}
                       className="text-xs text-slate-400 hover:text-white flex items-center space-x-1"
                     >
                       <Copy className="w-3.5 h-3.5" />
@@ -1579,25 +2925,18 @@ export default function App() {
                   </div>
 
                   <pre className="bg-slate-950 p-4 rounded-xl border border-slate-900 font-mono text-xs text-slate-200 overflow-x-auto leading-relaxed h-[360px]">
-                    <code>
-                      {simProject === 'blink' && (
-                        `void setup() {\n  pinMode(13, OUTPUT);\n}\n\nvoid loop() {\n  digitalWrite(13, HIGH);\n  delay(${simDelayTime});\n  digitalWrite(13, LOW);\n  delay(${simDelayTime});\n}`
-                      )}
-                      {simProject === 'potentiometer' && (
-                        `void setup() {\n  pinMode(9, OUTPUT);\n}\n\nvoid loop() {\n  int sensorVal = analogRead(A0);\n  int pwmVal = map(sensorVal, 0, 1023, 0, 255);\n  analogWrite(9, pwmVal);\n  delay(30);\n}`
-                      )}
-                      {simProject === 'button' && (
-                        `void setup() {\n  pinMode(2, INPUT);\n  pinMode(13, OUTPUT);\n}\n\nvoid loop() {\n  int buttonState = digitalRead(2);\n  if (buttonState == HIGH) {\n    digitalWrite(13, HIGH);\n  } else {\n    digitalWrite(13, LOW);\n  }\n}`
-                      )}
-                      {simProject === 'serial' && (
-                        `void setup() {\n  Serial.begin(9600);\n}\n\nvoid loop() {\n  int val = analogRead(A0);\n  Serial.print("A0 센서: ");\n  Serial.println(val);\n  delay(800);\n}`
-                      )}
-                    </code>
+                    <code>{getSimulatorCode()}</code>
                   </pre>
                 </div>
               </div>
 
             </div>
+
+            <CircuitDiagram
+              project={simProject}
+              isOpen={simCircuitOpen}
+              onToggle={() => setSimCircuitOpen(prev => !prev)}
+            />
           </div>
         )}
 
