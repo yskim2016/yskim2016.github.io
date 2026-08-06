@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="3D프린터운용기능사 필기 대비 학습 웹앱">
+  <title>3D프린터운용기능사 필기 마스터</title>
+  <style>
+    :root{
+      --bg:#f4f7fb; --surface:#ffffff; --surface-2:#edf2f8; --text:#172033;
+      --muted:#667085; --line:#dfe6ef; --primary:#6d4aff; --primary-2:#22b8cf;
+      --accent:#ff8a4c; --success:#16a34a; --danger:#e5484d; --warning:#f5a524;
+      --shadow:0 16px 40px rgba(26,38,74,.09); --radius:22px;
+    }
+    body.dark{
+      --bg:#0f1420; --surface:#181f2d; --surface-2:#222b3c; --text:#edf2ff;
+      --muted:#a9b2c3; --line:#303b50; --primary:#8b72ff; --primary-2:#42c7d9;
+      --accent:#ff9c65; --shadow:0 16px 40px rgba(0,0,0,.28);
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;font-family:Pretendard,"Noto Sans KR",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);line-height:1.65}
+    button,input,select{font:inherit}
+    button{cursor:pointer}
+    a{color:inherit}
+    .app{min-height:100vh}
+    .topbar{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--surface) 88%, transparent);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}
+    .topbar-inner{max-width:1320px;margin:auto;padding:12px 22px;display:flex;align-items:center;gap:14px}
+    .back-pill{
+      flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;
+      min-height:42px;padding:9px 14px;border:1px solid var(--line);border-radius:13px;
+      background:var(--surface);color:var(--primary);text-decoration:none;white-space:nowrap;
+      font-size:.84rem;font-weight:900;line-height:1;box-shadow:0 7px 18px rgba(26,38,74,.08);
+      position:relative;z-index:60;transition:transform .18s ease,border-color .18s ease,background .18s ease;
+    }
+    .back-pill:hover{
+      transform:translateY(-1px);border-color:color-mix(in srgb,var(--primary) 42%,var(--line));
+      background:color-mix(in srgb,var(--primary) 7%,var(--surface));
+    }
+    .back-pill:focus-visible{outline:3px solid color-mix(in srgb,var(--primary) 30%,transparent);outline-offset:2px}
+    .brand{display:flex;align-items:center;gap:12px;min-width:max-content}
+    .brand-mark{width:43px;height:43px;border-radius:14px;display:grid;place-items:center;color:white;font-weight:900;background:linear-gradient(135deg,var(--primary),var(--primary-2));box-shadow:0 8px 20px rgba(109,74,255,.28)}
+    .brand-title{font-weight:900;letter-spacing:-.03em;line-height:1.2}
+    .brand-sub{font-size:.76rem;color:var(--muted)}
+    .nav{display:flex;gap:6px;overflow:auto;scrollbar-width:none;margin-left:14px;flex:1}
+    .nav::-webkit-scrollbar{display:none}
+    .nav button{border:0;background:transparent;color:var(--muted);padding:10px 13px;border-radius:12px;white-space:nowrap;font-weight:750}
+    .nav button:hover{background:var(--surface-2);color:var(--text)}
+    .nav button.active{background:linear-gradient(135deg,var(--primary),#8065ff);color:white;box-shadow:0 8px 18px rgba(109,74,255,.22)}
+    .icon-btn{border:1px solid var(--line);background:var(--surface);color:var(--text);width:42px;height:42px;border-radius:13px;display:grid;place-items:center}
+    .page{display:none;max-width:1220px;margin:auto;padding:32px 22px 70px}
+    .page.active{display:block;animation:fade .28s ease}
+    @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+    .hero{position:relative;overflow:hidden;border-radius:30px;padding:42px;background:
+      radial-gradient(circle at 85% 10%,rgba(255,255,255,.34),transparent 28%),
+      linear-gradient(135deg,#5c3df3 0%,#7050ff 50%,#22b8cf 120%);color:white;box-shadow:var(--shadow)}
+    .hero-grid{display:grid;grid-template-columns:1.25fr .75fr;gap:28px;align-items:center}
+    .eyebrow{font-weight:800;letter-spacing:.12em;font-size:.78rem;opacity:.86}
+    .hero h1{font-size:clamp(2rem,5vw,3.65rem);line-height:1.08;letter-spacing:-.055em;margin:10px 0 16px}
+    .hero p{font-size:1.06rem;max-width:720px;opacity:.92;margin:0 0 24px}
+    .hero-actions{display:flex;flex-wrap:wrap;gap:10px}
+    .btn{border:0;border-radius:13px;padding:11px 16px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;transition:.18s ease}
+    .btn:hover{transform:translateY(-1px)}
+    .btn-primary{background:var(--primary);color:#fff}
+    .btn-light{background:#fff;color:#4f36d7}
+    .btn-soft{background:var(--surface-2);color:var(--text);border:1px solid var(--line)}
+    .btn-outline-light{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.45);color:#fff}
+    .btn-danger{background:var(--danger);color:#fff}
+    .printer-wrap{display:grid;place-items:center;min-height:240px}
+    .printer-svg{width:min(100%,330px);filter:drop-shadow(0 20px 35px rgba(33,18,103,.3))}
+    .nozzle{animation:nozzleMove 4.2s ease-in-out infinite alternate}
+    .print-layer{animation:layerGlow 2s ease-in-out infinite alternate}
+    @keyframes nozzleMove{0%{transform:translateX(-18px)}100%{transform:translateX(68px)}}
+    @keyframes layerGlow{from{opacity:.45}to{opacity:1}}
+    .section-title{display:flex;align-items:end;justify-content:space-between;gap:15px;margin:34px 0 16px}
+    .section-title h2{font-size:1.55rem;letter-spacing:-.035em;margin:0}
+    .section-title p{color:var(--muted);margin:4px 0 0}
+    .grid{display:grid;gap:16px}
+    .grid-4{grid-template-columns:repeat(4,1fr)}
+    .grid-3{grid-template-columns:repeat(3,1fr)}
+    .grid-2{grid-template-columns:repeat(2,1fr)}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px;box-shadow:0 7px 24px rgba(26,38,74,.045)}
+    .stat-card{position:relative;overflow:hidden}
+    .stat-card .num{font-size:1.85rem;font-weight:950;letter-spacing:-.04em}
+    .stat-card .label{font-size:.86rem;color:var(--muted);font-weight:700}
+    .stat-card::after{content:"";position:absolute;width:64px;height:64px;border-radius:50%;right:-20px;top:-20px;background:color-mix(in srgb,var(--primary) 12%, transparent)}
+    .progress-card{display:flex;align-items:center;gap:18px}
+    .ring{--p:0;width:86px;height:86px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--primary) calc(var(--p)*1%),var(--surface-2) 0);position:relative;flex:0 0 auto}
+    .ring::before{content:"";position:absolute;inset:9px;border-radius:50%;background:var(--surface)}
+    .ring strong{z-index:1;font-size:1.08rem}
+    .mini-progress{height:8px;background:var(--surface-2);border-radius:99px;overflow:hidden}
+    .mini-progress span{display:block;height:100%;background:linear-gradient(90deg,var(--primary),var(--primary-2));border-radius:99px}
+    .quick-card{display:flex;gap:15px;align-items:flex-start}
+    .quick-icon{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;font-size:1.35rem;background:var(--surface-2)}
+    .quick-card h3{margin:0 0 4px;font-size:1rem}
+    .quick-card p{margin:0;color:var(--muted);font-size:.88rem}
+    .notice{border-left:4px solid var(--primary);background:color-mix(in srgb,var(--primary) 8%,var(--surface));padding:15px 17px;border-radius:0 15px 15px 0}
+    .exam-table{width:100%;border-collapse:collapse}
+    .exam-table th,.exam-table td{padding:14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+    .exam-table th{width:190px;color:var(--muted)}
+    .pill{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;font-size:.76rem;font-weight:800;background:var(--surface-2);color:var(--muted)}
+    .pill.primary{background:color-mix(in srgb,var(--primary) 14%,var(--surface));color:var(--primary)}
+    .pill.success{background:color-mix(in srgb,var(--success) 13%,var(--surface));color:var(--success)}
+    .theory-layout{display:grid;grid-template-columns:260px 1fr;gap:18px}
+    .side-menu{position:sticky;top:88px;align-self:start}
+    .side-menu button{width:100%;text-align:left;border:0;background:transparent;color:var(--muted);padding:11px 12px;border-radius:11px;font-weight:750}
+    .side-menu button.active,.side-menu button:hover{background:var(--surface-2);color:var(--primary)}
+    .theory-panel{display:none}
+    .theory-panel.active{display:block}
+    .theory-panel h2{font-size:1.75rem;margin:0 0 8px;letter-spacing:-.04em}
+    .theory-panel>p{color:var(--muted)}
+    .concept{display:grid;grid-template-columns:58px 1fr;gap:15px;padding:17px 0;border-bottom:1px solid var(--line)}
+    .concept:last-child{border-bottom:0}
+    .concept-num{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 18%,var(--surface)),color-mix(in srgb,var(--primary-2) 15%,var(--surface)));display:grid;place-items:center;font-weight:900;color:var(--primary)}
+    .concept h3{margin:0 0 4px;font-size:1.02rem}
+    .concept p{margin:0;color:var(--muted)}
+    .formula{background:#10182a;color:#eef4ff;border-radius:16px;padding:18px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;margin:12px 0}
+    body.dark .formula{background:#0b0f18}
+    .compare{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .compare .item{border:1px solid var(--line);border-radius:16px;padding:16px;background:var(--surface)}
+    .compare h4{margin:0 0 5px}
+    .compare p{margin:0;font-size:.86rem;color:var(--muted)}
+    .sim-layout{display:grid;grid-template-columns:380px 1fr;gap:18px}
+    .control-group{margin-bottom:19px}
+    .control-label{display:flex;justify-content:space-between;font-weight:800;margin-bottom:7px}
+    input[type="range"]{width:100%;accent-color:var(--primary)}
+    select,input[type="search"]{width:100%;border:1px solid var(--line);background:var(--surface);color:var(--text);padding:11px 12px;border-radius:12px}
+    .sim-screen{min-height:430px;display:flex;flex-direction:column;justify-content:space-between;background:linear-gradient(180deg,#111a2c,#192640);color:#fff;position:relative;overflow:hidden}
+    .sim-grid-bg{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:28px 28px;mask-image:linear-gradient(to bottom,transparent,black)}
+    .sim-model{position:relative;z-index:2;height:245px;display:flex;align-items:end;justify-content:center;padding-bottom:26px}
+    .model-box{width:180px;display:flex;flex-direction:column-reverse;filter:drop-shadow(0 16px 18px rgba(0,0,0,.35))}
+    .model-layer{height:7px;margin-top:1px;background:linear-gradient(90deg,#7f65ff,#31d2e5);border-radius:3px;opacity:.92;animation:appear .28s ease both}
+    @keyframes appear{from{transform:scaleX(.1);opacity:0}to{transform:scaleX(1);opacity:.92}}
+    .sim-metrics{position:relative;z-index:2;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .metric{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);padding:13px;border-radius:14px}
+    .metric small{display:block;opacity:.68}
+    .metric strong{font-size:1.15rem}
+    .warning-box{margin-top:12px;padding:13px;border-radius:13px;background:rgba(245,165,36,.16);border:1px solid rgba(245,165,36,.35)}
+    .toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+    .toolbar .grow{flex:1;min-width:220px}
+    .filter-btn{border:1px solid var(--line);background:var(--surface);color:var(--muted);padding:8px 12px;border-radius:999px;font-weight:750}
+    .filter-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+    .question-list{display:grid;gap:13px}
+    .bank-q{background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+    .bank-head{display:flex;gap:12px;align-items:flex-start;padding:17px}
+    .q-num{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:var(--surface-2);font-weight:900;color:var(--primary);flex:0 0 auto}
+    .bank-title{flex:1;font-weight:800}
+    .bookmark{border:0;background:transparent;font-size:1.15rem;color:var(--muted)}
+    .bookmark.on{color:var(--warning)}
+    .bank-body{padding:0 17px 17px 65px}
+    .option{display:flex;gap:9px;margin:7px 0;color:var(--muted)}
+    .answer-box{display:none;margin-top:12px;padding:13px;border-radius:12px;background:color-mix(in srgb,var(--success) 8%,var(--surface));border:1px solid color-mix(in srgb,var(--success) 25%,var(--line))}
+    .answer-box.show{display:block}
+    .bank-actions{display:flex;gap:8px;margin-top:12px}
+    .empty{text-align:center;padding:55px 20px;color:var(--muted)}
+    .cbt-shell{max-width:1000px;margin:auto}
+    .cbt-start{text-align:center;padding:45px}
+    .cbt-start h2{font-size:2rem;margin:8px 0}
+    .mode-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:22px auto;max-width:900px}
+    .mode-card{border:2px solid var(--line);background:var(--surface);border-radius:17px;padding:18px;text-align:left;color:var(--text)}
+    .mode-card.selected{border-color:var(--primary);background:color-mix(in srgb,var(--primary) 6%,var(--surface))}
+    .mode-card strong{display:block;font-size:1.05rem}
+    .mode-card span{font-size:.85rem;color:var(--muted)}
+    .cbt-top{display:flex;align-items:center;gap:12px;position:sticky;top:81px;z-index:20;background:var(--bg);padding:10px 0}
+    .timer{margin-left:auto;font-size:1.1rem;font-weight:950;padding:8px 13px;border-radius:12px;background:var(--surface);border:1px solid var(--line)}
+    .timer.danger{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 40%,var(--line))}
+    .cbt-progress{flex:1;height:10px;background:var(--surface-2);border-radius:99px;overflow:hidden}
+    .cbt-progress span{display:block;height:100%;background:linear-gradient(90deg,var(--primary),var(--primary-2));transition:.2s}
+    .cbt-question{padding:28px}
+    .cbt-question h3{font-size:1.35rem;line-height:1.5;margin:12px 0 20px}
+    .cbt-options{display:grid;gap:10px}
+    .cbt-option{display:flex;gap:11px;align-items:flex-start;border:2px solid var(--line);padding:13px 15px;border-radius:14px;cursor:pointer}
+    .cbt-option:hover{border-color:color-mix(in srgb,var(--primary) 45%,var(--line))}
+    .cbt-option.selected{border-color:var(--primary);background:color-mix(in srgb,var(--primary) 7%,var(--surface))}
+    .circle-num{width:27px;height:27px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;flex:0 0 auto;font-weight:800}
+    .cbt-option.selected .circle-num{background:var(--primary);color:#fff;border-color:var(--primary)}
+    .cbt-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px;flex-wrap:wrap}
+    .palette{display:grid;grid-template-columns:repeat(10,1fr);gap:7px;margin-top:14px}
+    .palette button{border:1px solid var(--line);background:var(--surface);color:var(--muted);height:36px;border-radius:9px;font-size:.82rem;font-weight:800}
+    .palette button.answered{background:color-mix(in srgb,var(--primary) 12%,var(--surface));color:var(--primary);border-color:color-mix(in srgb,var(--primary) 35%,var(--line))}
+    .palette button.current{background:var(--primary);color:white}
+    .result-hero{text-align:center;padding:32px}
+    .score-circle{width:150px;height:150px;border-radius:50%;display:grid;place-items:center;margin:12px auto;background:conic-gradient(var(--success) var(--score),var(--surface-2) 0);position:relative}
+    .score-circle::before{content:"";position:absolute;inset:13px;background:var(--surface);border-radius:50%}
+    .score-inner{position:relative;z-index:1}
+    .score-inner strong{font-size:2rem;display:block}
+    .breakdown{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .review-item{border:1px solid var(--line);border-radius:16px;padding:16px;margin-top:12px}
+    .review-item.correct{border-left:5px solid var(--success)}
+    .review-item.wrong{border-left:5px solid var(--danger)}
+    .wrong-note{display:grid;gap:12px}
+    .wrong-card{border:1px solid var(--line);border-radius:17px;padding:17px;background:var(--surface)}
+    .wrong-card h3{margin:7px 0 10px}
+    .wrong-card .mine{color:var(--danger)}
+    .wrong-card .right{color:var(--success)}
+    .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:#111827;color:#fff;padding:11px 16px;border-radius:12px;opacity:0;pointer-events:none;transition:.22s;z-index:100}
+    .toast.show{opacity:1;transform:translate(-50%,0)}
+    .footer{text-align:center;color:var(--muted);font-size:.82rem;padding:25px;border-top:1px solid var(--line)}
+    .source-list a{word-break:break-all}
+
+    /* 이론탐구: React 없이 동작하는 순수 HTML 탭 UI */
+    .explore-tabs{
+      display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;
+      margin:0 0 16px;padding:9px;background:var(--surface);
+      border:1px solid var(--line);border-radius:17px;box-shadow:0 7px 24px rgba(26,38,74,.045);
+    }
+    .explore-tab{
+      border:0;background:transparent;color:var(--muted);padding:12px 10px;
+      border-radius:12px;font-weight:850;white-space:nowrap;transition:.18s ease;
+    }
+    .explore-tab:hover{background:var(--surface-2);color:var(--text)}
+    .explore-tab.active,.explore-tab[aria-selected="true"]{
+      background:linear-gradient(135deg,var(--primary),#8065ff);color:#fff;
+      box-shadow:0 8px 18px rgba(109,74,255,.22);
+    }
+    .explore-tab:focus-visible{outline:3px solid color-mix(in srgb,var(--primary) 30%,transparent);outline-offset:2px}
+    .explore-content{min-height:420px;padding:26px}
+    .explore-panel{display:none}
+    .explore-panel.active{display:block;animation:fade .25s ease}
+    .explore-panel[hidden]{display:none!important}
+    .explore-heading{font-size:1.25rem;margin:0 0 18px;padding-bottom:10px;border-bottom:1px solid var(--line);letter-spacing:-.025em}
+    .explore-heading.spaced{margin-top:28px}
+    .explore-muted{color:var(--muted);margin:-8px 0 18px}
+    .explore-grid{display:grid;gap:16px}
+    .explore-grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .explore-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .method-card,.visual-card,.adhesion-card,.scanner-card{
+      border:1px solid var(--line);border-radius:18px;padding:20px;background:var(--surface);text-align:center;
+    }
+    .method-card{display:flex;flex-direction:column;align-items:center}
+    .method-card.blue{background:color-mix(in srgb,#3b82f6 8%,var(--surface));border-color:color-mix(in srgb,#3b82f6 25%,var(--line))}
+    .method-card.purple{background:color-mix(in srgb,#a855f7 8%,var(--surface));border-color:color-mix(in srgb,#a855f7 25%,var(--line))}
+    .method-card.orange{background:color-mix(in srgb,#f59e0b 9%,var(--surface));border-color:color-mix(in srgb,#f59e0b 28%,var(--line))}
+    .method-badge{width:66px;height:66px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:950;font-size:1.15rem;margin-bottom:12px}
+    .method-card.blue .method-badge{background:#3b82f6}.method-card.purple .method-badge{background:#a855f7}.method-card.orange .method-badge{background:#f59e0b}
+    .method-card h4,.visual-card h4,.adhesion-card h4,.scanner-card h4{margin:0 0 7px}
+    .method-card p,.visual-card p,.adhesion-card p,.scanner-card p{color:var(--muted);font-size:.9rem;margin:0 0 13px}
+    .method-card ul{width:100%;list-style:none;margin:auto 0 0;padding:13px;text-align:left;background:var(--surface);border-radius:12px;font-size:.86rem}
+    .method-card li+li{margin-top:6px}
+    .explore-note{margin-top:17px;padding:14px 16px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line);font-size:.9rem}
+    .visual-stage{height:135px;border-radius:14px;background:var(--surface-2);display:grid;place-items:center;position:relative;overflow:hidden;margin-bottom:14px}
+    .wireframe-shape{width:70px;height:70px;border:2px dashed var(--text);border-radius:8px;position:relative;transform:rotate(8deg)}
+    .wireframe-shape::before,.wireframe-shape::after{content:"";position:absolute;inset:8px;border:2px dashed var(--text);border-radius:5px;transform:rotate(45deg)}
+    .wireframe-shape::after{inset:18px;transform:rotate(-25deg)}
+    .surface-shape{width:78px;height:68px;border-radius:18px 8px 20px 7px;background:linear-gradient(135deg,rgba(59,130,246,.15),rgba(34,184,207,.42));border:2px solid #3b82f6;box-shadow:12px 12px 0 rgba(59,130,246,.1);transform:skewY(-7deg)}
+    .solid-shape{width:72px;height:72px;border-radius:12px;background:#20263c;color:#fff;display:grid;place-items:center;font-size:2rem;box-shadow:12px 14px 22px rgba(17,24,39,.25);transform:rotate(-7deg)}
+    .scanner-card{text-align:left;background:var(--surface-2)}
+    .scanner-card .ok{color:var(--success);font-size:.86rem;margin-top:5px}.scanner-card .bad{color:var(--danger);font-size:.86rem;margin-top:3px}
+    .skirt-shape{width:92px;height:92px;border:3px dashed #60a5fa;border-radius:12px;display:grid;place-items:center}
+    .skirt-shape i,.brim-shape i{display:block;width:53px;height:53px;background:#20263c;border-radius:7px}
+    .brim-shape{width:78px;height:78px;border:10px solid rgba(96,165,250,.48);border-radius:12px;display:grid;place-items:center}
+    .raft-stage{align-items:end;padding-bottom:25px}.raft-base{position:absolute;bottom:24px;width:105px;height:16px;border-radius:4px;background:repeating-linear-gradient(90deg,#f59e0b 0 5px,#fbbf24 5px 10px);box-shadow:0 6px 12px rgba(245,158,11,.22)}
+    .raft-model{position:relative;z-index:2;width:58px;height:58px;background:#20263c;border-radius:8px;margin-bottom:10px}
+    .gcode-box{background:#10182a;color:#7ee787;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;border-radius:16px;padding:19px;display:grid;gap:10px;font-size:.88rem;overflow:auto}
+    .gcode-box div{display:flex;gap:12px;min-width:520px}.gcode-box b{display:inline-block;width:64px;color:#fff}.gcode-box span{color:#c9d1d9}.gcode-box .yellow{color:#facc15}.gcode-box .red{color:#fb7185}.gcode-box hr{width:100%;border:0;border-top:1px solid #374151;margin:2px 0}
+    .trouble-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    .trouble-card{border:1px solid var(--line);border-radius:16px;padding:17px;display:flex;gap:14px;align-items:flex-start}
+    .trouble-card h4{margin:0 0 5px}.trouble-card p{margin:0;color:var(--muted);font-size:.9rem}.trouble-card small{display:block;margin-top:7px;color:var(--muted)}
+    .red-card{background:color-mix(in srgb,#ef4444 7%,var(--surface));border-color:color-mix(in srgb,#ef4444 25%,var(--line))}
+    .orange-card{background:color-mix(in srgb,#f59e0b 8%,var(--surface));border-color:color-mix(in srgb,#f59e0b 28%,var(--line))}
+    .gray-card{background:var(--surface-2)}.purple-card{background:color-mix(in srgb,#8b5cf6 8%,var(--surface));border-color:color-mix(in srgb,#8b5cf6 25%,var(--line))}
+    .trouble-icon{width:54px;height:54px;flex:0 0 auto;border-radius:13px;background:rgba(255,255,255,.6);display:grid;place-items:center;position:relative;overflow:hidden}
+    body.dark .trouble-icon{background:rgba(0,0,0,.18)}
+    .trouble-icon.warping i{width:34px;height:15px;background:#20263c;border-radius:4px 4px 10px 10px;transform:perspective(28px) rotateX(-18deg)}
+    .trouble-icon.elephant i{width:29px;height:29px;background:#20263c;border-radius:5px;position:relative}.trouble-icon.elephant i::after{content:"";position:absolute;left:-5px;right:-5px;bottom:-2px;height:9px;border-radius:50%;background:#20263c}
+    .trouble-icon.stringing::before,.trouble-icon.stringing::after{content:"";position:absolute;top:10px;width:8px;height:34px;background:#20263c;border-radius:3px}.trouble-icon.stringing::before{left:11px}.trouble-icon.stringing::after{right:11px}.trouble-icon.stringing i{width:26px;height:1px;background:#9ca3af;box-shadow:0 7px 0 #9ca3af,0 14px 0 #9ca3af;transform:rotate(-7deg)}
+    .trouble-icon.steps i{width:31px;height:10px;background:#20263c;box-shadow:-7px 11px 0 #20263c,4px 22px 0 #20263c}
+    .danger-heading{color:var(--danger)}
+    .danger-list{list-style:none;padding:0;margin:0;display:grid;gap:11px}.danger-list li{position:relative;padding-left:28px}.danger-list li::before{content:"✕";position:absolute;left:0;top:0;color:var(--danger);font-weight:950}
+    @media(max-width:850px){.explore-tabs{display:flex;overflow:auto}.explore-tab{flex:0 0 auto}.explore-grid.three{grid-template-columns:1fr}.explore-grid.two,.trouble-grid{grid-template-columns:1fr}}
+
+    @media(max-width:980px){
+      .hero-grid,.sim-layout{grid-template-columns:1fr}
+      .printer-wrap{display:none}
+      .grid-4{grid-template-columns:repeat(2,1fr)}
+      .grid-3{grid-template-columns:1fr}
+      .theory-layout{grid-template-columns:1fr}
+      .side-menu{position:static;display:flex;overflow:auto;padding:8px}
+      .side-menu button{white-space:nowrap;width:auto}
+    }
+    @media(max-width:700px){
+      .topbar-inner{padding:9px 12px;flex-wrap:wrap}
+      .back-pill{min-height:40px;padding:8px 11px;font-size:.78rem}
+      .brand-sub{display:none}
+      .nav{order:3;width:100%;margin:0}
+      .page{padding:22px 13px 55px}
+      .hero{padding:28px 22px;border-radius:22px}
+      .grid-4,.grid-2,.mode-grid,.breakdown,.explore-grid.three,.explore-grid.two,.trouble-grid{grid-template-columns:1fr}
+      .compare{grid-template-columns:1fr}
+      .palette{grid-template-columns:repeat(6,1fr)}
+      .bank-body{padding:0 15px 15px}
+      .cbt-question{padding:20px 16px}
+      .exam-table th{width:115px}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="back-pill" href="../student.html" aria-label="학생용 홈으로 돌아가기">← 학생용 홈으로</a>
+      <div class="brand">
+        <div class="brand-mark">3D</div>
+        <div><div class="brand-title">3D프린터운용기능사</div><div class="brand-sub">필기 학습 마스터</div></div>
+      </div>
+      <nav class="nav" aria-label="주 메뉴">
+        <button class="active" data-page="home">홈</button>
+        <button data-page="exam">시험안내</button>
+        <button data-page="theory">핵심이론</button>
+        <button data-page="explore">이론탐구</button>
+        <button data-page="sim">공정 시뮬레이터</button>
+        <button data-page="bank">문제은행</button>
+        <button data-page="cbt">CBT 모의고사</button>
+      </nav>
+      <button class="icon-btn" id="themeBtn" aria-label="화면 테마 전환">◐</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="page active" id="home">
+      <div class="hero">
+        <div class="hero-grid">
+          <div>
+            <div class="eyebrow">CRAFTSMAN 3D PRINTER OPERATION</div>
+            <h1>설계부터 출력까지,<br>한 번에 합격 준비</h1>
+            <p>2024~2027 출제기준의 세 영역을 중심으로 핵심이론, 시각화된 이론탐구, 공정 설정 체험, 총 120문항과 실전 모의고사 2회를 제공합니다.</p>
+            <div class="hero-actions">
+              <button class="btn btn-light" onclick="goPage('cbt')">▶ CBT 시작</button>
+              <button class="btn btn-outline-light" onclick="goPage('theory')">핵심이론 보기</button>
+            </div>
+          </div>
+          <div class="printer-wrap">
+            <svg class="printer-svg" viewBox="0 0 360 300" role="img" aria-label="3D 프린터 일러스트">
+              <rect x="38" y="18" width="284" height="18" rx="8" fill="#d9d7ff"/>
+              <rect x="45" y="35" width="16" height="214" rx="7" fill="#dad9ff"/>
+              <rect x="299" y="35" width="16" height="214" rx="7" fill="#dad9ff"/>
+              <rect x="72" y="55" width="216" height="10" rx="5" fill="#b9b7ff"/>
+              <g class="nozzle">
+                <rect x="135" y="49" width="58" height="36" rx="9" fill="#20263c"/>
+                <rect x="157" y="84" width="14" height="20" rx="4" fill="#ffd48a"/>
+                <path d="M160 104h8l-2 11h-4z" fill="#ff9f43"/>
+              </g>
+              <rect x="70" y="231" width="220" height="15" rx="6" fill="#c8c6ff"/>
+              <rect x="86" y="215" width="188" height="12" rx="5" fill="#8ee8ef"/>
+              <g class="print-layer">
+                <path d="M127 212h108l-10-14h-88z" fill="#34d5e6"/>
+                <path d="M137 196h88l-10-14h-68z" fill="#7963ff"/>
+                <path d="M148 180h66l-11-14h-44z" fill="#ae9fff"/>
+                <path d="M160 164h42l-8-13h-26z" fill="#ffb06f"/>
+              </g>
+              <rect x="25" y="249" width="310" height="27" rx="12" fill="#272d45"/>
+              <circle cx="279" cy="262" r="5" fill="#48e18c"/>
+              <rect x="62" y="255" width="66" height="12" rx="5" fill="#474f70"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-4" style="margin-top:18px">
+        <div class="card stat-card"><div class="num">60문항</div><div class="label">필기 객관식 4지선다</div></div>
+        <div class="card stat-card"><div class="num">60분</div><div class="label">문항당 평균 1분</div></div>
+        <div class="card stat-card"><div class="num">60점(36개)</div><div class="label">합격 기준</div></div>
+        <div class="card stat-card"><div class="num">3영역</div><div class="label">출제기준 핵심 범위</div></div>
+      </div>
+
+      <div class="section-title"><div><h2>빠른 학습</h2><p>시험 직전까지 반복할 핵심 영역입니다.</p></div></div>
+      <div class="grid grid-3">
+        <button class="card quick-card" onclick="openTheory('workflow')" style="text-align:left;color:inherit">
+          <div class="quick-icon">🧩</div><div><h3>전체 공정 흐름</h3><p>스캔·모델링·슬라이싱·출력·후처리</p></div>
+        </button>
+        <button class="card quick-card" onclick="openTheory('settings')" style="text-align:left;color:inherit">
+          <div class="quick-icon">⚙️</div><div><h3>슬라이서 설정</h3><p>레이어, 인필, 서포트, 리트랙션</p></div>
+        </button>
+        <button class="card quick-card" onclick="openTheory('trouble')" style="text-align:left;color:inherit">
+          <div class="quick-icon">🛠️</div><div><h3>불량 원인 진단</h3><p>워핑, 스트링, 층 이동, 압출 불량</p></div>
+        </button>
+      </div>
+    </section>
+
+    <section class="page" id="exam">
+      <div class="section-title"><div><span class="pill primary">2026 기준</span><h2 style="margin-top:8px">시험안내</h2><p>큐넷의 종목정보와 2024~2027 출제기준을 바탕으로 정리했습니다.</p></div></div>
+      <div class="grid grid-2">
+        <div class="card">
+          <h3 style="margin-top:0">필기시험</h3>
+          <table class="exam-table">
+            <tr><th>시험과목</th><td>데이터 생성, 3D프린터 설정, 제품 출력 및 안전관리</td></tr>
+            <tr><th>검정방법</th><td>객관식 4지 택일형, 전 과목 혼합</td></tr>
+            <tr><th>문항·시간</th><td><strong>60문항 · 60분</strong></td></tr>
+            <tr><th>합격기준</th><td>100점 만점에 <strong>60점 이상</strong></td></tr>
+            <tr><th>출제기준</th><td>2024년 1월 1일~2027년 12월 31일</td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0">합격 전략</h3>
+          <div class="concept"><div class="concept-num">1</div><div><h3>기본 용어 선점</h3><p>STL, 메시, 슬라이싱, 인필, 서포트, G-code를 정확히 구분합니다.</p></div></div>
+          <div class="concept"><div class="concept-num">2</div><div><h3>원인-현상 연결</h3><p>워핑·스트링·압출 부족 등 불량의 원인과 조치를 짝으로 익힙니다.</p></div></div>
+          <div class="concept"><div class="concept-num">3</div><div><h3>안전 문항 확보</h3><p>고온부, 수지, 분말, 환기, 보호구, 비상정지 원칙을 놓치지 않습니다.</p></div></div>
+        </div>
+      </div>
+      <div class="notice" style="margin-top:16px">
+        <strong>최신 실기 공개문제 안내</strong><br>
+        큐넷은 2026년 4월 1일 공개문제를 게시했으며, 도면 27형별 자료는 2026년 기능사 제2회부터 적용됩니다. 필기 준비 후 실기로 이어갈 때 반드시 최신 공지를 다시 확인하세요.
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h3 style="margin-top:0">공식 자료 바로가기</h3>
+        <div class="hero-actions">
+          <a class="btn btn-primary" target="_blank" rel="noopener" href="https://www.q-net.or.kr/crf005.do?id=crf00503&jmCd=7785">Q-Net 종목 상세정보</a>
+          <a class="btn btn-soft" target="_blank" rel="noopener" href="https://www.q-net.or.kr/cst006.do?artlSeq=5212097&brdId=Q006&code=1202&gId=&gSite=Q&id=cst00602">2024~2027 출제기준</a>
+          <a class="btn btn-soft" target="_blank" rel="noopener" href="https://www.q-net.or.kr/cst006.do?artlSeq=5206759&brdId=Q006&code=1204&gSite=Q&id=cst00602">2026 실기 공개문제</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="theory">
+      <div class="section-title"><div><h2>핵심이론</h2><p>시험에 반복 출제되는 개념을 공정 순서로 정리했습니다.</p></div></div>
+      <div class="theory-layout">
+        <div class="card side-menu">
+          <button class="active" data-theory="workflow">전체 공정</button>
+          <button data-theory="scan">스캐닝·메시</button>
+          <button data-theory="model">3D 모델링</button>
+          <button data-theory="settings">슬라이싱 설정</button>
+          <button data-theory="methods">출력 방식·재료</button>
+          <button data-theory="gcode">G-code</button>
+          <button data-theory="trouble">불량 진단</button>
+          <button data-theory="safety">안전·유지보수</button>
+          <button data-theory="summary">핵심 요약 정리</button>
+        </div>
+        <div>
+          <article class="card theory-panel active" id="theory-workflow">
+            <span class="pill primary">01 PROCESS</span><h2>3D 프린팅 전체 공정</h2><p>문제는 각 단계의 입력, 작업, 출력 결과를 구분하는 형태로 자주 출제됩니다.</p>
+            <div class="concept"><div class="concept-num">1</div><div><h3>데이터 취득·생성</h3><p>3D 스캔 또는 CAD 모델링으로 형상을 만들고 치수·공차·벽 두께를 검토합니다.</p></div></div>
+            <div class="concept"><div class="concept-num">2</div><div><h3>데이터 보정</h3><p>포인트 클라우드를 정합하고 메시의 구멍, 중복 면, 뒤집힌 법선, 비매니폴드 에지를 수정합니다.</p></div></div>
+            <div class="concept"><div class="concept-num">3</div><div><h3>슬라이싱</h3><p>출력 방향, 레이어 높이, 외벽, 인필, 서포트, 온도, 속도 등을 정하고 G-code를 생성합니다.</p></div></div>
+            <div class="concept"><div class="concept-num">4</div><div><h3>장비 준비·출력</h3><p>재료 상태, 베드 수평, Z 오프셋, 노즐, 구동부를 확인한 후 첫 층과 공정 상태를 관찰합니다.</p></div></div>
+            <div class="concept"><div class="concept-num">5</div><div><h3>회수·후처리·검사</h3><p>냉각 후 안전하게 회수하고 지지대 제거, 세척·경화·연마 등을 거쳐 치수와 외관을 검사합니다.</p></div></div>
+          </article>
+
+          <article class="card theory-panel" id="theory-scan">
+            <span class="pill primary">02 SCAN & MESH</span><h2>스캐닝과 메시 보정</h2><p>스캔은 한 번에 완성되는 것이 아니라 취득→정합→정리→메시화→보정 과정을 거칩니다.</p>
+            <div class="compare">
+              <div class="item"><h4>포인트 클라우드</h4><p>표면에서 취득한 3차원 좌표 집합</p></div>
+              <div class="item"><h4>메시</h4><p>점과 에지를 연결한 다각형 표면</p></div>
+              <div class="item"><h4>솔리드</h4><p>내부 체적이 정의된 CAD 형상</p></div>
+            </div>
+            <div class="concept"><div class="concept-num">A</div><div><h3>정합(Registration)</h3><p>서로 다른 방향에서 취득한 스캔 데이터를 공통 좌표계에 맞춰 결합합니다.</p></div></div>
+            <div class="concept"><div class="concept-num">B</div><div><h3>노이즈 제거</h3><p>반사, 가림, 주변 물체 등으로 생긴 불필요한 점을 제거합니다.</p></div></div>
+            <div class="concept"><div class="concept-num">C</div><div><h3>메시 검사</h3><p>수밀성, 법선 방향, 홀, 중복 면, 자기 교차, 비매니폴드 구조를 점검합니다.</p></div></div>
+            <div class="notice"><strong>암기:</strong> STL은 삼각형 표면, STEP은 CAD 기하 교환, OBJ는 표면과 재질 정보를 함께 다루는 데 자주 사용됩니다.</div>
+          </article>
+
+          <article class="card theory-panel" id="theory-model">
+            <span class="pill primary">03 MODELING</span><h2>출력 적합 3D 모델링</h2><p>예쁜 모델보다 “실제로 출력되고 조립되는 모델”인지 판단하는 문제가 핵심입니다.</p>
+            <div class="concept"><div class="concept-num">1</div><div><h3>벽 두께</h3><p>노즐 폭과 출력 방식의 한계보다 지나치게 얇은 벽은 생략되거나 약하게 출력됩니다.</p></div></div>
+            <div class="concept"><div class="concept-num">2</div><div><h3>공차와 간극</h3><p>조립 부품은 장비 정밀도, 재료 수축, 표면 거칠기를 고려해 간극을 둡니다.</p></div></div>
+            <div class="concept"><div class="concept-num">3</div><div><h3>출력 방향</h3><p>서포트, 표면 품질, 층간 강도, 출력 시간, 베드 접촉 면적을 함께 고려합니다.</p></div></div>
+            <div class="concept"><div class="concept-num">4</div><div><h3>오버행과 브리지</h3><p>아래에서 받쳐주지 못하는 급한 오버행은 처질 수 있으며 서포트나 형상 변경이 필요합니다.</p></div></div>
+            <div class="formula">조립 간극 = 목표 치수 차이 + 장비·재료 오차 보정값</div>
+          </article>
+
+          <article class="card theory-panel" id="theory-settings">
+            <span class="pill primary">04 SLICING</span><h2>슬라이싱 핵심 설정</h2><p>설정값을 바꾸었을 때 품질·시간·재료량이 어떻게 변하는지 이해하세요.</p>
+            <div class="compare">
+              <div class="item"><h4>레이어 높이 ↓</h4><p>표면 표현 향상 / 시간 증가</p></div>
+              <div class="item"><h4>인필 밀도 ↑</h4><p>재료·시간 증가 / 내부 지지 증가</p></div>
+              <div class="item"><h4>출력 속도 ↑</h4><p>시간 감소 / 진동·유량 한계 위험</p></div>
+            </div>
+            <div class="concept"><div class="concept-num">B</div><div><h3>Brim</h3><p>모델 외곽과 연결된 테두리로 접착 면적을 늘립니다.</p></div></div>
+            <div class="concept"><div class="concept-num">R</div><div><h3>Raft</h3><p>모델 아래에 희생 바닥을 만들어 접착을 돕지만 재료와 바닥 흔적이 늘어납니다.</p></div></div>
+            <div class="concept"><div class="concept-num">S</div><div><h3>Skirt</h3><p>모델과 닿지 않는 선으로 노즐 프라이밍과 압출 상태를 확인합니다.</p></div></div>
+            <div class="concept"><div class="concept-num">↩</div><div><h3>Retraction</h3><p>비출력 이동 전에 필라멘트를 되당겨 스트링과 누출을 줄입니다.</p></div></div>
+          </article>
+
+          <article class="card theory-panel" id="theory-methods">
+            <span class="pill primary">05 METHODS & MATERIALS</span><h2>출력 방식과 재료</h2><p>에너지원, 재료 형태, 지지 구조, 후처리의 차이를 구분하세요.</p>
+            <div class="compare">
+              <div class="item"><h4>FDM / FFF</h4><p>열가소성 필라멘트 압출·적층. 보급형 장비에 널리 사용.</p></div>
+              <div class="item"><h4>SLA / DLP</h4><p>액상 광경화성 수지를 빛으로 경화. 세척·후경화 필요.</p></div>
+              <div class="item"><h4>SLS</h4><p>분말층을 레이저로 선택 소결. 분말이 주변 지지 역할을 할 수 있음.</p></div>
+            </div>
+            <table class="exam-table" style="margin-top:15px">
+              <tr><th>PLA</th><td>출력이 비교적 쉽고 수축이 적은 편. 내열성은 제한적.</td></tr>
+              <tr><th>ABS</th><td>내열·충격 특성이 좋지만 수축과 워핑, 환기 관리가 중요.</td></tr>
+              <tr><th>PETG</th><td>인성과 층간 접착이 좋은 편. 스트링 설정에 주의.</td></tr>
+              <tr><th>TPU</th><td>유연 재료. 짧고 잘 구속된 이송 경로와 낮은 속도가 유리.</td></tr>
+            </table>
+          </article>
+
+          <article class="card theory-panel" id="theory-gcode">
+            <span class="pill primary">06 G-CODE</span><h2>G-code 기초</h2><p>장비와 펌웨어에 따라 차이가 있으므로 시험에서는 대표 기능을 중심으로 봅니다.</p>
+            <div class="formula">G1 X50 Y20 Z0.2 E4.5 F1200</div>
+            <table class="exam-table">
+              <tr><th>G28</th><td>홈 위치로 복귀하여 축 기준점 설정</td></tr>
+              <tr><th>G0 / G1</th><td>빠른 이동 / 직선 보간 이동</td></tr>
+              <tr><th>X, Y, Z</th><td>각 축의 목표 좌표</td></tr>
+              <tr><th>E</th><td>압출기 이송량</td></tr>
+              <tr><th>F</th><td>이송 속도(Feed rate)</td></tr>
+              <tr><th>M104 / M109</th><td>노즐 온도 설정 / 설정 후 도달까지 대기</td></tr>
+              <tr><th>M140 / M190</th><td>베드 온도 설정 / 설정 후 도달까지 대기</td></tr>
+            </table>
+          </article>
+
+          <article class="card theory-panel" id="theory-trouble">
+            <span class="pill primary">07 TROUBLESHOOTING</span><h2>출력 불량 진단</h2><p>“현상 → 가능한 원인 → 우선 조치” 순서로 암기하면 점수를 빠르게 올릴 수 있습니다.</p>
+            <table class="exam-table">
+              <tr><th>워핑</th><td>수축·온도차·접착 부족 → 베드 청소, 온도, 브림, 챔버 점검</td></tr>
+              <tr><th>스트링</th><td>온도 과다·리트랙션 부족·습기 → 온도, 리트랙션, 건조 점검</td></tr>
+              <tr><th>압출 부족</th><td>노즐 막힘·저온·기어 미끄러짐·유량 부족 → 공급 경로 순차 점검</td></tr>
+              <tr><th>층 이동</th><td>벨트·풀리·충돌·과속·스텝 손실 → 기구부와 속도·전류 점검</td></tr>
+              <tr><th>링잉</th><td>급격한 가감속과 진동 → 속도·가속도 감소, 프레임·벨트 점검</td></tr>
+              <tr><th>층간 박리</th><td>저온·과냉각·외풍 → 노즐 온도와 주변 환경 개선</td></tr>
+            </table>
+          </article>
+
+          <article class="card theory-panel" id="theory-safety">
+            <span class="pill primary">08 SAFETY</span><h2>안전과 유지보수</h2><p>보호구는 공정의 위험요인에 맞게 선택하고, 제조사 지침과 SDS를 우선합니다.</p>
+            <div class="concept"><div class="concept-num">🔥</div><div><h3>고온부·전기</h3><p>노즐, 히트블록, 베드의 화상 위험과 배선·히터 이상을 점검합니다. 이상 연기·냄새가 나면 즉시 안전 정지합니다.</p></div></div>
+            <div class="concept"><div class="concept-num">🧪</div><div><h3>광경화성 수지</h3><p>니트릴 장갑과 보안경을 사용하고 피부 접촉을 피하며 환기·세척·후경화·폐기 절차를 지킵니다.</p></div></div>
+            <div class="concept"><div class="concept-num">🌫</div><div><h3>입자와 분말</h3><p>환기와 집진을 실시하고 분진 비산, 흡입, 정전기, 재료별 화재·폭발 위험을 관리합니다.</p></div></div>
+            <div class="concept"><div class="concept-num">🔧</div><div><h3>정비</h3><p>전원 차단과 냉각을 확인한 후 청소하고, 벨트·풀리·팬·센서·레일·리드스크루를 정기 점검합니다.</p></div></div>
+          </article>
+          <article class="card theory-panel" id="theory-summary">
+            <span class="pill primary">09 QUICK SUMMARY</span><h2>핵심 요약 정리</h2><p>첨부파일의 핵심 요약 노트를 시험 직전 반복 학습용으로 구성했습니다.</p>
+            <div class="summary-stack"><section class="summary-section"><h3>1. 3D 프린팅 방식 및 주요 소재</h3><div class="summary-body"><div class="summary-item"><h4>› 주요 프린팅 방식</h4><div class="summary-text">• FDM: 고체 필라멘트 열용융. 저렴하나 표면이 거칠고 수축(Warping) 발생<br>• SLA: 액체 광경화성 수지 + 레이저. 정밀도 높음<br>• DLP: 액체 광경화성 수지 + 프로젝터. 면 단위로 빔을 쏘아 SLA보다 빠름<br>• SLS: 분말(파우더) 기반 소결. 서포터 불필요, 복잡한 형상 유리<br>• LOM: 종이/필름 등 얇은 소재 적층 및 절단</div></div><div class="summary-item"><h4>› 필라멘트 소재 (FDM)</h4><div class="summary-text">• PLA: 옥수수 전분 등 친환경, 수축 적어 초보자용으로 적합<br>• ABS: 열수축 심함(히팅베드/챔버 필수), 아세톤 훈증 표면처리 가능<br>• TPU: 고무처럼 유연하고 신축성 있음<br>• PVA: 물에 녹는 수용성 소재. 복잡한 형상의 서포터로 사용</div></div><div class="summary-item"><h4>› 제조 방식의 특징</h4><div class="summary-text">금형(틀) 없이 복잡한 형상이나 내부 공간 비우기(경량화)가 자유로움. 단, 대량 생산 시에는 기존 사출 성형 방식보다 비용이 높고 속도가 느림.</div></div></div></section><section class="summary-section"><h3>2. 3D 모델링 및 스캐닝</h3><div class="summary-body"><div class="summary-item"><h4>› 3D 스캐너와 역설계</h4><div class="summary-text">• 접촉식: 탐침(Probe) 이용. 정밀하나 느리고 파손 위험<br>• 비접촉식: 레이저/백색광. 투명하거나 반사되는 물체는 인식 불가(백색 현상액 스프레이 도포 필요)<br>• 역설계(Reverse Engineering): 실물을 스캔해 3D CAD 데이터로 변환하는 기술</div></div><div class="summary-item"><h4>› 3D 모델링 방식</h4><div class="summary-text">• 와이어프레임(Wireframe): 점과 선, 뼈대만 있는 모델<br>• 서피스(Surface): 두께가 없는 껍데기(면). 정밀한 곡면 처리에 유리<br>• 솔리드(Solid): 부피/질량 데이터 포함. 단면, 무게중심 계산 등 물리적 해석 가능</div></div><div class="summary-item"><h4>› 데이터 포맷 및 오류</h4><div class="summary-text">• STL: 표준 포맷. 삼각형 메쉬 형태 (정점 V = F/2 + 2)<br>• AMF/3MF: STL을 보완하여 색상, 재질 정보 포함 (최신 포맷)<br>• 메쉬 오류: 비매니폴드(3개 이상의 면 만남), 반전면(안팎 뒤집힘), 오픈 메시(구멍 뚫림)</div></div></div></section><section class="summary-section"><h3>3. 슬라이싱 설정 및 G-Code</h3><div class="summary-body"><div class="summary-item"><h4>› 슬라이서 주요 설정</h4><div class="summary-text">• 레이어 높이: 보통 노즐 직경의 25~75% (0.4mm 노즐 시 0.1~0.3mm 적당)<br>• Shell/Wall: 바깥쪽 외곽선의 두께 (출력물 표면 강도 결정)<br>• Infill (내부 채움): 100%면 솔리드. 밀도를 높일수록 튼튼해지나 출력 시간 증가<br>• Drop to Bed: 공중에 뜬 모델을 베드 바닥에 닿게 내리는 필수 설정</div></div><div class="summary-item"><h4>› 출력 보조물</h4><div class="summary-text">• 스커트: 테두리만 그려 압출 상태 테스트<br>• 브림: 출력물 바닥에 넓은 챙을 달아 수축(워핑) 방지<br>• 라프트: 그물망 형태의 두꺼운 바닥 판을 먼저 깔아 수축 및 레벨링 불균형 해소<br>• 서포터: 허공(오버행)이 무너지지 않도록 지지. 제거 중 파손 시 실기 실격</div></div><div class="summary-item"><h4>› 주요 G-Code 명령어</h4><div class="summary-text">• G0/G1: 직선 이동 (G1은 압출하며 이동)<br>• G28: 원점(Home) 복귀<br>• M104: 노즐 온도 설정 (대기 안 함) / M109: 노즐 온도 설정 및 도달 시까지 대기<br>• M140: 히팅 베드 온도 설정<br>• F: 이송 속도(Feedrate) / E: 압출량</div></div></div></section><section class="summary-section"><h3>4. 출력 오류 (트러블슈팅)</h3><div class="summary-body"><div class="summary-item"><h4>› 바닥 및 형상 오류</h4><div class="summary-text">• 워핑(Warping): 열수축으로 바닥이 들뜨는 현상<br>• 코끼리 발: 첫 레이어가 너무 눌리거나 과압출 시 바닥이 퍼지는 현상<br>• 탈조(Step Skipping): 모터의 헛돎/물리적 저항으로 레이어가 어긋나는 현상</div></div><div class="summary-item"><h4>› 압출 불량 및 노즐 문제</h4><div class="summary-text">• 거미줄(Stringing): 이동 시 필라멘트가 샘 → 리트랙션(Retraction) 설정으로 해결<br>• 층 분리(갈라짐): 노즐 온도가 낮아 레이어 간 융착(결합) 불량 시 발생<br>• 과압출/압출불량: 슬라이서 필라멘트 굵기(직경) 설정 오류 시 발생<br>• 노즐 막힘: 온도를 실온으로 낮추고 강제로 밀어내면 부품이 파손될 수 있으므로 절대 금지</div></div><div class="summary-item"><h4>› 하드웨어 설정</h4><div class="summary-text">• 레벨링: 노즐 끝과 베드 사이 간격은 명함 한 장 두께(약 0.1mm)가 적당<br>• 히트 싱크(Heat sink): 열이 위로 타고 올라가는(Heat Creep) 현상 방지</div></div></div></section><section class="summary-section"><h3>5. 후가공 및 안전 관리 (★실기 유의사항)</h3><div class="summary-body"><div class="summary-item"><h4>› 안전 유의사항</h4><div class="summary-text">• UFP/VOCs(유해가스/미세먼지): 방진마스크 필수 착용 및 잦은 강제 환기<br>• 화상/화재: 노즐부(200도 이상) 화상 주의. 화재 시 즉시 장비 전원부터 차단<br>• MSDS: 화학물질(레진 등) 안전 보건 정보 자료</div></div><div class="summary-item"><h4>› 후가공 기술</h4><div class="summary-text">• 표면 연마: 사포질은 번호가 작은(거친) 것부터 큰(고운) 순으로 작업<br>• 퍼티: 깊은 흠집이나 단차 메우기용 찰흙<br>• 서페이서: 도색 전 프라이머 역할 및 미세 흠집 확인용 스프레이<br>• 액체(SLA/DLP) 후처리: 이소프로필 알코올(IPA)로 세척 후 반드시 자외선(UV) 후경화 진행</div></div><div class="summary-item"><h4>› 실기시험 주요 감점/실격 사유</h4><div class="summary-text">• 슬라이싱 예상 시간 80분(1시간 20분) 초과 시 실격<br>• 정전/기계 고장 시 &#x27;작업정지시간 + 5분&#x27; 추가 시간 부여<br>• 서포트 제거(후가공) 중 출력물 파손 시 즉시 불합격(실격)<br>• 공차(Tolerance): 조립 부품 구동을 위해 0.2~0.3mm 이상의 여유 공차 필요</div></div></div></section></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+
+    <section class="page" id="explore">
+      <div class="section-title">
+        <div><h2>💡 이론 탐구하기</h2><p>수업 및 교재 내용에 비해 부실할 수도 있습니다.</p><p>부족한 내용을 메인페이지에서 요청하면 적용하겠습니다.</p></div>
+      </div>
+
+      <div class="explore-tabs" role="tablist" aria-label="이론 탐구 주제">
+        <button type="button" id="explore-tab-printing" class="explore-tab active" role="tab" aria-selected="true" aria-controls="explore-printing" data-explore="printing" onclick="switchExploreTab('printing')">🖨️ 프린팅 방식</button>
+        <button type="button" id="explore-tab-modeling" class="explore-tab" role="tab" aria-selected="false" aria-controls="explore-modeling" data-explore="modeling" onclick="switchExploreTab('modeling')">🖥️ 모델링 &amp; 스캐닝</button>
+        <button type="button" id="explore-tab-slicing" class="explore-tab" role="tab" aria-selected="false" aria-controls="explore-slicing" data-explore="slicing" onclick="switchExploreTab('slicing')">⚙️ 슬라이싱 &amp; G코드</button>
+        <button type="button" id="explore-tab-trouble" class="explore-tab" role="tab" aria-selected="false" aria-controls="explore-trouble" data-explore="trouble" onclick="switchExploreTab('trouble')">🛡️ 오류 &amp; 안전</button>
+      </div>
+
+      <div class="card explore-content">
+        <article class="explore-panel active" id="explore-printing" role="tabpanel" aria-labelledby="explore-tab-printing">
+          <h3 class="explore-heading">3대 핵심 프린팅 방식 비교</h3>
+          <div class="explore-grid three">
+            <div class="method-card blue"><div class="method-badge">FDM</div><h4>용융적층모델링</h4><p>고체 필라멘트를 열로 녹여서 치약처럼 짜내는 방식</p><ul><li>✅ 장비가 매우 저렴함</li><li>✅ 다양한 고체 소재</li><li>❌ 표면 거침, 열 수축 주의</li></ul></div>
+            <div class="method-card purple"><div class="method-badge">SLA</div><h4>광경화성수지(액체)</h4><p>수조에 담긴 레진에 레이저를 쏘아 굳히는 방식</p><ul><li>✅ 정밀도가 매우 뛰어남</li><li>✅ 표면이 매끄러움</li><li>❌ 세척 및 UV 후경화 필수</li></ul></div>
+            <div class="method-card orange"><div class="method-badge">SLS</div><h4>선택적 레이저 소결</h4><p>분말(가루)에 레이저를 쏘아 결합시키는 방식</p><ul><li>✅ <strong>서포터 불필요</strong></li><li>✅ 복잡한 형상 출력</li><li>❌ 분진 날림, 비싼 장비</li></ul></div>
+          </div>
+          <div class="explore-note"><strong>💡 DLP 방식</strong>은 SLA와 원리는 같지만 레이저의 선이 아니라 프로젝터의 면으로 한 층을 동시에 경화합니다.</div>
+        </article>
+
+        <article class="explore-panel" id="explore-modeling" role="tabpanel" aria-labelledby="explore-tab-modeling" hidden>
+          <h3 class="explore-heading">3D 모델링의 3가지 형태</h3>
+          <div class="explore-grid three">
+            <div class="visual-card"><div class="visual-stage"><div class="wireframe-shape"></div></div><h4>와이어프레임</h4><p>점과 선으로만 이루어진 뼈대. 내부가 비어있습니다.</p></div>
+            <div class="visual-card"><div class="visual-stage"><div class="surface-shape"></div></div><h4>서피스 (Surface)</h4><p>두께가 없는 껍데기. 화려한 곡면 처리에 탁월합니다.</p></div>
+            <div class="visual-card"><div class="visual-stage"><div class="solid-shape">◇</div></div><h4>솔리드 (Solid)</h4><p>부피와 질량을 채운 덩어리로 물리적 해석이 가능합니다.</p></div>
+          </div>
+          <h3 class="explore-heading spaced">3D 스캐너 비교</h3>
+          <div class="explore-grid two">
+            <div class="scanner-card"><h4>접촉식 스캐너</h4><p>탐침을 물체에 직접 접촉시켜 좌표를 읽습니다.</p><div class="ok">✔ 높은 정밀도</div><div class="bad">✖ 느린 측정 속도와 파손 위험</div></div>
+            <div class="scanner-card"><h4>비접촉식 스캐너</h4><p>레이저나 백색광을 이용하여 형상을 읽습니다.</p><div class="ok">✔ 빠른 측정과 낮은 파손 위험</div><div class="bad">✖ 투명·반사 물체는 현상액 처리가 필요</div></div>
+          </div>
+        </article>
+
+        <article class="explore-panel" id="explore-slicing" role="tabpanel" aria-labelledby="explore-tab-slicing" hidden>
+          <h3 class="explore-heading">바닥 보조물(Adhesion) 비교</h3>
+          <div class="explore-grid three">
+            <div class="adhesion-card"><div class="visual-stage"><div class="skirt-shape"><i></i></div></div><h4>스커트 (Skirt)</h4><p>출력물과 닿지 않는 테두리.<br>노즐 압출 테스트 용도.</p></div>
+            <div class="adhesion-card"><div class="visual-stage"><div class="brim-shape"><i></i></div></div><h4>브림 (Brim)</h4><p>출력물 바닥에 붙은 넓은 챙.<br>접착 면적 증가와 수축 방지.</p></div>
+            <div class="adhesion-card"><div class="visual-stage raft-stage"><div class="raft-model"></div><div class="raft-base"></div></div><h4>라프트 (Raft)</h4><p>두꺼운 그물망 바닥 판.<br>강력한 수축 방지와 레벨링 보완.</p></div>
+          </div>
+          <h3 class="explore-heading spaced">필수 G-Code 요약 딕셔너리</h3>
+          <div class="gcode-box">
+            <div><b>G0/G1</b><span>지정된 좌표로 직선 이동(G1은 압출)</span></div>
+            <div><b>G28</b><span>원점(Home)으로 복귀</span></div>
+            <div><b class="yellow">M104</b><span>노즐 온도 설정 후 <em class="yellow">대기하지 않음</em></span></div>
+            <div><b class="red">M109</b><span>노즐 온도 설정 후 <em class="red">도달할 때까지 대기</em></span></div>
+            <div><b>M140</b><span>히팅 베드 온도 설정</span></div>
+            <div><b>Fnnn</b><span>이송 속도(Feedrate)</span></div>
+          </div>
+        </article>
+
+        <article class="explore-panel" id="explore-trouble" role="tabpanel" aria-labelledby="explore-tab-trouble" hidden>
+          <h3 class="explore-heading">가장 흔한 출력 오류</h3>
+          <div class="trouble-grid">
+            <div class="trouble-card red-card"><div class="trouble-icon warping"><i></i></div><div><h4>워핑 (Warping)</h4><p>열 수축으로 바닥 모서리가 말려 올라갑니다.</p><small>해결: 브림·라프트와 히팅베드 사용</small></div></div>
+            <div class="trouble-card orange-card"><div class="trouble-icon elephant"><i></i></div><div><h4>코끼리 발</h4><p>첫 레이어가 과하게 눌려 바닥이 옆으로 퍼집니다.</p><small>해결: 초기 노즐 간격을 넓히기</small></div></div>
+            <div class="trouble-card gray-card"><div class="trouble-icon stringing"><i></i></div><div><h4>거미줄 (Stringing)</h4><p>이동 중 필라멘트가 새어나와 실처럼 엉킵니다.</p><small>해결: 리트랙션 활성화와 설정 조정</small></div></div>
+            <div class="trouble-card purple-card"><div class="trouble-icon steps"><i></i></div><div><h4>탈조 (Step Skipping)</h4><p>모터가 헛돌면서 레이어가 계단처럼 어긋납니다.</p><small>해결: 벨트 장력 확인과 속도 감소</small></div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="page" id="sim">
+      <div class="section-title"><div><h2>공정 설정 시뮬레이터</h2><p>설정 변화가 품질·시간·재료량에 미치는 경향을 체험합니다.</p></div></div>
+      <div class="sim-layout">
+        <div class="card">
+          <div class="control-group"><label class="control-label">재료 <span id="materialVal">PLA</span></label>
+            <select id="material"><option>PLA</option><option>PETG</option><option>ABS</option><option>TPU</option></select>
+          </div>
+          <div class="control-group"><label class="control-label">레이어 높이 <span id="layerVal">0.20 mm</span></label>
+            <input id="layer" type="range" min="0.08" max="0.32" step="0.04" value="0.20">
+          </div>
+          <div class="control-group"><label class="control-label">인필 밀도 <span id="infillVal">20%</span></label>
+            <input id="infill" type="range" min="0" max="100" step="5" value="20">
+          </div>
+          <div class="control-group"><label class="control-label">노즐 온도 <span id="tempVal">205℃</span></label>
+            <input id="temp" type="range" min="180" max="260" step="5" value="205">
+          </div>
+          <div class="control-group"><label class="control-label">출력 속도 <span id="speedVal">50 mm/s</span></label>
+            <input id="speed" type="range" min="20" max="120" step="5" value="50">
+          </div>
+          <button class="btn btn-primary" style="width:100%" id="simulateBtn">설정 적용하기</button>
+          <p style="color:var(--muted);font-size:.82rem;margin-bottom:0">※ 교육용 상대 비교값이며 실제 결과는 장비·형상·재료에 따라 달라집니다.</p>
+        </div>
+        <div class="card sim-screen">
+          <div class="sim-grid-bg"></div>
+          <div style="position:relative;z-index:2"><span class="pill" style="background:rgba(255,255,255,.12);color:#fff">LIVE PREVIEW</span><h3 style="margin:8px 0 0">적층 미리보기</h3></div>
+          <div class="sim-model"><div class="model-box" id="modelBox"></div></div>
+          <div style="position:relative;z-index:2">
+            <div class="sim-metrics">
+              <div class="metric"><small>예상 시간 지수</small><strong id="timeMetric">100</strong></div>
+              <div class="metric"><small>재료량 지수</small><strong id="materialMetric">100</strong></div>
+              <div class="metric"><small>표면 품질</small><strong id="qualityMetric">보통</strong></div>
+            </div>
+            <div class="warning-box" id="simWarning">현재 설정은 PLA의 일반적인 범위에 가깝습니다.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="bank">
+      <div class="section-title"><div><h2>문제은행 120</h2><p>실전모의1 60문항과 첨부파일의 실전모의2 60문항을 함께 학습하세요.</p></div></div>
+      <div class="toolbar">
+        <input class="grow" id="bankSearch" type="search" placeholder="문제, 보기, 해설 검색">
+        <button class="filter-btn active" data-filter="전체">전체</button>
+        <button class="filter-btn" data-filter="데이터 생성">데이터 생성</button>
+        <button class="filter-btn" data-filter="3D프린터 설정">프린터 설정</button>
+        <button class="filter-btn" data-filter="제품 출력 및 안전관리">출력·안전</button>
+        <button class="filter-btn" data-filter="북마크">★ 북마크</button>
+      </div>
+      <div class="question-list" id="bankList"></div>
+    </section>
+
+    <section class="page" id="cbt">
+      <div class="cbt-shell" id="cbtRoot"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <strong>3D프린터운용기능사 필기 학습 웹앱</strong><br>
+    학습용 자체 제작 자료이며 시험 세부사항은 반드시 Q-Net 최신 공고를 확인하세요.
+  </footer>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const QUESTIONS_SET1 = [{"id":1,"cat":"데이터 생성","topic":"파일 형식","q":"3D 프린팅에서 STL 파일이 주로 표현하는 것은?","opts":["삼각형 면으로 근사한 표면 형상","프린터의 전기 회로","출력 장비의 유지보수 이력","솔리드의 재질 물성"],"ans":0,"exp":"STL은 3차원 형상의 표면을 다수의 삼각형 패싯으로 근사해 저장한다. 색상·재질·정확한 곡면 이력은 일반적으로 포함하지 않는다.","set":"실전모의1"},{"id":2,"cat":"데이터 생성","topic":"파일 형식","q":"CAD 프로그램 사이에서 솔리드 형상과 곡면 정보를 비교적 잘 교환할 수 있는 형식은?","opts":["MP3","STEP","JPG","TXT"],"ans":1,"exp":"STEP은 제품 형상과 기하 정보를 교환하기 위한 대표적인 중립 CAD 형식이다.","set":"실전모의1"},{"id":3,"cat":"데이터 생성","topic":"메시 검사","q":"출력용 메시가 'watertight(수밀)'하다는 의미로 가장 적절한 것은?","opts":["파일 용량이 작다","모든 면이 한 가지 색이다","구멍 없이 닫힌 체적을 이룬다","모든 삼각형 크기가 같다"],"ans":2,"exp":"수밀 메시란 표면에 틈이나 구멍이 없어 내부와 외부가 명확히 구분되는 닫힌 형상이다.","set":"실전모의1"},{"id":4,"cat":"데이터 생성","topic":"3D 스캐닝","q":"3D 스캐너가 물체 표면에서 취득한 다수의 좌표 집합을 무엇이라 하는가?","opts":["G-code","인필","툴패스","포인트 클라우드"],"ans":3,"exp":"스캔 결과로 얻은 다수의 3차원 좌표 집합을 포인트 클라우드라고 한다. 이후 정합·노이즈 제거·메시화 과정을 거친다.","set":"실전모의1"},{"id":5,"cat":"데이터 생성","topic":"메시 보정","q":"스캔 데이터에 작은 구멍이 생겼을 때 출력 전 가장 적절한 조치는?","opts":["홀 채우기 등 메시 보정을 수행한다","출력 속도를 최대로 높인다","필라멘트를 교체하지 않고 그대로 출력한다","노즐 온도를 무조건 높인다"],"ans":0,"exp":"스캔 메시의 홀, 중복 면, 비정상 에지 등은 메시 보정 도구로 수정한 뒤 슬라이싱해야 한다.","set":"실전모의1"},{"id":6,"cat":"데이터 생성","topic":"메시 보정","q":"메시의 법선(normal) 방향이 뒤집혀 있을 때 발생하기 쉬운 문제는?","opts":["모터 전압 자동 상승","내·외부 판정 오류","필라멘트 지름 증가","베드 크기 증가"],"ans":1,"exp":"법선은 면의 바깥 방향을 나타낸다. 뒤집힌 법선은 슬라이서가 내부와 외부를 잘못 판단하게 만들 수 있다.","set":"실전모의1"},{"id":7,"cat":"데이터 생성","topic":"설계 공차","q":"서로 끼워 맞추는 두 부품을 FDM 방식으로 출력할 때 일반적으로 필요한 설계 조치는?","opts":["두 부품을 하나의 STL로만 저장한다","두 치수를 완전히 같게 설계한다","프린터 오차를 고려해 간극을 둔다","모든 모서리를 0 mm로 만든다"],"ans":2,"exp":"출력 수축과 장비 오차를 고려해 부품 사이에 적절한 간극(clearance)을 둬야 실제 조립이 가능하다.","set":"실전모의1"},{"id":8,"cat":"데이터 생성","topic":"출력 적합 설계","q":"너무 얇은 벽 두께로 모델링했을 때 가장 직접적인 문제는?","opts":["베드가 자동으로 커진다","레이저 출력이 증가한다","파일 확장자가 자동 변환된다","슬라이서가 벽을 생성하지 못하거나 약하게 출력한다"],"ans":3,"exp":"벽 두께가 노즐 폭이나 공정 한계보다 작으면 슬라이서가 해당 벽을 생략하거나 한 줄로 불안정하게 생성할 수 있다.","set":"실전모의1"},{"id":9,"cat":"데이터 생성","topic":"출력 방향","q":"지지대 사용량을 줄이기 위한 모델 배치 방법으로 가장 적절한 것은?","opts":["넓고 안정적인 면을 베드에 두고 오버행을 줄이기","모델을 무조건 수직으로 세우기","크기를 무조건 200%로 확대하기","오버행이 많은 면을 공중에 두기"],"ans":0,"exp":"넓은 면을 베드에 배치하고 급격한 오버행을 줄이면 지지대와 출력 실패 가능성을 낮출 수 있다.","set":"실전모의1"},{"id":10,"cat":"데이터 생성","topic":"출력 방향","q":"FDM 출력물의 적층 방향과 강도에 관한 설명으로 옳은 것은?","opts":["모든 방향의 강도가 항상 같다","층 사이 방향은 층 내부 방향보다 약할 수 있다","레이어 높이가 강도와 전혀 무관하다","출력 방향은 표면에만 영향을 준다"],"ans":1,"exp":"FDM은 층간 결합 강도가 상대적으로 약할 수 있으므로 하중 방향을 고려해 모델 방향을 정해야 한다.","set":"실전모의1"},{"id":11,"cat":"데이터 생성","topic":"CAD","q":"파라메트릭 CAD에서 스케치를 완전 구속하는 주된 목적은?","opts":["프린터 속도를 높이기","필라멘트를 건조하기","형상이 의도치 않게 변하지 않도록 치수와 관계를 정의하기","파일을 이미지로 바꾸기"],"ans":2,"exp":"치수와 기하 구속을 적용하면 설계 의도가 명확해지고 수정 시 형상이 안정적으로 유지된다.","set":"실전모의1"},{"id":12,"cat":"데이터 생성","topic":"단위","q":"모델링 파일을 슬라이서로 불러왔는데 크기가 25.4배 차이 났다. 가장 먼저 확인할 사항은?","opts":["팬 회전 방향","베드 색상","USB 케이블 길이","단위(mm/inch) 설정"],"ans":3,"exp":"1 inch는 25.4 mm이므로 모델링 프로그램과 슬라이서의 단위 불일치 여부를 먼저 확인해야 한다.","set":"실전모의1"},{"id":13,"cat":"3D프린터 설정","topic":"슬라이싱","q":"슬라이싱의 주된 역할은?","opts":["3D 모델을 층별 경로와 장비 명령으로 변환한다","모터를 분해한다","스캔 렌즈를 세척한다","필라멘트를 제조한다"],"ans":0,"exp":"슬라이서는 3D 모델을 레이어로 나누고 이동·압출·온도 등의 명령(G-code)을 생성한다.","set":"실전모의1"},{"id":14,"cat":"3D프린터 설정","topic":"레이어 높이","q":"같은 모델에서 레이어 높이를 작게 설정했을 때 일반적인 변화는?","opts":["표면이 거칠어지고 출력 시간이 짧아진다","표면 표현이 좋아지고 출력 시간이 길어진다","모델 크기가 자동으로 줄어든다","필라멘트가 필요 없어진다"],"ans":1,"exp":"레이어 높이가 작으면 층 수가 늘어 표면 품질은 좋아질 수 있지만 출력 시간은 길어진다.","set":"실전모의1"},{"id":15,"cat":"3D프린터 설정","topic":"노즐","q":"0.4 mm 노즐에서 선 폭 설정과 관련한 설명으로 가장 적절한 것은?","opts":["선 폭은 출력 품질과 무관하다","노즐 지름과 무관하게 항상 2 mm로 설정한다","대체로 노즐 지름과 비슷한 범위에서 설정한다","항상 0.01 mm로 설정한다"],"ans":2,"exp":"선 폭은 보통 노즐 지름과 비슷하거나 약간 큰 값으로 설정하며, 지나치게 벗어나면 압출 안정성이 떨어진다.","set":"실전모의1"},{"id":16,"cat":"3D프린터 설정","topic":"인필","q":"인필 밀도를 높였을 때 일반적으로 나타나는 변화는?","opts":["모델이 항상 투명해진다","베드 온도가 0℃가 된다","서포트가 자동 삭제된다","재료와 출력 시간이 증가할 수 있다"],"ans":3,"exp":"인필 밀도가 높아지면 내부 재료량과 출력 시간이 늘고 일부 하중 조건에서 강도가 증가할 수 있다.","set":"실전모의1"},{"id":17,"cat":"3D프린터 설정","topic":"베드 접착","q":"모델 외곽의 첫 층에 한두 줄 이상의 넓은 테두리를 붙여 접착 면적을 늘리는 기능은?","opts":["Brim","Retraction","Vase mode","Ironing"],"ans":0,"exp":"브림은 모델 첫 층의 외곽에 테두리를 추가해 베드 접착력을 높이며 제거도 비교적 쉽다.","set":"실전모의1"},{"id":18,"cat":"3D프린터 설정","topic":"베드 접착","q":"모델 아래에 여러 층의 별도 바닥 구조를 만든 뒤 그 위에 출력하는 기능은?","opts":["Wipe","Raft","Skirt","Coasting"],"ans":1,"exp":"래프트는 모델 아래에 희생 바닥을 만들어 접착과 수평 오차를 보완하지만 재료 소모와 바닥면 흔적이 증가한다.","set":"실전모의1"},{"id":19,"cat":"3D프린터 설정","topic":"베드 접착","q":"모델과 닿지 않는 선을 주변에 먼저 출력하여 압출 상태를 확인하는 기능은?","opts":["Support interface","Infill","Skirt","Brim"],"ans":2,"exp":"스커트는 모델 주변에 떨어진 선을 출력해 노즐 프라이밍과 압출 상태 확인에 사용한다.","set":"실전모의1"},{"id":20,"cat":"3D프린터 설정","topic":"리트랙션","q":"이동 중 실처럼 늘어지는 스트링 현상을 줄이기 위해 우선 조정할 설정은?","opts":["모델 색상","베드 크기","파일 이름","리트랙션 거리·속도"],"ans":3,"exp":"리트랙션은 비출력 이동 전에 필라멘트를 되당겨 노즐의 누출을 줄인다. 온도와 이동 경로도 함께 점검한다.","set":"실전모의1"},{"id":21,"cat":"3D프린터 설정","topic":"서포트","q":"서포트가 필요한 대표적인 상황은?","opts":["아래에서 지지되지 않는 큰 오버행이나 공중 구조","베드에 완전히 붙은 평면","모델 파일 이름이 짧을 때","필라멘트가 새 제품일 때"],"ans":0,"exp":"공중에 떠 있거나 임계 각도를 넘는 오버행은 아래층이 받쳐주지 못하므로 서포트가 필요할 수 있다.","set":"실전모의1"},{"id":22,"cat":"3D프린터 설정","topic":"속도","q":"출력 속도를 지나치게 높였을 때 발생하기 쉬운 현상은?","opts":["STL이 STEP으로 변환됨","진동·레이어 이동·압출 부족","모델이 자동으로 금속화됨","필라멘트 수분이 제거됨"],"ans":1,"exp":"장비가 감당할 수 있는 가속도와 압출 유량을 넘으면 진동, 링잉, 레이어 시프트, 언더익스트루전이 발생할 수 있다.","set":"실전모의1"},{"id":23,"cat":"3D프린터 설정","topic":"첫 층","q":"첫 층 접착이 좋지 않을 때 가장 먼저 점검할 항목으로 적절하지 않은 것은?","opts":["베드 수평과 Z 오프셋","첫 층 온도와 속도","모니터 화면 밝기","베드 청결도"],"ans":2,"exp":"첫 층은 베드 청결, 수평, Z 오프셋, 온도, 속도, 재료 상태의 영향을 받는다. 모니터 밝기는 직접 관련이 없다.","set":"실전모의1"},{"id":24,"cat":"3D프린터 설정","topic":"레벨링","q":"베드 레벨링의 목적은?","opts":["필라멘트 색상을 바꾸기","팬 소음을 없애기","모델을 자동 설계하기","노즐과 베드 사이 간격을 출력 영역에서 균일하게 맞추기"],"ans":3,"exp":"레벨링은 베드 각 지점에서 노즐 간격이 균일하도록 맞춰 첫 층을 안정적으로 형성하는 작업이다.","set":"실전모의1"},{"id":25,"cat":"3D프린터 설정","topic":"Z 오프셋","q":"첫 층 선이 베드에 거의 붙지 않고 둥글게 놓일 때 필요한 조치로 가장 적절한 것은?","opts":["노즐을 베드에 조금 더 가깝게 Z 오프셋 조정","노즐을 훨씬 더 멀리 이동","모든 팬을 제거","모델을 삭제"],"ans":0,"exp":"첫 층이 눌리지 않고 둥글게 놓이면 노즐이 너무 높을 수 있다. 충돌하지 않도록 소량씩 Z 오프셋을 낮춘다.","set":"실전모의1"},{"id":26,"cat":"3D프린터 설정","topic":"온도","q":"노즐 온도가 재료 권장 범위보다 지나치게 낮을 때 나타나기 쉬운 현상은?","opts":["모델 치수가 무조건 커짐","압출 부족과 층간 접착 저하","과도한 늘어짐만 증가","베드가 자동으로 휘어짐"],"ans":1,"exp":"온도가 너무 낮으면 용융과 유동이 불충분해 압출 부족, 노즐 막힘, 층간 결합 약화가 나타날 수 있다.","set":"실전모의1"},{"id":27,"cat":"3D프린터 설정","topic":"온도","q":"노즐 온도가 지나치게 높을 때 나타나기 쉬운 현상은?","opts":["레이어 수가 자동 감소","베드 수평이 자동 교정됨","스트링·흘러내림·표면 과열","필라멘트가 전혀 녹지 않음"],"ans":2,"exp":"온도가 과도하면 재료 점도가 낮아져 누출과 스트링이 늘고 세부 형상이 무너질 수 있다.","set":"실전모의1"},{"id":28,"cat":"3D프린터 설정","topic":"베드 온도","q":"재료에 맞는 가열 베드 사용의 주요 목적은?","opts":["STL 파일 복구","스캐너 해상도 향상","모터 전류 제거","첫 층 접착 향상과 수축에 의한 들뜸 완화"],"ans":3,"exp":"가열 베드는 첫 층 접착을 돕고 재료의 급격한 냉각·수축으로 인한 워핑을 줄이는 데 사용한다.","set":"실전모의1"},{"id":29,"cat":"3D프린터 설정","topic":"압출 보정","q":"Flow(압출 배율) 보정의 목적은?","opts":["명령한 선 폭과 실제 압출량의 차이를 줄이기","레이저 파장을 바꾸기","베드 크기를 확장하기","필라멘트 색을 혼합하기"],"ans":0,"exp":"압출 배율은 실제로 토출되는 재료량을 조정한다. 지나치면 과압출, 부족하면 언더익스트루전이 발생한다.","set":"실전모의1"},{"id":30,"cat":"3D프린터 설정","topic":"냉각","q":"PLA의 작은 오버행이나 브리지를 출력할 때 부품 냉각 팬의 일반적인 역할은?","opts":["모터를 역회전시킨다","압출된 재료를 빠르게 굳혀 처짐을 줄인다","필라멘트를 녹인다","베드를 가열한다"],"ans":1,"exp":"부품 냉각은 새로 압출된 재료를 빠르게 고정해 오버행과 브리지 품질을 높인다. 재료별 권장 냉각량은 다르다.","set":"실전모의1"},{"id":31,"cat":"3D프린터 설정","topic":"G-code","q":"일반적인 G-code에서 G28 명령의 의미는?","opts":["팬 정지","파일 저장","축 원점 복귀(Homing)","노즐 온도 28℃ 설정"],"ans":2,"exp":"G28은 지정 축 또는 전체 축을 홈 위치로 이동해 기준점을 잡는 데 사용한다.","set":"실전모의1"},{"id":32,"cat":"3D프린터 설정","topic":"G-code","q":"일반적인 G-code에서 G1 명령은 주로 무엇에 사용되는가?","opts":["프린터 전원 차단","모델 스캔","레진 경화","직선 보간 이동과 압출"],"ans":3,"exp":"G1은 지정한 좌표로 직선 이동하며 E값을 함께 주면 압출 이동을 수행한다.","set":"실전모의1"},{"id":33,"cat":"3D프린터 설정","topic":"G-code","q":"FDM용 G-code에서 E 값은 주로 무엇을 나타내는가?","opts":["압출기 이동량","베드 면적","팬 개수","레이저 파장"],"ans":0,"exp":"E축은 압출기 필라멘트 이송량을 나타내며, 이동 좌표와 함께 재료 토출을 제어한다.","set":"실전모의1"},{"id":34,"cat":"3D프린터 설정","topic":"G-code","q":"G-code의 F 값이 일반적으로 의미하는 것은?","opts":["팬 날개 수","이송 속도(Feed rate)","필라멘트 색상","파일 형식"],"ans":1,"exp":"F는 이동의 이송 속도를 나타낸다. 펌웨어와 설정에 따라 보통 mm/min 단위를 사용한다.","set":"실전모의1"},{"id":35,"cat":"제품 출력 및 안전관리","topic":"출력 방식","q":"FDM/FFF 방식의 원리로 옳은 것은?","opts":["금속판을 절삭만 한다","분말을 손으로 접착한다","열가소성 필라멘트를 녹여 노즐로 압출·적층한다","액상 수지를 종이로 흡수한다"],"ans":2,"exp":"FDM/FFF는 열가소성 재료를 가열해 노즐로 압출하고 층층이 쌓는 재료 압출 방식이다.","set":"실전모의1"},{"id":36,"cat":"제품 출력 및 안전관리","topic":"출력 방식","q":"SLA/DLP 계열 방식에서 주로 사용하는 재료는?","opts":["목재 판재","종이 테이프","고무 지우개","광경화성 수지"],"ans":3,"exp":"SLA와 DLP는 빛에 반응해 굳는 액상 광경화성 수지를 선택적으로 경화한다.","set":"실전모의1"},{"id":37,"cat":"제품 출력 및 안전관리","topic":"출력 방식","q":"SLS 방식의 설명으로 옳은 것은?","opts":["분말층을 레이저로 선택 소결한다","필라멘트를 냉간 압연한다","액상 수지를 잉크젯 종이에 인쇄한다","금형에 사출만 한다"],"ans":0,"exp":"SLS는 얇게 펼친 분말층을 레이저로 선택적으로 소결하고 이 과정을 반복해 형상을 만든다.","set":"실전모의1"},{"id":38,"cat":"제품 출력 및 안전관리","topic":"재료","q":"PLA의 일반적 특징으로 가장 적절한 것은?","opts":["모든 용제에 완전히 안전하다","비교적 출력이 쉽고 수축이 적은 편이다","항상 300℃ 이상에서만 출력된다","물에 닿으면 즉시 금속이 된다"],"ans":1,"exp":"PLA는 비교적 낮은 출력 온도와 적은 워핑으로 입문용으로 널리 쓰이지만 내열성은 제한적이다.","set":"실전모의1"},{"id":39,"cat":"제품 출력 및 안전관리","topic":"재료","q":"ABS 출력 시 특히 고려할 사항은?","opts":["물에 담가 출력","자외선으로만 경화","수축·워핑과 발생 가스를 고려한 챔버·환기","가열이 전혀 필요 없음"],"ans":2,"exp":"ABS는 수축과 워핑이 크고 출력 중 냄새와 가스가 발생할 수 있어 적절한 온도 관리와 환기가 중요하다.","set":"실전모의1"},{"id":40,"cat":"제품 출력 및 안전관리","topic":"재료","q":"PETG의 일반적 특징으로 적절한 것은?","opts":["광경화성 수지이므로 UV만 사용한다","분말 재료만 존재한다","가열하면 전혀 녹지 않는다","PLA보다 질기고 층간 접착이 좋은 편이나 스트링이 생길 수 있다"],"ans":3,"exp":"PETG는 인성과 내화학성이 비교적 좋고 층간 접착이 강한 편이지만, 온도·리트랙션이 맞지 않으면 스트링이 늘 수 있다.","set":"실전모의1"},{"id":41,"cat":"제품 출력 및 안전관리","topic":"재료","q":"TPU와 같은 유연 필라멘트 출력에 유리한 조건은?","opts":["필라멘트 경로가 짧고 구속이 잘 되며 속도를 낮춘다","이송 경로를 최대한 느슨하게 한다","리트랙션을 무조건 매우 크게 한다","노즐을 가열하지 않는다"],"ans":0,"exp":"유연 재료는 눌리고 휘기 쉬우므로 압출기에서 노즐까지 경로가 잘 구속되어야 하며 낮은 속도가 안정적이다.","set":"실전모의1"},{"id":42,"cat":"제품 출력 및 안전관리","topic":"재료 보관","q":"수분을 흡수한 필라멘트에서 나타날 수 있는 현상은?","opts":["노즐 지름이 커짐","압출 중 터지는 소리·기포·거친 표면","출력 속도가 무한히 증가","모델이 자동 도색됨"],"ans":1,"exp":"흡습된 재료의 수분이 노즐에서 수증기로 변하며 기포, 팝핑 소리, 거친 표면과 약한 출력물을 만들 수 있다.","set":"실전모의1"},{"id":43,"cat":"제품 출력 및 안전관리","topic":"재료 규격","q":"1.75 mm 필라멘트를 사용하는 장비에서 필라멘트 직경 설정이 실제보다 크게 입력되면 일반적으로 어떻게 될 수 있는가?","opts":["모터가 없어도 출력된다","레이어 높이가 0이 된다","슬라이서가 필요한 길이를 적게 계산해 압출량이 부족해질 수 있다","베드가 자동으로 커진다"],"ans":2,"exp":"슬라이서는 필라멘트 단면적을 이용해 필요한 길이를 계산한다. 실제보다 큰 지름을 입력하면 필요한 길이를 적게 산정해 언더익스트루전이 생길 수 있다.","set":"실전모의1"},{"id":44,"cat":"제품 출력 및 안전관리","topic":"불량 진단","q":"언더익스트루전의 원인으로 보기 어려운 것은?","opts":["노즐 막힘","낮은 노즐 온도","압출기 기어 미끄러짐","적정 압출량보다 지나치게 높은 Flow"],"ans":3,"exp":"Flow가 지나치게 높으면 과압출 경향이 나타난다. 나머지는 압출 부족의 대표 원인이다.","set":"실전모의1"},{"id":45,"cat":"제품 출력 및 안전관리","topic":"불량 진단","q":"과압출 시 나타나기 쉬운 현상은?","opts":["선이 과도하게 눌리고 표면에 재료가 뭉친다","레이어 사이에 빈틈만 생긴다","필라멘트가 전혀 나오지 않는다","모델이 항상 작아진다"],"ans":0,"exp":"과압출은 필요 이상의 재료가 토출되어 치수 증가, 표면 융기, 모서리 뭉침 등을 일으킨다.","set":"실전모의1"},{"id":46,"cat":"제품 출력 및 안전관리","topic":"불량 진단","q":"출력 도중 특정 높이부터 층 전체가 옆으로 어긋나는 레이어 시프트의 주요 원인은?","opts":["베드 표면 색상","벨트 풀림·풀리 미끄러짐·모터 스텝 손실","STL 색상 오류","필라멘트 라벨 훼손"],"ans":1,"exp":"축 구동계의 벨트·풀리 문제, 충돌, 과도한 속도·가속도, 모터 전류 문제는 위치 스텝 손실을 일으킬 수 있다.","set":"실전모의1"},{"id":47,"cat":"제품 출력 및 안전관리","topic":"불량 진단","q":"출력물 모서리가 베드에서 위로 들리는 워핑을 줄이는 방법으로 적절한 것은?","opts":["베드의 기름기를 그대로 둔다","노즐을 베드에서 멀리 띄운다","베드 접착과 온도 환경을 개선하고 급격한 냉각을 줄인다","첫 층 속도를 최대로 높인다"],"ans":2,"exp":"워핑은 재료 수축과 온도 차이로 발생하므로 깨끗한 베드, 적절한 베드 온도, 브림, 챔버, 외풍 차단 등이 도움이 된다.","set":"실전모의1"},{"id":48,"cat":"제품 출력 및 안전관리","topic":"불량 진단","q":"출력물 바닥 가장자리가 바깥으로 퍼지는 '코끼리 발' 현상의 원인으로 가장 적절한 것은?","opts":["필라멘트가 전혀 공급되지 않음","레이어 높이가 너무 큼만이 유일한 원인","스캐너 해상도가 낮음","첫 층이 과도하게 눌리거나 베드 온도가 너무 높음"],"ans":3,"exp":"첫 층 노즐 간격이 너무 낮거나 뜨거운 베드로 하단층이 눌리면 바닥 가장자리가 퍼질 수 있다.","set":"실전모의1"},{"id":49,"cat":"제품 출력 및 안전관리","topic":"유지보수","q":"노즐 막힘을 안전하게 점검하는 순서로 가장 적절한 것은?","opts":["재료 권장 온도로 가열하고 압출 경로·노즐을 점검한 뒤 필요 시 청소한다","전원을 켠 채 손으로 노즐 끝을 만진다","무조건 드릴로 크게 뚫는다","베드에 물을 붓는다"],"ans":0,"exp":"노즐을 적정 온도로 가열한 뒤 필라멘트 공급, 기어, 튜브, 노즐을 순서대로 확인한다. 화상과 장비 손상에 주의한다.","set":"실전모의1"},{"id":50,"cat":"제품 출력 및 안전관리","topic":"불량 진단","q":"모서리 뒤에 물결무늬가 반복되는 링잉(고스팅)을 줄이는 방법은?","opts":["인필을 0%로만 만든다","속도·가속도·저크를 낮추고 프레임과 벨트를 점검한다","노즐 온도를 무조건 최고로 올린다","파일 확장자를 JPG로 바꾼다"],"ans":1,"exp":"링잉은 급격한 방향 전환에 따른 진동이 주원인이다. 기계 강성, 벨트 장력, 속도·가속도 설정을 점검한다.","set":"실전모의1"},{"id":51,"cat":"제품 출력 및 안전관리","topic":"불량 진단","q":"층 사이가 쉽게 갈라지는 박리(delamination)를 줄이는 방법으로 적절한 것은?","opts":["레이어 사이에 먼지를 뿌린다","출력 중 문을 계속 열어 찬바람을 넣는다","재료에 맞게 노즐 온도와 주변 온도를 조정하고 층간 결합을 확보한다","냉각을 무조건 최대로 한다"],"ans":2,"exp":"낮은 온도, 과도한 냉각, 외풍은 층간 접착을 약화할 수 있다. 재료별 적정 온도와 챔버 환경을 사용한다.","set":"실전모의1"},{"id":52,"cat":"제품 출력 및 안전관리","topic":"후처리","q":"서포트 제거 흔적을 줄이기 위한 설정으로 가장 관련이 큰 것은?","opts":["모니터 해상도","USB 이름","전원 케이블 색상","서포트 접촉 간격과 인터페이스 설정"],"ans":3,"exp":"서포트의 Z 간격, XY 간격, 인터페이스 층을 적절히 조정하면 지지는 유지하면서 제거성과 표면 품질을 개선할 수 있다.","set":"실전모의1"},{"id":53,"cat":"제품 출력 및 안전관리","topic":"안전","q":"FDM 프린터의 노즐과 히트블록을 다룰 때 가장 중요한 안전수칙은?","opts":["고온부 접촉을 피하고 충분히 냉각된 뒤 작업한다","작동 중 맨손으로 노즐을 잡는다","가열 상태를 확인하지 않는다","금속 공구를 전원부에 접촉한다"],"ans":0,"exp":"노즐과 히트블록은 매우 뜨거워 화상 위험이 크므로 전원을 차단하고 온도를 확인한 뒤 적절한 공구와 보호구를 사용한다.","set":"실전모의1"},{"id":54,"cat":"제품 출력 및 안전관리","topic":"안전","q":"광경화성 수지 취급 시 적절한 안전조치는?","opts":["남은 수지를 하수구에 버린다","니트릴 장갑·보안경을 사용하고 환기하며 피부 접촉을 피한다","맨손으로 장시간 섞는다","음식 용기에 보관한다"],"ans":1,"exp":"미경화 수지는 피부 자극 등 위험이 있으므로 제조사 SDS를 따르고 장갑·보안경·환기·적정 폐기 절차를 지켜야 한다.","set":"실전모의1"},{"id":55,"cat":"제품 출력 및 안전관리","topic":"안전","q":"실내 3D 프린팅 작업장에서 환기가 필요한 주된 이유는?","opts":["STL 삼각형 수를 늘리기 위해","베드 수평을 자동화하기 위해","재료와 공정에서 발생할 수 있는 입자·휘발성 물질 노출을 줄이기 위해","모델 크기를 키우기 위해"],"ans":2,"exp":"재료와 온도에 따라 초미세입자와 휘발성 물질이 발생할 수 있으므로 국소배기·환기와 밀폐형 장비를 고려한다.","set":"실전모의1"},{"id":56,"cat":"제품 출력 및 안전관리","topic":"안전","q":"분말 기반 3D 프린팅 장비에서 특히 주의할 위험은?","opts":["필라멘트 꼬임만","베드 스티커 색상","모니터 번인","분진 흡입·비산과 재료에 따른 화재·폭발 위험"],"ans":3,"exp":"미세 분말은 흡입과 비산 위험이 있고 일부 금속·고분자 분말은 가연성일 수 있으므로 밀폐, 집진, 접지, 적합한 보호구가 필요하다.","set":"실전모의1"},{"id":57,"cat":"제품 출력 및 안전관리","topic":"안전","q":"출력 중 이상 소음과 연기가 발생했을 때 가장 먼저 할 행동은?","opts":["안전을 확보하고 비상정지 또는 전원을 차단한 뒤 원인을 점검한다","출력 속도를 높인다","가까이 얼굴을 대고 냄새를 맡는다","그대로 두고 자리를 비운다"],"ans":0,"exp":"연기·과열·충돌 등 이상 징후가 있으면 즉시 안전한 방식으로 정지하고 전원을 차단한 뒤 충분히 식혀 점검한다.","set":"실전모의1"},{"id":58,"cat":"제품 출력 및 안전관리","topic":"유지보수","q":"가이드 레일이나 리드스크루 유지보수 방법으로 적절한 것은?","opts":["먼지가 쌓이도록 둔다","제조사 지침에 따라 청소하고 지정 윤활제를 소량 사용한다","모래를 뿌린다","식용유를 다량 붓는다"],"ans":1,"exp":"구동부는 먼지를 제거하고 제조사가 권장하는 윤활제를 적정량 사용해야 한다. 과도한 윤활은 먼지 부착을 늘릴 수 있다.","set":"실전모의1"},{"id":59,"cat":"제품 출력 및 안전관리","topic":"안전","q":"장시간 출력 작업의 화재 예방 방법으로 가장 적절한 것은?","opts":["멀티탭 정격을 무시한다","이상 냄새가 나도 계속 출력한다","전기·히터·배선 상태를 점검하고 가연물을 치우며 안전한 모니터링 체계를 둔다","프린터 위에 종이와 천을 쌓는다"],"ans":2,"exp":"히터와 전기부품을 사용하는 장비이므로 정격 전원, 배선, 열 보호 기능, 주변 가연물 제거, 화재 감지·대응 체계를 점검해야 한다.","set":"실전모의1"},{"id":60,"cat":"제품 출력 및 안전관리","topic":"후처리 안전","q":"니퍼·칼·사포를 이용한 후처리 작업에서 올바른 안전수칙은?","opts":["칼날을 몸 쪽으로 당긴다","작은 부품을 맨손으로 불안정하게 잡는다","보호구 없이 분진을 불어낸다","보안경 등 보호구를 착용하고 절단 방향에 손을 두지 않는다"],"ans":3,"exp":"후처리 중 절단 상처와 파편·분진 위험이 있으므로 공작물을 고정하고 절단 방향을 피하며 보안경·장갑·마스크 등을 적절히 사용한다.","set":"실전모의1"}];
+const QUESTIONS_SET2 = [{"id":61,"cat":"제품 출력 및 안전관리","topic":"출력 방식","set":"실전모의2","q":"3D 프린팅 방식 중 고체(필라멘트) 기반 방식에 해당하는 것은?","opts":["SLA","DLP","FDM","SLS"],"ans":2,"exp":"FDM은 열가소성 수지(필라멘트)를 사용하는 고체 기반 방식입니다. SLA/DLP는 액체(광경화성 수지), SLS는 분말 기반입니다."},{"id":62,"cat":"제품 출력 및 안전관리","topic":"출력 방식","set":"실전모의2","q":"광경화성 수지가 담긴 수조에 레이저 빔을 쏘아 형상을 만드는 액체 기반 3D 프린팅 방식은?","opts":["FDM","SLA","SLS","LOM"],"ans":1,"exp":"SLA는 빛을 받으면 굳어지는 광경화성 수지(레진)를 사용하는 액체 기반의 프린팅 방식입니다."},{"id":63,"cat":"데이터 생성","topic":"파일 형식","set":"실전모의2","q":"마이크로소프트사가 주도하여 STL 포맷의 한계를 극복하고 색상, 재질, 압출 정보 등을 포함하도록 개발한 최신 3D 포맷은?","opts":["3MF","OBJ","PLY","IGES"],"ans":0,"exp":"3MF 포맷은 기존 STL의 단점을 보완하여 컬러 및 재질 정보를 종합적으로 저장할 수 있게 만든 최신 표준 포맷입니다."},{"id":64,"cat":"데이터 생성","topic":"파일 형식","set":"실전모의2","q":"STL 파일의 기하학적 법칙에서 정점(Vertex)의 수가 V 일 때, 전체 삼각형 개수 F 와의 관계식으로 옳은 것은?","opts":["V = F/2 + 2","V = 2F + 6","V = F - 2","V = 3F"],"ans":0,"exp":"STL 파일 법칙에 따라 꼭짓점의 수(V) = (총 삼각형의 수(F) / 2) + 2 입니다."},{"id":65,"cat":"데이터 생성","topic":"파일 형식","set":"실전모의2","q":"STL 메쉬 데이터에서 발생할 수 있는 오류 중, 실제로 존재할 수 없는 비정상적 구조(예: 한 가장자리에 3개 이상의 면이 만남)를 나타내는 형상은?","opts":["비매니폴드 (Non-Manifold) 형상","클로즈 메시 (Closed Mesh)","오픈 메시 (Open Mesh)","정상 반전면"],"ans":0,"exp":"비매니폴드 형상은 현실의 3차원 물체에서는 물리적으로 존재할 수 없는 면과 모서리의 연결 상태를 말합니다."},{"id":66,"cat":"제품 출력 및 안전관리","topic":"종합","set":"실전모의2","q":"다음 중 3D 프린팅 제조 방식의 장점이라고 할 수 없는 항목은?","opts":["금형과 같은 틀이 필요 없다.","대량 생산 시 사출 성형보다 생산 단가가 저렴하다.","다양한 형태의 제품을 동시에 제작할 수 있다.","내부 공간을 자유롭게 디자인하여 경량화할 수 있다."],"ans":1,"exp":"3D 프린팅은 다품종 소량 생산이나 시제품 제작에 유리하지만, 똑같은 물건을 수만 개 이상 대량 생산할 때는 금형을 이용한 사출 성형 방식이 훨씬 저렴하고 빠릅니다."},{"id":67,"cat":"3D프린터 설정","topic":"G-code","set":"실전모의2","q":"G코드 명령어 중 3D 프린터의 '이송 속도'를 설정하는 명령어는?","opts":["M104","Ennn","Fnnn","G02"],"ans":2,"exp":"F 명령어는 이송 속도(Feedrate)를 의미합니다. E는 압출량, M104는 온도 설정 명령어입니다."},{"id":68,"cat":"제품 출력 및 안전관리","topic":"안전관리","set":"실전모의2","q":"화학물질을 안전하게 사용하고 관리하기 위해 필요한 정보를 기재한 '물질안전보건자료'의 약자는?","opts":["STL","MSDS","AMF","CBT"],"ans":1,"exp":"MSDS(Material Safety Data Sheet)는 화학물질의 유해성, 위험성, 응급조치 요령 등을 설명한 자료입니다."},{"id":69,"cat":"3D프린터 설정","topic":"베드 접착","set":"실전모의2","q":"고온에서 주로 사용되는 ABS 재료 출력 시, 출력물의 바닥이 수축하면서 들뜨는 현상을 무엇이라 하는가?","opts":["서포터(Supporter)","스커트(Skirt)","워핑(Warping)","오버행(Overhang)"],"ans":2,"exp":"열수축으로 인해 바닥이 말려 올라가는 현상을 워핑(Warping)이라고 하며, 이를 방지하기 위해 히팅베드, 브림, 라프트 등을 사용합니다."},{"id":70,"cat":"제품 출력 및 안전관리","topic":"후가공","set":"실전모의2","q":"3D프린터 출력 및 후가공 작업 중 유해가스 및 분진 차단을 위해 반드시 착용해야 하는 안전 보호구는?","opts":["방진마스크","절연장갑","안전모","귀마개"],"ans":0,"exp":"3D 프린터 가동 시 발생하는 미세먼지나 유해가스를 막기 위해 방진마스크 착용이 필수적이며, 작업장 환기를 철저히 해야 합니다."},{"id":71,"cat":"제품 출력 및 안전관리","topic":"출력 방식","set":"실전모의2","q":"광경화성 수지에 빔이 아닌 프로젝터를 사용하여 한 면(Layer) 전체에 빛을 쏘아 한 번에 굳히는 3D 프린팅 방식은?","opts":["FDM","SLA","DLP","SLS"],"ans":2,"exp":"DLP(Digital Light Processing)는 프로젝터를 사용하여 면 단위로 경화시키므로 SLA보다 출력 속도가 빠릅니다."},{"id":72,"cat":"3D프린터 설정","topic":"출력 방식","set":"실전모의2","q":"분말 재료를 얇게 깔고 레이저로 소결하여 조형하며, 남은 분말이 서포터 역할을 하여 별도의 서포터가 필요 없는 방식은?","opts":["FDM","SLA","LOM","SLS"],"ans":3,"exp":"SLS(Selective Laser Sintering)는 분말(파우더)을 레이저로 녹여 붙이는 방식으로 복잡한 형상 출력에 유리합니다."},{"id":73,"cat":"제품 출력 및 안전관리","topic":"출력 방식","set":"실전모의2","q":"종이나 필름 등의 얇은 소재를 접착하고 칼이나 레이저로 잘라내어 적층하는 3D 프린팅 방식은?","opts":["SLS","LOM","FDM","SLA"],"ans":1,"exp":"LOM(Laminated Object Manufacturing)은 종이나 필름을 접착하여 칼로 잘라내는 적층 조형 방식입니다."},{"id":74,"cat":"데이터 생성","topic":"파일 형식","set":"실전모의2","q":"STL 데이터에서 삼각형 면들의 방향(안과 밖)이 뒤집혀 정상적으로 슬라이싱되지 않는 오류는?","opts":["반전면 (Inverted Normal)","오픈 메시","비매니폴드","겹친 메시"],"ans":0,"exp":"3D 모델의 면은 안쪽과 바깥쪽 방향(Normal)을 가집니다. 이것이 뒤집히면 프린터가 빈 공간으로 인식할 수 있습니다."},{"id":75,"cat":"데이터 생성","topic":"파일 형식","set":"실전모의2","q":"3D 모델 파일 포맷 중 컬러와 재질, 메타데이터 정보를 종합적으로 담을 수 있도록 개발된 ISO/ASTM 표준 포맷은?","opts":["AMF","STL","IGES","STEP"],"ans":0,"exp":"AMF(Additive Manufacturing File format)는 기존 STL을 대체하기 위해 색상과 재질 정보를 포함한 XML 기반 표준 파일 형식입니다."},{"id":76,"cat":"3D프린터 설정","topic":"G-code","set":"실전모의2","q":"G-Code 명령어 중 기계의 헤드를 각 축의 기준점(Home)으로 원대복귀시키는 명령어는?","opts":["G0","G1","G28","G90"],"ans":2,"exp":"G28 명령어는 X, Y, Z축을 원점(Home 포지션)으로 이동시킵니다."},{"id":77,"cat":"3D프린터 설정","topic":"G-code","set":"실전모의2","q":"G-Code 명령어 중 노즐(압출기)의 온도를 설정하고 목표 온도에 도달할 때까지 대기하지 않고 다음 코드로 넘어가는 명령어는?","opts":["M104","M109","M140","M190"],"ans":0,"exp":"M104는 노즐 온도 설정 명령어이며, 온도가 올라가는 동안 다른 작업을 수행할 수 있습니다. (대기하는 명령어는 M109)"},{"id":78,"cat":"3D프린터 설정","topic":"G-code","set":"실전모의2","q":"G-Code 명령어 중 히팅 베드의 온도를 설정하는 명령어는?","opts":["M104","M140","M106","M107"],"ans":1,"exp":"M140은 베드(Bed)의 온도를 설정하는 명령어입니다."},{"id":79,"cat":"3D프린터 설정","topic":"G-code","set":"실전모의2","q":"G-Code 명령어 중 직선 보간(압출하며 이동)을 의미하는 명령어는?","opts":["G0","G1","G2","G3"],"ans":1,"exp":"G1은 설정된 속도(F)로 재료를 압출(E)하면서 지정된 좌표로 직선 이동하라는 명령어입니다."},{"id":80,"cat":"3D프린터 설정","topic":"베드 접착","set":"실전모의2","q":"출력 전 바닥 안착을 돕기 위해 출력물 외곽에 일정 거리를 띄워 테두리를 출력하며, 노즐의 압출 상태를 확인하는 용도의 보조물은?","opts":["스커트 (Skirt)","브림 (Brim)","라프트 (Raft)","서포터 (Support)"],"ans":0,"exp":"스커트는 출력물과 닿지 않는 테두리를 그려 필라멘트가 원활하게 나오는지 테스트하는 기능입니다."},{"id":81,"cat":"3D프린터 설정","topic":"베드 접착","set":"실전모의2","q":"출력물의 바닥 안착력을 높이기 위해 출력물 바닥 테두리에 넓은 챙을 달아 면적을 넓혀주는 보조물은?","opts":["스커트","브림 (Brim)","라프트","인필"],"ans":1,"exp":"브림은 출력물 바닥면에 챙을 달아 베드와의 접착 면적을 넓혀 워핑(수축) 현상을 줄여줍니다."},{"id":82,"cat":"3D프린터 설정","topic":"베드 접착","set":"실전모의2","q":"바닥 수축 방지 및 베드 레벨링 불균형 보완을 위해 출력물 아래에 두꺼운 그물망 형태의 판을 먼저 까는 보조물은?","opts":["스커트","브림","라프트 (Raft)","오버행"],"ans":2,"exp":"라프트는 출력물 아래에 뗏목(Raft) 같은 두꺼운 바닥을 먼저 깔아 수축을 최소화합니다."},{"id":83,"cat":"3D프린터 설정","topic":"종합","set":"실전모의2","q":"허공에 떠 있는 돌출부(오버행)가 중력에 의해 무너지는 것을 막기 위해 임시로 받쳐주는 구조물은?","opts":["인필","쉘","라프트","서포터 (Support)"],"ans":3,"exp":"서포터(지지대)는 중력을 거슬러 허공에 출력해야 할 때 이를 받쳐주기 위해 임시로 세우는 기둥입니다."},{"id":84,"cat":"제품 출력 및 안전관리","topic":"종합","set":"실전모의2","q":"출력물의 내부 채움(Infill) 밀도에 대한 설명으로 올바른 것은?","opts":["0%로 설정하면 속이 꽉 찬 솔리드가 된다.","밀도를 높일수록 출력 시간이 크게 단축된다.","강도를 높이려면 밀도 퍼센트(%)를 높여야 한다.","무조건 100%로 설정하는 것이 원칙이다."],"ans":2,"exp":"내부 채움 밀도(Infill Density)가 높을수록 튼튼해지지만 출력 시간과 재료 소모량이 늘어납니다."},{"id":85,"cat":"3D프린터 설정","topic":"출력 불량","set":"실전모의2","q":"3D 프린터 압출기가 빈 공간을 이동할 때 필라멘트가 새어나와 거미줄(Stringing)처럼 생기는 현상을 방지하는 기능은?","opts":["리트랙션 (Retraction)","워핑 (Warping)","새깅 (Sagging)","스커트"],"ans":0,"exp":"리트랙션은 압출기가 이동할 때 필라멘트를 역으로 살짝 당겨 노즐 끝에서 재료가 새는 것을 막는 기능입니다."},{"id":86,"cat":"제품 출력 및 안전관리","topic":"출력 방식","set":"실전모의2","q":"FDM 프린터에서 레이어(층) 사이의 접착 불량으로 층이 갈라지는 현상의 원인으로 가장 적절한 것은?","opts":["베드 온도가 너무 높다.","노즐 온도가 너무 낮다.","출력 속도가 너무 느리다.","리트랙션 길이가 너무 짧다."],"ans":1,"exp":"노즐 온도가 너무 낮으면 필라멘트가 충분히 녹지 않아 이전 층과 제대로 융착(결합)되지 못하고 틈이 생깁니다."},{"id":87,"cat":"3D프린터 설정","topic":"종합","set":"실전모의2","q":"3D 프린터 출력 준비 과정인 레벨링(Leveling) 시 노즐 끝과 베드 사이의 가장 적절한 간격은?","opts":["0mm (완전 밀착)","명함 한 장 두께 (약 0.1~0.2mm)","동전 한 개 두께 (약 1.5mm)","5mm"],"ans":1,"exp":"일반적으로 A4 용지나 명함 한 장(0.1mm 내외)이 뻑뻑하게 들어갈 정도의 간격이 바닥 안착에 가장 적절합니다."},{"id":88,"cat":"제품 출력 및 안전관리","topic":"베드 접착","set":"실전모의2","q":"수축이 커서 챔버(밀폐형) 구조와 히팅 베드가 반드시 필요하며, 아세톤으로 표면 처리가 가능한 필라멘트 재질은?","opts":["PLA","ABS","TPU","PVA"],"ans":1,"exp":"ABS 필라멘트는 열수축이 매우 심하여 히팅베드 없이 유리 베드에 바로 출력하면 100% 워핑 현상이 발생합니다."},{"id":89,"cat":"제품 출력 및 안전관리","topic":"재료","set":"실전모의2","q":"옥수수 전분 등 식물성 수지에서 추출하여 친환경적이고 열수축이 적어 초보자가 다루기 가장 쉬운 대중적인 필라멘트는?","opts":["ABS","PLA","PC","HIPS"],"ans":1,"exp":"PLA(Poly Lactic Acid)는 냄새가 적고 유해가스 발생이 적으며, 수축이 거의 없어 개방형 3D 프린터에서 주로 사용됩니다."},{"id":90,"cat":"제품 출력 및 안전관리","topic":"재료","set":"실전모의2","q":"고무와 같이 유연하고 신축성이 있는 스마트폰 케이스, 타이어 모형 등의 출력물을 만들 때 주로 사용하는 필라멘트는?","opts":["TPU","PLA","ABS","PETG"],"ans":0,"exp":"TPU(Thermoplastic Poly Urethane)는 탄성이 뛰어난 연질(Flexible) 필라멘트입니다."},{"id":91,"cat":"3D프린터 설정","topic":"출력 방식","set":"실전모의2","q":"물에 녹는 성질(수용성)이 있어 FDM 듀얼 노즐 프린터에서 주로 복잡한 형상의 서포터 재료로 쓰이는 필라멘트는?","opts":["ABS","PLA","PVA","PC"],"ans":2,"exp":"PVA(Polyvinyl Alcohol)는 물에 쉽게 녹는 특성이 있어 서포터를 제거하기 힘든 내부 공간 구조 출력에 적합합니다."},{"id":92,"cat":"3D프린터 설정","topic":"G-code","set":"실전모의2","q":"G-Code 'M109' 명령어의 올바른 의미는?","opts":["쿨링팬 켜기","쿨링팬 끄기","노즐 온도를 설정하고 목표 온도 도달 시까지 대기","베드 온도를 설정하고 목표 온도 도달 시까지 대기"],"ans":2,"exp":"M104와 달리 M109는 노즐이 설정된 온도까지 오를 때까지 프린터가 다음 코드를 실행하지 않고 기다립니다."},{"id":93,"cat":"3D프린터 설정","topic":"출력 불량","set":"실전모의2","q":"3D 프린터의 스텝 모터가 물리적인 저항 등의 이유로 펄스를 잃어버려 지정된 위치로 이동하지 못하고 레이어가 어긋나는 현상은?","opts":["탈조 (Step skipping)","워핑 (Warping)","거미줄 (Stringing)","코끼리 발 (Elephant foot)"],"ans":0,"exp":"모터의 힘보다 저항이 커서 모터가 헛돌아 X축이나 Y축 좌표가 틀어지는 현상을 '탈조'라고 합니다."},{"id":94,"cat":"3D프린터 설정","topic":"슬라이싱 설정","set":"실전모의2","q":"압출 불량(Under extrusion, 필라멘트가 덜 나오는 현상)의 원인으로 거리가 먼 것은?","opts":["노즐 내부가 이물질로 막힘","설정된 노즐 온도가 너무 낮음","리트랙션 설정을 과도하게 많이 줌","슬라이서에 설정한 필라멘트 굵기(직경)가 실제보다 두꺼움"],"ans":3,"exp":"슬라이서에 1.75mm로 설정했는데 실제 필라멘트가 3.0mm라면 오히려 과압출(Over extrusion) 현상이 발생합니다."},{"id":95,"cat":"3D프린터 설정","topic":"출력 불량","set":"실전모의2","q":"출력물의 첫 번째 레이어가 바닥에 너무 강하게 눌려 바닥 면이 코끼리 발처럼 넓게 퍼져 튀어나오는 현상을 무엇이라 하는가?","opts":["워핑","코끼리 발 (Elephant foot)","탈조","새깅"],"ans":1,"exp":"초기 노즐과 베드의 간격이 너무 좁거나 첫 번째 레이어의 압출량이 너무 많을 때 발생합니다."},{"id":96,"cat":"3D프린터 설정","topic":"출력 불량","set":"실전모의2","q":"노즐 막힘(Clogging) 현상이 발생했을 때의 조치로 부적절한 것은?","opts":["노즐 온도를 높이고 얇은 침(니들)으로 뚫어준다.","노즐을 분해하여 내부 이물질을 제거한다.","노즐 온도를 실온으로 완전히 낮춘 후 강제로 밀어낸다.","오염이 심하면 새로운 노즐로 교체한다."],"ans":2,"exp":"노즐이 식은 상태에서 필라멘트를 강제로 밀면 기어가 갈리거나 익스트루더 부품이 파손될 수 있습니다."},{"id":97,"cat":"제품 출력 및 안전관리","topic":"출력 방식","set":"실전모의2","q":"FDM 출력물 후가공 시 표면의 결(단차)이나 거친 부분을 가장 먼저 매끄럽게 다듬는 데 사용하는 기본적인 도구는?","opts":["인두기","사포 (Sandpaper)","글루건","마스킹 테이프"],"ans":1,"exp":"출력 후 표면 연마 작업의 기본은 사포(샌드페이퍼) 작업입니다."},{"id":98,"cat":"제품 출력 및 안전관리","topic":"후가공","set":"실전모의2","q":"사포질(Sanding) 작업 시 올바른 순서는?","opts":["번호가 큰 고운 사포에서 작은 거친 사포 순으로","번호가 작은 거친 사포에서 큰 고운 사포 순으로","번호 상관없이 무작위로","한 가지 번호로만 끝까지 연마"],"ans":1,"exp":"사포는 숫자가 작을수록 입자가 거칠고 큽니다. 거친 사포(#200)로 큰 굴곡을 잡고 고운 사포(#800 등)로 매끄럽게 마감해야 합니다."},{"id":99,"cat":"제품 출력 및 안전관리","topic":"후가공","set":"실전모의2","q":"출력물의 표면 단차가 너무 심하거나 깊은 흠집, 빈틈을 메워주는 찰흙 같은 용도로 사용하는 후가공 재료는?","opts":["서페이서","프라이머","퍼티 (Putty)","신너"],"ans":2,"exp":"퍼티를 틈새에 발라 메꾼 뒤, 굳으면 사포로 갈아내어 평탄화 작업을 합니다."},{"id":100,"cat":"제품 출력 및 안전관리","topic":"후가공","set":"실전모의2","q":"도색 작업 전 도료의 착색력을 높이고 표면의 미세한 흠집을 시각적으로 쉽게 확인하기 위해 뿌리는 회색 계열의 재료는?","opts":["서페이서 (Surfacer)","퍼티","콤파운드","아세톤"],"ans":0,"exp":"서페이서는 도료(페인트)가 잘 붙도록 돕고(프라이머 역할), 미세한 흠집을 메워주며 흠집을 잘 보이게 하는 역할을 합니다."},{"id":101,"cat":"제품 출력 및 안전관리","topic":"재료","set":"실전모의2","q":"ABS 필라멘트로 출력한 결과물의 표면을 화학 용액의 증기를 이용해 겉면을 살짝 녹여 매끄럽게 만드는 후가공 방법은?","opts":["샌딩","도색","훈증 (Fumigation)","연마"],"ans":2,"exp":"아세톤 훈증은 ABS의 표면 결을 녹여 코팅한 것처럼 아주 매끄럽게 만들어주는 방법입니다."},{"id":102,"cat":"제품 출력 및 안전관리","topic":"출력 방식","set":"실전모의2","q":"광경화성 수지(SLA/DLP) 출력물의 후처리 첫 단계로, 표면에 묻어있는 미경화 액상 레진을 씻어내는 세척액으로 주로 쓰이는 것은?","opts":["증류수","이소프로필 알코올 (IPA)","식염수","아세톤"],"ans":1,"exp":"미경화 레진은 물에 잘 씻기지 않으므로 알코올(에탄올 또는 IPA)을 이용하여 세척해야 합니다."},{"id":103,"cat":"제품 출력 및 안전관리","topic":"출력 방식","set":"실전모의2","q":"광경화성(SLA/DLP) 출력물은 세척 후에도 끈적임이 남고 표면이 덜 굳어 강도가 약합니다. 이를 보완하기 위해 반드시 거쳐야 하는 과정은?","opts":["초음파 세척","아세톤 훈증","자외선(UV) 후경화","열처리 공정"],"ans":2,"exp":"출력 직후의 레진은 '그린 파트' 상태로, UV 경화기를 이용해 빛을 추가로 쪼여주어야 단단해집니다."},{"id":104,"cat":"데이터 생성","topic":"스캐닝·역설계","set":"실전모의2","q":"대상물에 탐침(Probe)을 직접 닿게 하여 표면의 3차원 좌표값을 정밀하게 얻어내는 3D 스캐너 방식은?","opts":["백색광 스캐너","접촉식 스캐너","레이저 스캐너","TOF 스캐너"],"ans":1,"exp":"접촉식 스캐너(CMM 등)는 정밀도는 매우 높지만, 측정 시간이 매우 오래 걸리고 부드러운 물체는 측정하기 힘듭니다."},{"id":105,"cat":"데이터 생성","topic":"스캐닝·역설계","set":"실전모의2","q":"비접촉식 3D 스캐너(광학식, 레이저식)의 단점에 해당하는 것은?","opts":["정밀도가 접촉식보다 항상 압도적으로 높다.","스캔 속도가 수일 단위로 매우 느리다.","투명하거나 반사가 심한 물체는 스캔 데이터 확보가 어렵다.","대상물이 파손될 위험이 매우 높다."],"ans":2,"exp":"유리처럼 투명하거나 거울처럼 빛을 반사하는 물체, 아주 까만 물체는 빛을 흡수하거나 산란시켜 스캔이 안 되므로 백색 스프레이(현상액)를 뿌려야 합니다."},{"id":106,"cat":"데이터 생성","topic":"스캐닝·역설계","set":"실전모의2","q":"이미 완성된 실물 제품을 3D 스캐너로 스캔하여 포인트 클라우드 데이터를 얻고, 이를 역으로 추적해 CAD 모델 데이터로 변환하는 기술은?","opts":["쾌속조형 (RP)","동시공학","위상최적화","역설계 (Reverse Engineering)"],"ans":3,"exp":"역설계는 도면이 없는 구형 부품 등을 단종되었을 때 다시 만들기 위해 자주 사용하는 기술입니다."},{"id":107,"cat":"데이터 생성","topic":"3D 모델링","set":"실전모의2","q":"3D 모델링 방식 중 점과 선으로만 구성되어 내부가 비어있고, 데이터 크기가 가장 작아 뼈대만 나타내는 단순화된 모델은?","opts":["서피스 모델","와이어프레임 (Wireframe) 모델","솔리드 모델","폴리곤 모델"],"ans":1,"exp":"와이어프레임은 철사(Wire)로 프레임을 짠 것처럼 윤곽선만 보여주는 방식입니다."},{"id":108,"cat":"데이터 생성","topic":"3D 모델링","set":"실전모의2","q":"3D 모델링 방식 중 두께가 없는 껍데기(면)로 구성되어 있어 정밀한 곡면이나 화려한 형상 표현에 유리한 모델은?","opts":["서피스 (Surface) 모델","와이어프레임 모델","솔리드 모델","메타볼"],"ans":0,"exp":"서피스 모델링은 내부가 비어있고 겉 표면만 존재하지만 자동차 외관 디자인 등 유려한 곡면 작업에 탁월합니다."},{"id":109,"cat":"데이터 생성","topic":"3D 모델링","set":"실전모의2","q":"내부에 부피와 질량 데이터를 포함하고 있어, 단면 잘라보기나 무게 중심, 체적 계산 등의 물리적 해석이 가능한 3D 모델은?","opts":["서피스 모델","넙스 모델","메쉬 모델","솔리드 (Solid) 모델"],"ans":3,"exp":"솔리드 모델링은 부피가 꽉 차있는 개념이므로 기계 부품 설계(엔지니어링 CAD)에 주로 쓰이며 오류 발생률이 적습니다."},{"id":110,"cat":"제품 출력 및 안전관리","topic":"안전관리","set":"실전모의2","q":"3D 프린터 작업 시 발생하는 UFP(초미세먼지) 및 VOCs(휘발성 유기화합물)로부터 안전을 확보하기 위한 최우선 조치는?","opts":["귀마개 착용","작업장 환기 시설 가동","절연 장갑 착용","보안경 착용"],"ans":1,"exp":"밀폐된 공간에서 3D 프린터를 장시간 가동하면 유해가스가 누적되므로 적극적인 강제 환기가 필수입니다."},{"id":111,"cat":"제품 출력 및 안전관리","topic":"안전관리","set":"실전모의2","q":"3D 프린터의 구동 중 화상(Burn)의 위험이 가장 높은 부품은?","opts":["익스트루더 노즐부","스텝 모터","냉각 팬","LCD 패널"],"ans":0,"exp":"핫엔드(노즐)는 최대 200~250도 이상 올라가므로 맨손으로 만지면 즉시 심각한 화상을 입습니다."},{"id":112,"cat":"제품 출력 및 안전관리","topic":"안전관리","set":"실전모의2","q":"3D 프린터 작업장 내 화재 발생 시 가장 먼저 취해야 할 행동은?","opts":["장비 전원을 즉시 차단하고 대피한다.","물을 부어 소화한다.","창문을 폐쇄한다.","출력물을 안전한 곳으로 옮긴다."],"ans":0,"exp":"전기 기기 화재이므로 물을 부으면 감전의 위험이 큽니다. 반드시 전원을 차단하고 소화기를 이용하거나 대피해야 합니다."},{"id":113,"cat":"3D프린터 설정","topic":"슬라이싱 설정","set":"실전모의2","q":"실기시험 시 슬라이싱 예상 시간 제한으로 실격 처리되는 기준 시간은?","opts":["60분 초과","80분 초과","100분 초과","120분 초과"],"ans":1,"exp":"실기시험 규정 상 슬라이싱 프로그램에 나타난 예상 출력 시간이 '1시간 20분(80분)'을 1분이라도 초과하면 실격 처리됩니다."},{"id":114,"cat":"제품 출력 및 안전관리","topic":"실기 유의사항","set":"실전모의2","q":"출력 중 장비 고장이나 예기치 못한 정전 발생 시 시험 규정상 부여받을 수 있는 추가 시간은?","opts":["작업정지시간 + 5분","작업정지시간 + 10분","추가시간 없음","무조건 재시험"],"ans":0,"exp":"장비 결함 발생 시 작업정지 시간에 더하여 5분의 추가 시간을 부여합니다."},{"id":115,"cat":"3D프린터 설정","topic":"출력 방식","set":"실전모의2","q":"FDM 3D 프린터 출력 시 발생할 수 있는 허공에 뜬 '오버행(Overhang)' 구조의 무너짐을 방지하기 위해 반드시 필요한 설정은?","opts":["쿨링팬 끄기","서포터(지지대) 생성","채움 밀도 0%","리트랙션 해제"],"ans":1,"exp":"오버행 각도가 크면 중력에 의해 필라멘트가 아래로 처지므로 서포터를 활성화해야 합니다."},{"id":116,"cat":"3D프린터 설정","topic":"슬라이싱 설정","set":"실전모의2","q":"3D 프린터의 노즐 구멍 직경이 0.4mm일 때, 슬라이싱에서 권장되는 최적의 레이어 높이(Layer Height)는 얼마인가?","opts":["0.05mm 이하","0.1mm ~ 0.3mm","0.5mm 이상","1.0mm 이상"],"ans":1,"exp":"통상적으로 레이어 높이는 노즐 직경의 25%~75% 사이가 적당합니다. (0.4mm 노즐 기준 0.1~0.3mm)"},{"id":117,"cat":"데이터 생성","topic":"파일 형식","set":"실전모의2","q":"모델링 파일(STL)을 슬라이싱 프로그램으로 불러왔을 때 실수로 모델의 바닥이 베드에서 허공으로 약간 떠 있는 경우 올바른 조치 방법은?","opts":["Z축 스케일 확대","Drop to Bed (베드 바닥에 닿게 내리기)","X, Y축 회전","새로 모델링 파일 제작"],"ans":1,"exp":"모델이 허공에 떠서 시작되면 허공에 필라멘트를 뿌려 출력을 실패하게 되므로, 반드시 Z축을 0으로 맞추거나 베드 안착 기능을 실행해야 합니다."},{"id":118,"cat":"3D프린터 설정","topic":"후가공","set":"실전모의2","q":"다음 중 3D 프린터 후가공 과정에서 수험자의 실수로 출력물이 파손되었을 때 실기시험에서 적용되는 기준은?","opts":["10점 감점","30점 감점","시간 연장 후 재출력 기회 부여","즉시 실격 (불합격)"],"ans":3,"exp":"서포터를 제거하다가 부품이 부러지거나 파손되면 작동이 불가능한 것으로 간주하여 가차 없이 실격 처리됩니다."},{"id":119,"cat":"3D프린터 설정","topic":"재료","set":"실전모의2","q":"3D 프린터의 핫엔드(Hotend) 부품 중 가열된 필라멘트의 열이 위로 타고 올라가(Heat Creep) 테플론 튜브 부위에서 미리 굳는 것을 막아주는 방열 부품은?","opts":["노즐","히터 블록","히트 싱크 (Heat sink)","서미스터"],"ans":2,"exp":"히트 싱크는 쿨링팬과 결합하여 노즐 윗부분의 열을 식혀주어 필라멘트가 제 위치(히팅 블럭)에서만 녹도록 유지합니다."},{"id":120,"cat":"3D프린터 설정","topic":"슬라이싱 설정","set":"실전모의2","q":"FDM 방식에서 노즐의 이동 경로를 생성할 때, 바깥쪽 외곽선의 두께를 결정하는 슬라이서 설정 항목은?","opts":["Infill (채움)","Shell / Wall / Perimeter (외벽 두께)","Raft (라프트)","Support (지지대)"],"ans":1,"exp":"외곽(껍데기)의 두께를 의미하며, 벽이 두꺼울수록(레이어 수가 많을수록) 출력물의 표면 강도가 튼튼해집니다."}];
+const QUESTIONS = [...QUESTIONS_SET1,...QUESTIONS_SET2];
+const SAFE_STORAGE = (()=>{
+  try{
+    const testKey='__tdp_storage_test__';
+    window.localStorage.setItem(testKey,'1');
+    window.localStorage.removeItem(testKey);
+    return window.localStorage;
+  }catch(error){
+    console.warn('브라우저 저장소를 사용할 수 없어 임시 저장 방식으로 동작합니다.',error);
+    const memory={};
+    return {
+      getItem:key=>Object.prototype.hasOwnProperty.call(memory,key)?memory[key]:null,
+      setItem:(key,value)=>{memory[key]=String(value);},
+      removeItem:key=>{delete memory[key];}
+    };
+  }
+})();
+function readJsonArray(key){
+  try{const value=JSON.parse(SAFE_STORAGE.getItem(key)||'[]');return Array.isArray(value)?value:[];}
+  catch(error){return [];}
+}
+const STORE = {
+  bookmarks: new Set(readJsonArray('tdp_bookmarks')),
+  theme: SAFE_STORAGE.getItem('tdp_theme') || 'light'
+};
+let currentBankFilter='전체';
+let cbt={exam:'quick',mode:20,questions:[],answers:[],index:0,seconds:0,timer:null,submitted:false};
+function saveSet(key,set){SAFE_STORAGE.setItem(key,JSON.stringify([...set]));}
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1700);}
+function shuffle(arr){
+  const result=[...arr];
+  for(let i=result.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [result[i],result[j]]=[result[j],result[i]];
+  }
+  return result;
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
+
+function goPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===id));
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===id));
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>goPage(b.dataset.page)));
+
+function openTheory(id){goPage('theory');setTheory(id);}
+function setTheory(id){
+  document.querySelectorAll('.theory-panel').forEach(p=>p.classList.toggle('active',p.id==='theory-'+id));
+  document.querySelectorAll('[data-theory]').forEach(b=>b.classList.toggle('active',b.dataset.theory===id));
+}
+document.querySelectorAll('[data-theory]').forEach(b=>b.addEventListener('click',()=>setTheory(b.dataset.theory)));
+
+const EXPLORE_IDS=['printing','modeling','slicing','trouble'];
+function switchExploreTab(id,focusTab=false){
+  if(!EXPLORE_IDS.includes(id)) id='printing';
+  EXPLORE_IDS.forEach(key=>{
+    const panel=document.getElementById('explore-'+key);
+    const tab=document.getElementById('explore-tab-'+key);
+    const active=key===id;
+    if(panel){panel.classList.toggle('active',active);panel.hidden=!active;panel.setAttribute('aria-hidden',String(!active));}
+    if(tab){tab.classList.toggle('active',active);tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;}
+  });
+  if(focusTab){const selected=document.getElementById('explore-tab-'+id);if(selected)selected.focus();}
+}
+function setExplore(id){switchExploreTab(id);}
+const exploreTabList=document.querySelector('.explore-tabs');
+if(exploreTabList){
+  exploreTabList.addEventListener('keydown',event=>{
+    const current=EXPLORE_IDS.findIndex(id=>document.getElementById('explore-tab-'+id)===document.activeElement);
+    if(current<0)return;
+    let next=current;
+    if(event.key==='ArrowRight')next=(current+1)%EXPLORE_IDS.length;
+    else if(event.key==='ArrowLeft')next=(current-1+EXPLORE_IDS.length)%EXPLORE_IDS.length;
+    else if(event.key==='Home')next=0;
+    else if(event.key==='End')next=EXPLORE_IDS.length-1;
+    else return;
+    event.preventDefault();switchExploreTab(EXPLORE_IDS[next],true);
+  });
+}
+
+function renderBank(){
+  const term=document.getElementById('bankSearch').value.trim().toLowerCase();
+  const list=document.getElementById('bankList');
+  let items=QUESTIONS.filter(q=>{
+    const matchFilter=currentBankFilter==='전체' || q.cat===currentBankFilter || (currentBankFilter==='북마크'&&STORE.bookmarks.has(q.id));
+    const hay=[q.q,q.cat,q.topic,q.exp,...q.opts].join(' ').toLowerCase();
+    return matchFilter && (!term || hay.includes(term));
+  });
+  if(!items.length){list.innerHTML='<div class="card empty">조건에 맞는 문제가 없습니다.</div>';return;}
+  list.innerHTML=items.map(q=>`
+    <article class="bank-q">
+      <div class="bank-head">
+        <div class="q-num">${q.id}</div>
+        <div class="bank-title"><span class="pill">${escapeHtml(q.topic)}</span><div style="margin-top:7px">${escapeHtml(q.q)}</div></div>
+        <button class="bookmark ${STORE.bookmarks.has(q.id)?'on':''}" onclick="toggleBookmark(${q.id})" aria-label="북마크">★</button>
+      </div>
+      <div class="bank-body">
+        ${q.opts.map((o,i)=>`<div class="option"><strong>${i+1}.</strong><span>${escapeHtml(o)}</span></div>`).join('')}
+        <div class="bank-actions"><button class="btn btn-soft" onclick="toggleAnswer(${q.id},this)">정답·해설 보기</button></div>
+        <div class="answer-box" id="answer-${q.id}"><strong style="color:var(--success)">정답 ${q.ans+1}번</strong><br>${escapeHtml(q.exp)}</div>
+      </div>
+    </article>`).join('');
+}
+function toggleAnswer(id,btn){
+  const el=document.getElementById('answer-'+id);el.classList.toggle('show');
+  btn.textContent=el.classList.contains('show')?'해설 닫기':'정답·해설 보기';
+
+}
+function toggleBookmark(id){
+  STORE.bookmarks.has(id)?STORE.bookmarks.delete(id):STORE.bookmarks.add(id);
+  saveSet('tdp_bookmarks',STORE.bookmarks);renderBank();toast(STORE.bookmarks.has(id)?'북마크에 추가했습니다.':'북마크를 해제했습니다.');
+}
+document.getElementById('bankSearch').addEventListener('input',renderBank);
+document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{
+  currentBankFilter=b.dataset.filter;
+  document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));
+  renderBank();
+}));
+
+function updateSim(){
+  const mat=document.getElementById('material').value;
+  const layer=Number(document.getElementById('layer').value);
+  const infill=Number(document.getElementById('infill').value);
+  const temp=Number(document.getElementById('temp').value);
+  const speed=Number(document.getElementById('speed').value);
+  document.getElementById('materialVal').textContent=mat;
+  document.getElementById('layerVal').textContent=layer.toFixed(2)+' mm';
+  document.getElementById('infillVal').textContent=infill+'%';
+  document.getElementById('tempVal').textContent=temp+'℃';
+  document.getElementById('speedVal').textContent=speed+' mm/s';
+
+  const layers=Math.max(12,Math.round(56*(.2/layer)));
+  const model=document.getElementById('modelBox');
+  model.innerHTML=Array.from({length:layers},(_,i)=>`<div class="model-layer" style="height:${Math.max(2,layer*30)}px;animation-delay:${i*8}ms;width:${82+Math.sin(i/layers*Math.PI)*18}%"></div>`).join('');
+  const time=Math.round(100*(.2/layer)*(1+infill/180)*(50/speed));
+  const material=Math.round(78+infill*.95);
+  let quality=layer<=.12?'매우 높음':layer<=.2?'보통~높음':layer<=.28?'보통':'빠른 초안';
+  document.getElementById('timeMetric').textContent=time;
+  document.getElementById('materialMetric').textContent=material;
+  document.getElementById('qualityMetric').textContent=quality;
+
+  const ranges={PLA:[190,220],PETG:[225,250],ABS:[230,260],TPU:[210,240]};
+  const [lo,hi]=ranges[mat];
+  let msgs=[];
+  if(temp<lo) msgs.push(`${mat} 권장 범위보다 낮아 압출 부족·층간 접착 저하 가능`);
+  else if(temp>hi) msgs.push(`${mat} 권장 범위보다 높아 스트링·과열 가능`);
+  else msgs.push(`${mat}의 일반적인 노즐 온도 범위에 가까움`);
+  if(speed>90) msgs.push('고속 설정: 진동과 최대 유량 한계 점검');
+  if(layer>.28) msgs.push('큰 레이어: 세부 표현과 오버행 품질 저하 가능');
+  if(infill>70) msgs.push('높은 인필: 재료와 시간이 크게 증가');
+  document.getElementById('simWarning').textContent=msgs.join(' · ');
+}
+['material','layer','infill','temp','speed'].forEach(id=>document.getElementById(id).addEventListener('input',updateSim));
+document.getElementById('simulateBtn').addEventListener('click',()=>{updateSim();toast('설정 경향을 계산했습니다.');});
+
+function renderCbtStart(){
+  clearInterval(cbt.timer);
+  document.getElementById('cbtRoot').innerHTML=`
+    <div class="card cbt-start">
+      <span class="pill primary">CBT PRACTICE</span>
+      <h2>모의고사 선택</h2>
+      <p style="color:var(--muted)">빠른 점검은 전체 120문항 중 무작위 20문항, 실전모의1·2는 시험을 시작할 때마다 전체 120문항 중 무작위 60문항으로 새롭게 구성됩니다.</p>
+      <div class="mode-grid">
+        <button class="mode-card ${cbt.exam==='quick'?'selected':''}" onclick="selectMode('quick')"><strong>빠른 점검 · 20문항</strong><span>20분 / 120문항 중 무작위</span></button>
+        <button class="mode-card ${cbt.exam==='set1'?'selected':''}" onclick="selectMode('set1')"><strong>실전모의1 · 60문항</strong><span>60분 / 120문항 중 매회 무작위 출제</span></button>
+        <button class="mode-card ${cbt.exam==='set2'?'selected':''}" onclick="selectMode('set2')"><strong>실전모의2 · 60문항</strong><span>60분 / 120문항 중 매회 무작위 출제</span></button>
+      </div>
+      <button class="btn btn-primary" onclick="startCbt()">시험 시작하기</button>
+    </div>`;
+}
+function selectMode(key){cbt.exam=key;cbt.mode=key==='quick'?20:60;renderCbtStart();}
+function startCbt(){
+  const questionCount=cbt.exam==='quick'?20:60;
+  cbt.questions=shuffle(QUESTIONS).slice(0,questionCount);
+  cbt.mode=cbt.questions.length;
+  cbt.answers=Array(cbt.mode).fill(null);cbt.index=0;cbt.seconds=cbt.mode*60;cbt.submitted=false;
+  renderCbtQuestion();cbt.timer=setInterval(()=>{cbt.seconds--;updateTimer();if(cbt.seconds<=0)submitCbt(true);},1000);
+}
+function updateTimer(){
+  const el=document.getElementById('timer');if(!el)return;
+  const m=String(Math.floor(cbt.seconds/60)).padStart(2,'0'),s=String(cbt.seconds%60).padStart(2,'0');
+  el.textContent=`${m}:${s}`;el.classList.toggle('danger',cbt.seconds<=300);
+}
+function renderCbtQuestion(){
+  const q=cbt.questions[cbt.index], answered=cbt.answers.filter(x=>x!==null).length;
+  document.getElementById('cbtRoot').innerHTML=`
+    <div class="cbt-top">
+      <strong>${cbt.index+1} / ${cbt.mode}</strong>
+      <div class="cbt-progress"><span style="width:${answered/cbt.mode*100}%"></span></div>
+      <div class="timer" id="timer"></div>
+    </div>
+    <div class="card cbt-question">
+      <span class="pill">${escapeHtml(q.set||'빠른 점검')} · ${escapeHtml(q.cat)} · ${escapeHtml(q.topic)}</span>
+      <h3>${cbt.index+1}. ${escapeHtml(q.q)}</h3>
+      <div class="cbt-options">
+        ${q.opts.map((o,i)=>`<div class="cbt-option ${cbt.answers[cbt.index]===i?'selected':''}" onclick="answerCbt(${i})"><span class="circle-num">${i+1}</span><span>${escapeHtml(o)}</span></div>`).join('')}
+      </div>
+      <div class="cbt-footer">
+        <button class="btn btn-soft" onclick="moveCbt(-1)" ${cbt.index===0?'disabled':''}>← 이전</button>
+        <button class="btn btn-danger" onclick="submitCbt(false)">제출하기</button>
+        <button class="btn btn-primary" onclick="moveCbt(1)" ${cbt.index===cbt.mode-1?'disabled':''}>다음 →</button>
+      </div>
+    </div>
+    <div class="palette">${cbt.questions.map((_,i)=>`<button class="${cbt.answers[i]!==null?'answered':''} ${i===cbt.index?'current':''}" onclick="jumpCbt(${i})">${i+1}</button>`).join('')}</div>`;
+  updateTimer();
+}
+function answerCbt(i){cbt.answers[cbt.index]=i;renderCbtQuestion();}
+function moveCbt(d){cbt.index=Math.max(0,Math.min(cbt.mode-1,cbt.index+d));renderCbtQuestion();}
+function jumpCbt(i){cbt.index=i;renderCbtQuestion();}
+function submitCbt(auto){
+  if(cbt.submitted)return;
+  const blank=cbt.answers.filter(x=>x===null).length;
+  if(!auto && !confirm(blank?`현재까지 응답한 내용으로 제출합니다. 미응답 문제가 ${blank}개 있습니다. 결과를 볼까요?`:'답안을 제출하고 결과를 볼까요?'))return;
+  cbt.submitted=true;clearInterval(cbt.timer);
+  let correct=0;
+  cbt.questions.forEach((q,i)=>{if(cbt.answers[i]===q.ans)correct++;});
+  const score=Math.round(correct/cbt.mode*100);
+  renderCbtResult(score,correct,blank);
+}
+function renderCbtResult(score,correct,blank){
+  const pass=score>=60;
+  document.getElementById('cbtRoot').innerHTML=`
+    <div class="card result-hero">
+      <span class="pill ${pass?'success':'primary'}">${pass?'합격권':'보완 필요'}</span>
+      <div class="score-circle" style="--score:${score}%"><div class="score-inner"><strong>${score}점</strong><span>${correct}/${cbt.mode}</span></div></div>
+      <h2>${pass?'좋습니다! 합격 기준을 넘었습니다.':'취약 영역과 해설을 다시 확인하세요.'}</h2>
+      <p style="color:var(--muted)">정답 ${correct}개 · 오답 ${cbt.mode-correct-blank}개 · 미응답 ${blank}개</p>
+      <div class="hero-actions" style="justify-content:center">
+        <button class="btn btn-primary" onclick="renderCbtReview()">문항별 해설</button>
+        <button class="btn btn-soft" onclick="renderCbtStart()">초기 화면으로</button>
+        <button class="btn btn-soft" onclick="startCbt()">다시 응시</button>
+      </div>
+    </div>
+    <div class="grid grid-3 breakdown" style="margin-top:14px">${categoryBreakdown()}</div>`;
+}
+function categoryBreakdown(){
+  const cats=['데이터 생성','3D프린터 설정','제품 출력 및 안전관리'];
+  return cats.map(cat=>{
+    const idxs=cbt.questions.map((q,i)=>q.cat===cat?i:-1).filter(i=>i>=0);
+    const right=idxs.filter(i=>cbt.answers[i]===cbt.questions[i].ans).length;
+    const pct=idxs.length?Math.round(right/idxs.length*100):0;
+    return `<div class="card"><strong>${cat}</strong><div class="num" style="font-size:1.6rem;font-weight:900;margin:7px 0">${pct}%</div><div class="mini-progress"><span style="width:${pct}%"></span></div><small>${right}/${idxs.length} 정답</small></div>`;
+  }).join('');
+}
+function renderCbtReview(){
+  document.getElementById('cbtRoot').innerHTML=`
+    <div class="section-title"><div><h2>문항별 해설</h2><p>정답과 해설을 확인해 취약 개념을 다시 학습하세요.</p></div><button class="btn btn-soft" onclick="renderCbtStart()">초기 화면으로</button></div>
+    ${cbt.questions.map((q,i)=>{
+      const ok=cbt.answers[i]===q.ans;
+      const mine=cbt.answers[i]===null?'미응답':`${cbt.answers[i]+1}번`;
+      return `<div class="review-item ${ok?'correct':'wrong'}"><span class="pill">${escapeHtml(q.set||'빠른 점검')} · ${escapeHtml(q.topic)}</span><h3>${i+1}. ${escapeHtml(q.q)}</h3><p>내 답: <strong>${mine}</strong> · 정답: <strong>${q.ans+1}번</strong></p><p style="color:var(--muted)">${escapeHtml(q.exp)}</p></div>`;
+    }).join('')}`;
+}
+
+function applyTheme(){
+  document.body.classList.toggle('dark',STORE.theme==='dark');
+  document.getElementById('themeBtn').textContent=STORE.theme==='dark'?'☀':'◐';
+}
+document.getElementById('themeBtn').addEventListener('click',()=>{STORE.theme=STORE.theme==='dark'?'light':'dark';SAFE_STORAGE.setItem('tdp_theme',STORE.theme);applyTheme();});
+
+applyTheme();renderBank();renderCbtStart();updateSim();switchExploreTab('printing');
+</script>
+</body>
+</html>

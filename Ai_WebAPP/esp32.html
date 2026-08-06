@@ -5,14 +5,57 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ESP32-S3 · 김쌔미앙tv</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<link rel="stylesheet" href="./assets/style.css">
+<link rel="stylesheet" href="../assets/style.css">
 <style>
   body { background: #0F172A; background-image:none; }
   #root { min-height:100vh; }
   #boot {
     position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
     background:#0F172A; color:#8FA79B; font-family:'JetBrains Mono',monospace; font-size:0.85rem;
-    letter-spacing:0.05em; z-index:1;
+    letter-spacing:0.05em; z-index:90;
+  }
+
+  /* 공통 CSS가 늦게 로드되거나 누락되어도 홈 버튼이 항상 보이도록 하는 안전 스타일 */
+  .back-pill {
+    position: fixed;
+    top: 76px;
+    left: 16px;
+    z-index: 100;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 8px 14px;
+    border: 1px solid rgba(45, 212, 191, 0.5);
+    border-radius: 9999px;
+    background: rgba(15, 23, 42, 0.92);
+    color: #99f6e4 !important;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none !important;
+    box-shadow: 0 8px 24px rgba(2, 6, 23, 0.35);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  }
+  .back-pill:hover {
+    background: rgba(19, 78, 74, 0.96);
+    border-color: rgba(94, 234, 212, 0.9);
+    color: #ffffff !important;
+    transform: translateY(-1px);
+  }
+  .back-pill:focus-visible {
+    outline: 3px solid rgba(45, 212, 191, 0.45);
+    outline-offset: 3px;
+  }
+  @media (max-width: 640px) {
+    .back-pill {
+      top: 72px;
+      left: 10px;
+      padding: 7px 11px;
+      font-size: 12px;
+    }
   }
 </style>
 <script type="importmap">
@@ -28,7 +71,7 @@
 </head>
 <body>
 
-<a class="back-pill" href="./student.html">← 학생용 홈으로</a>
+<a class="back-pill" href="../student.html" aria-label="학생용 홈으로 이동">← 학생용 홈으로</a>
 <div id="boot">불러오는 중...</div>
 <div id="root"></div>
 

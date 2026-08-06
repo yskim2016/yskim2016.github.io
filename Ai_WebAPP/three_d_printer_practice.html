@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="3D프린터운용기능사 실기 학습용 단일 HTML 웹앱" name="description"/>
+<title>3D프린터운용기능사 실기 마스터</title>
+<style>
+    :root{
+      --bg:#f4f7fb;--surface:#fff;--surface2:#eef2f7;--text:#172033;--muted:#667085;
+      --line:#dfe6ef;--primary:#6954e8;--primary2:#20b8cd;--accent:#ff8c42;
+      --success:#168a49;--danger:#dc3f4f;--warning:#d98b00;--shadow:0 16px 42px rgba(27,39,79,.10);
+      --radius:22px;
+    }
+    body.dark{
+      --bg:#0f1521;--surface:#182131;--surface2:#222d40;--text:#eef3ff;--muted:#aab4c7;
+      --line:#303d53;--primary:#927cff;--primary2:#45c9dc;--accent:#ffa16d;
+      --success:#51d286;--danger:#ff7181;--warning:#ffc35d;--shadow:0 18px 45px rgba(0,0,0,.30);
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:Pretendard,"Noto Sans KR",system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.62}
+    button,input,select{font:inherit}
+    button{cursor:pointer}
+    a{color:inherit}
+    .app{min-height:100vh}
+    .topbar{position:sticky;top:0;z-index:100;background:color-mix(in srgb,var(--surface) 90%,transparent);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}
+    .topbar-inner{max-width:1360px;margin:auto;padding:11px 20px;display:flex;align-items:center;gap:12px}
+    .back-pill{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:9px 14px;border:1px solid var(--line);border-radius:13px;background:var(--surface);color:var(--primary);text-decoration:none;font-size:.84rem;font-weight:900;white-space:nowrap;box-shadow:0 7px 18px rgba(26,38,74,.07)}
+    .brand{display:flex;align-items:center;gap:10px;min-width:max-content}
+    .brand-mark{width:43px;height:43px;border-radius:14px;display:grid;place-items:center;color:#fff;font-weight:950;background:linear-gradient(135deg,var(--primary),var(--primary2));box-shadow:0 8px 20px rgba(105,84,232,.28)}
+    .brand-title{font-weight:950;letter-spacing:-.035em;line-height:1.2}
+    .brand-sub{font-size:.73rem;color:var(--muted)}
+    .nav{display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0;margin-left:8px}
+    .nav::-webkit-scrollbar{display:none}
+    .nav button{border:0;background:transparent;color:var(--muted);padding:10px 12px;border-radius:12px;white-space:nowrap;font-weight:800}
+    .nav button:hover{background:var(--surface2);color:var(--text)}
+    .nav button.active{background:linear-gradient(135deg,var(--primary),#8067ff);color:white;box-shadow:0 8px 18px rgba(105,84,232,.23)}
+    .training-menu-btn .menu-arrow{display:inline-block;margin-left:4px;transition:transform .2s ease}
+    .training-menu-btn[aria-expanded="true"] .menu-arrow{transform:rotate(180deg)}
+    .training-subnav{display:grid;grid-template-rows:0fr;border-top:0 solid var(--line);background:color-mix(in srgb,var(--surface) 96%,transparent);overflow:hidden;transition:grid-template-rows .24s ease,border-top-width .24s ease;box-shadow:0 12px 26px rgba(26,38,74,0)}
+    .training-subnav.open{grid-template-rows:1fr;border-top-width:1px;box-shadow:0 12px 26px rgba(26,38,74,.07)}
+    .training-subnav-inner{min-height:0;max-width:1360px;width:100%;margin:auto;padding:0 20px;display:flex;justify-content:center;align-items:center;gap:8px;overflow:hidden;transition:padding .24s ease}
+    .training-subnav.open .training-subnav-inner{padding-top:10px;padding-bottom:11px}
+    .training-subnav-label{color:var(--muted);font-size:.8rem;font-weight:900;margin-right:4px;white-space:nowrap}
+    .training-subnav button{border:1px solid var(--line);background:var(--surface);color:var(--muted);padding:9px 15px;border-radius:12px;font-weight:850;white-space:nowrap;transition:.18s ease}
+    .training-subnav button:hover{border-color:color-mix(in srgb,var(--primary) 45%,var(--line));color:var(--primary);transform:translateY(-1px)}
+    .training-subnav button.active{border-color:var(--primary);background:color-mix(in srgb,var(--primary) 12%,var(--surface));color:var(--primary);box-shadow:0 6px 15px rgba(105,84,232,.12)}
+    .icon-btn{width:42px;height:42px;border:1px solid var(--line);border-radius:13px;background:var(--surface);color:var(--text);display:grid;place-items:center;font-weight:900}
+    .page{display:none;max-width:1240px;margin:auto;padding:32px 22px 76px}
+    .page.active{display:block;animation:fade .24s ease}
+    @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+    .hero{position:relative;overflow:hidden;border-radius:30px;padding:42px;background:radial-gradient(circle at 85% 12%,rgba(255,255,255,.30),transparent 28%),linear-gradient(135deg,#5138d7,#7357f3 56%,#1aaec3 125%);color:#fff;box-shadow:var(--shadow)}
+    .hero-grid{display:grid;grid-template-columns:1.16fr .84fr;gap:28px;align-items:center}
+    .eyebrow{font-size:.76rem;font-weight:900;letter-spacing:.13em;opacity:.85}
+    .hero h1{font-size:clamp(2.1rem,5vw,3.8rem);line-height:1.06;letter-spacing:-.06em;margin:10px 0 16px}
+    .hero p{max-width:720px;margin:0 0 24px;font-size:1.04rem;opacity:.92}
+    .hero-actions{display:flex;gap:10px;flex-wrap:wrap}
+    .btn{border:0;border-radius:13px;padding:11px 16px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;transition:.18s ease}
+    .btn:hover{transform:translateY(-1px)}
+    .btn-primary{background:var(--primary);color:#fff}.btn-light{background:#fff;color:#4f39cd}.btn-soft{background:var(--surface2);color:var(--text);border:1px solid var(--line)}
+    .btn-outline-light{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.42)}
+    .btn-success{background:var(--success);color:white}.btn-danger{background:var(--danger);color:white}.btn-warning{background:var(--warning);color:#fff}
+    .printer-wrap{min-height:280px;display:grid;place-items:center}
+    .printer-svg{width:min(100%,370px);filter:drop-shadow(0 22px 34px rgba(32,17,104,.34))}
+    .nozzle{animation:nozzle 4.4s ease-in-out infinite alternate}.layerGlow{animation:glow 1.8s ease-in-out infinite alternate}
+    @keyframes nozzle{from{transform:translateX(-24px)}to{transform:translateX(72px)}}@keyframes glow{from{opacity:.4}to{opacity:1}}
+    .section-title{display:flex;align-items:end;justify-content:space-between;gap:15px;margin:34px 0 16px}
+    .section-title h2{font-size:1.62rem;letter-spacing:-.04em;margin:0}.section-title p{color:var(--muted);margin:4px 0 0}
+    .grid{display:grid;gap:16px}.grid-4{grid-template-columns:repeat(4,1fr)}.grid-3{grid-template-columns:repeat(3,1fr)}.grid-2{grid-template-columns:repeat(2,1fr)}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px;box-shadow:0 7px 24px rgba(26,38,74,.045)}
+    .stat-card{position:relative;overflow:hidden}.stat-card::after{content:"";position:absolute;width:78px;height:78px;border-radius:50%;right:-28px;top:-28px;background:color-mix(in srgb,var(--primary) 13%,transparent)}
+    .stat-card .num{font-size:1.78rem;font-weight:950;letter-spacing:-.04em}.stat-card .label{font-size:.86rem;color:var(--muted);font-weight:800}
+    .pill{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;font-size:.76rem;font-weight:850;background:var(--surface2);color:var(--muted)}
+    .pill.primary{background:color-mix(in srgb,var(--primary) 14%,var(--surface));color:var(--primary)}.pill.success{background:color-mix(in srgb,var(--success) 13%,var(--surface));color:var(--success)}.pill.danger{background:color-mix(in srgb,var(--danger) 13%,var(--surface));color:var(--danger)}
+    .notice{border-left:4px solid var(--primary);background:color-mix(in srgb,var(--primary) 8%,var(--surface));padding:15px 17px;border-radius:0 15px 15px 0}
+    .warning-notice{border-left-color:var(--warning);background:color-mix(in srgb,var(--warning) 10%,var(--surface))}
+    .workflow{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+    .step-card{position:relative;padding:18px;border:1px solid var(--line);border-radius:18px;background:var(--surface);min-height:170px}
+    .step-card .step{font-size:.72rem;font-weight:950;color:var(--primary);letter-spacing:.08em}.step-card h3{font-size:1rem;margin:7px 0}.step-card p{font-size:.84rem;color:var(--muted);margin:0}.step-card::after{content:"→";position:absolute;right:-10px;top:50%;transform:translateY(-50%);z-index:2;color:var(--primary);font-weight:950}.step-card:last-child::after{display:none}
+    .check-list{display:grid;gap:9px}.check-item{display:flex;gap:10px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:13px;background:var(--surface)}
+    .check-item input{margin-top:4px;accent-color:var(--primary)}.check-item.done{opacity:.65;background:color-mix(in srgb,var(--success) 7%,var(--surface))}.check-item.done span{text-decoration:line-through}
+    .progress-wrap{height:12px;background:var(--surface2);border-radius:99px;overflow:hidden}.progress-bar{height:100%;width:0;background:linear-gradient(90deg,var(--primary),var(--primary2));transition:.25s ease}
+    .trainer-layout{display:grid;grid-template-columns:1.05fr .95fr;gap:18px}.drawing-board{min-height:450px;display:grid;place-items:center;background:linear-gradient(180deg,#11192b,#1c2945);color:#fff;position:relative;overflow:hidden}
+    .drawing-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);background-size:25px 25px}
+    .shape-svg{position:relative;z-index:2;width:min(100%,520px);height:auto}.dim-text{fill:#ffd166;font-size:14px;font-weight:900}.dim-line{stroke:#ffd166;stroke-width:2}.shape-line{stroke:#69d7e4;stroke-width:4;fill:rgba(105,215,228,.07)}
+    .input-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.field label{display:block;font-weight:850;margin-bottom:6px}.field input,.field select{width:100%;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text);padding:11px 12px}
+    .feedback{padding:14px;border-radius:14px;background:var(--surface2);margin-top:14px;font-weight:800}.feedback.ok{background:color-mix(in srgb,var(--success) 12%,var(--surface));color:var(--success)}.feedback.bad{background:color-mix(in srgb,var(--danger) 10%,var(--surface));color:var(--danger)}
+    .assembly-stage{display:grid;grid-template-columns:1fr 1fr;gap:18px}.assembly-visual{min-height:390px;display:grid;place-items:center;position:relative;background:linear-gradient(180deg,#10182a,#1b2944);color:#fff;overflow:hidden}
+    .assembly-part{position:absolute;border:3px solid #69d7e4;background:rgba(105,215,228,.12);transition:.3s ease}.part-a{width:230px;height:120px;border-radius:12px;transform:translateY(55px)}.part-b{width:92px;height:190px;border-radius:46px 46px 12px 12px;transform:translateY(-45px)}
+    .assembly-part.misaligned.part-b{transform:translate(32px,-45px) rotate(7deg)}.assembly-part.collision{border-color:#ff7181;background:rgba(255,113,129,.16);box-shadow:0 0 28px rgba(255,113,129,.35)}
+    .assembly-controls{display:grid;gap:12px}.toggle-row{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+    .switch{position:relative;width:54px;height:30px;display:inline-block;flex:0 0 auto}.switch input{display:none}.slider{position:absolute;inset:0;background:#bbc4d2;border-radius:99px;transition:.2s}.slider::after{content:"";position:absolute;width:22px;height:22px;left:4px;top:4px;border-radius:50%;background:white;transition:.2s;box-shadow:0 2px 7px rgba(0,0,0,.2)}.switch input:checked+.slider{background:var(--primary)}.switch input:checked+.slider::after{transform:translateX(24px)}
+    .sim-layout{display:grid;grid-template-columns:390px 1fr;gap:18px}.control-group{margin-bottom:18px}.control-label{display:flex;justify-content:space-between;gap:8px;font-weight:850;margin-bottom:7px}input[type=range]{width:100%;accent-color:var(--primary)}
+    select,input[type=search],input[type=number]{border:1px solid var(--line);background:var(--surface);color:var(--text);padding:11px 12px;border-radius:12px}
+    .sim-screen{min-height:470px;display:flex;flex-direction:column;justify-content:space-between;background:linear-gradient(180deg,#11192b,#1b2b49);color:#fff;position:relative;overflow:hidden}.sim-grid-bg{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:28px 28px;mask-image:linear-gradient(to bottom,transparent,black)}
+    .sim-model{position:relative;z-index:2;height:270px;display:flex;align-items:end;justify-content:center;padding-bottom:24px}.model-box{width:190px;display:flex;flex-direction:column-reverse;filter:drop-shadow(0 15px 18px rgba(0,0,0,.35))}.model-layer{height:7px;margin-top:1px;background:linear-gradient(90deg,#896fff,#39d1e2);border-radius:3px;animation:appear .25s ease both}@keyframes appear{from{transform:scaleX(.1);opacity:0}to{transform:scaleX(1);opacity:.94}}
+    .sim-metrics{position:relative;z-index:2;display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.metric{padding:13px;border-radius:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}.metric small{display:block;opacity:.68}.metric strong{font-size:1.13rem}.warning-box{position:relative;z-index:2;margin-top:12px;padding:13px;border-radius:13px;background:rgba(255,193,93,.15);border:1px solid rgba(255,193,93,.34)}
+    .fault-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.fault-card{border:1px solid var(--line);border-radius:18px;background:var(--surface);overflow:hidden}.fault-head{padding:17px;font-weight:900;display:flex;justify-content:space-between;gap:10px}.fault-body{display:none;padding:0 17px 17px;color:var(--muted)}.fault-card.open .fault-body{display:block}.fault-card button{border:0;background:transparent;color:var(--primary);font-weight:900}
+    .safety-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.risk-card{border:1px solid var(--line);border-radius:18px;background:var(--surface);padding:18px}.risk-card h3{margin:0 0 10px}.risk-card ul{margin:0;padding-left:20px;color:var(--muted)}
+    .timer-shell{display:grid;grid-template-columns:330px 1fr;gap:18px}.timer-display{text-align:center;padding:28px}.timer-clock{font-size:clamp(3rem,8vw,5.5rem);font-weight:950;letter-spacing:-.07em;line-height:1}.timer-label{margin-top:8px;color:var(--muted);font-weight:850}.timer-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:22px}
+    .phase-list{display:grid;gap:10px}.phase-row{display:grid;grid-template-columns:1fr 110px 90px;gap:10px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}.phase-row.active{border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 13%,transparent)}.phase-row input{width:100%}.phase-row button{border:1px solid var(--line);background:var(--surface2);color:var(--text);padding:8px 10px;border-radius:10px;font-weight:850}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.footer{text-align:center;color:var(--muted);padding:25px 20px 45px;font-size:.88rem}.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:#111827;color:#fff;padding:11px 15px;border-radius:12px;z-index:300;transition:.2s ease}.toast.show{opacity:1;transform:translate(-50%,0)}
+    .hidden{display:none!important}.muted{color:var(--muted)}.spacer{height:8px}
+    @media(max-width:1050px){.grid-4{grid-template-columns:repeat(2,1fr)}.workflow{grid-template-columns:repeat(3,1fr)}.step-card:nth-child(3)::after{display:none}.trainer-layout,.sim-layout,.timer-shell{grid-template-columns:1fr}.fault-grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:760px){.topbar-inner{flex-wrap:wrap}.back-pill{order:1}.brand{order:2}.icon-btn{order:3;margin-left:auto}.nav{order:4;width:100%;max-width:100%;flex:0 0 100%;margin:0}.training-subnav-inner{justify-content:flex-start;overflow-x:auto;scrollbar-width:none}.training-subnav-inner::-webkit-scrollbar{display:none}.training-subnav-label{display:none}.training-subnav button{flex:0 0 auto}.page{padding:22px 14px 60px}.hero{padding:28px 22px}.hero-grid{grid-template-columns:1fr}.printer-wrap{min-height:210px}.grid-2,.grid-3,.grid-4,.assembly-stage,.safety-grid{grid-template-columns:1fr}.workflow{grid-template-columns:1fr 1fr}.step-card:nth-child(n)::after{display:none}.input-grid{grid-template-columns:1fr}.fault-grid{grid-template-columns:1fr}.sim-metrics{grid-template-columns:repeat(2,1fr)}.phase-row{grid-template-columns:1fr 90px}.phase-row button{grid-column:1/-1}.brand-sub{display:none}}
+  
+    /* 추가 파일 병합 영역 */
+    .exam-overview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+    .exam-overview-card{border:1px solid var(--line);border-radius:20px;padding:22px;background:var(--surface);box-shadow:0 7px 24px rgba(26,38,74,.045)}
+    .exam-overview-card.modeling-overview{background:color-mix(in srgb,var(--primary) 7%,var(--surface));border-color:color-mix(in srgb,var(--primary) 25%,var(--line))}
+    .exam-overview-card.printing-overview{background:color-mix(in srgb,var(--success) 7%,var(--surface));border-color:color-mix(in srgb,var(--success) 25%,var(--line))}
+    .exam-overview-card h3{display:flex;align-items:center;gap:10px;margin:0 0 13px;font-size:1.08rem}
+    .overview-number{width:28px;height:28px;border-radius:50%;display:inline-grid;place-items:center;color:#fff;background:var(--primary);font-size:.84rem;flex:0 0 auto}
+    .printing-overview .overview-number{background:var(--success)}
+    .exam-overview-card ul{list-style:none;margin:0;padding:0;display:grid;gap:9px;color:var(--muted);font-size:.91rem}
+    .exam-overview-card li::before{content:"•";margin-right:7px;font-weight:950;color:var(--primary)}
+    .printing-overview li::before{color:var(--success)}
+
+    .imported-rules-block{margin-bottom:34px;padding:24px;border:1px solid color-mix(in srgb,var(--danger) 25%,var(--line));border-radius:24px;background:var(--surface);box-shadow:0 7px 24px rgba(26,38,74,.045)}
+    .imported-rules-header{display:flex;align-items:center;gap:13px;padding-bottom:17px;margin-bottom:20px;border-bottom:1px solid color-mix(in srgb,var(--danger) 20%,var(--line))}
+    .imported-rules-icon{width:47px;height:47px;display:grid;place-items:center;border-radius:50%;background:color-mix(in srgb,var(--danger) 14%,var(--surface));color:var(--danger);font-size:1.35rem;flex:0 0 auto}
+    .imported-rules-header h2{margin:0;font-size:1.55rem}.imported-rules-header p{margin:2px 0 0;color:var(--muted);font-size:.89rem}
+    .imported-rules-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    .imported-rule-item{background:var(--surface2);border:1px solid var(--line);border-radius:15px;padding:18px}
+    .imported-rule-item h3{margin:0 0 8px;color:var(--danger);font-size:1rem}.imported-rule-item h3::before{content:"•";margin-right:8px;font-size:1.35rem}
+    .imported-rule-item p{margin:0;color:var(--muted);font-size:.88rem;line-height:1.65}
+    .imported-tip-box{margin-top:20px;padding:18px;border-radius:15px;background:color-mix(in srgb,var(--primary) 8%,var(--surface));border:1px solid color-mix(in srgb,var(--primary) 20%,var(--line))}
+    .imported-tip-box h3{margin:0 0 8px;color:var(--primary);font-size:1rem}.imported-tip-box ul{margin:0;padding-left:21px;color:var(--muted);font-size:.89rem;display:grid;gap:8px}
+
+    .public-progress-area{display:grid;gap:17px;margin-bottom:22px}.public-progress-row{display:grid;gap:7px}
+    .public-progress-label{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:.9rem}.public-progress-label span{color:var(--muted)}
+    .public-progress-track{height:12px;border-radius:99px;background:var(--surface2);overflow:hidden}.public-progress-fill{height:100%;width:0;border-radius:inherit;transition:width .3s ease}
+    .public-progress-fill.modeled{background:linear-gradient(90deg,var(--primary),#8c7cff)}.public-progress-fill.printed{background:linear-gradient(90deg,var(--success),#55d990)}
+    .public-legend{display:flex;flex-wrap:wrap;gap:10px 18px;margin-bottom:16px;color:var(--muted);font-size:.88rem}.public-legend span{display:inline-flex;align-items:center;gap:7px}
+    .public-legend-dot{width:14px;height:14px;border-radius:4px;border:1px solid var(--line);display:inline-block}.public-legend-dot.none{background:var(--surface2)}.public-legend-dot.modeled{background:color-mix(in srgb,var(--primary) 25%,var(--surface));border-color:var(--primary)}.public-legend-dot.printed{background:color-mix(in srgb,var(--success) 25%,var(--surface));border-color:var(--success)}
+    .public-drawing-grid{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:8px}.public-drawing-btn{min-height:50px;border:1px solid var(--line);border-radius:11px;background:var(--surface2);color:var(--muted);font-weight:850;transition:.18s ease}.public-drawing-btn:hover{transform:translateY(-1px)}
+    .public-drawing-btn.modeled{background:color-mix(in srgb,var(--primary) 10%,var(--surface));border-color:color-mix(in srgb,var(--primary) 55%,var(--line));color:var(--primary)}.public-drawing-btn.printed{background:color-mix(in srgb,var(--success) 10%,var(--surface));border-color:color-mix(in srgb,var(--success) 55%,var(--line));color:var(--success)}
+    .public-tracker-actions{display:flex;justify-content:flex-end;margin-top:18px}
+
+    .mock-exam-block{margin-bottom:36px}.mock-phase-selector{width:min(100%,620px);margin:0 auto 16px;padding:5px;display:grid;grid-template-columns:1fr 1fr;gap:5px;background:var(--surface2);border:1px solid var(--line);border-radius:14px}
+    .mock-phase-btn{border:0;border-radius:10px;background:transparent;color:var(--muted);padding:11px 9px;font-weight:900}.mock-phase-btn.active{background:var(--surface);color:var(--primary);box-shadow:0 6px 15px rgba(26,38,74,.09)}.mock-phase-btn[data-mock-phase="2"].active{color:var(--success)}
+    .mock-exam-grid{display:grid;grid-template-columns:minmax(300px,.8fr) minmax(0,1.2fr);gap:16px}.mock-timer-card{text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center}.mock-timer-card h3{margin:16px 0 8px}.mock-timer-clock{font-size:clamp(3.1rem,8vw,5.2rem);font-weight:950;letter-spacing:-.07em;line-height:1;margin:9px 0 23px}.mock-timer-clock.warning{color:var(--danger)}.mock-timer-controls{display:flex;gap:9px;flex-wrap:wrap;justify-content:center}
+    .mock-checklist{display:grid;gap:8px}.mock-check-item{width:100%;display:grid;grid-template-columns:25px 1fr;gap:10px;align-items:start;border:1px solid var(--line);border-radius:13px;background:var(--surface);color:var(--text);padding:11px 12px;text-align:left}.mock-check-item:hover{background:var(--surface2)}.mock-check-circle{width:21px;height:21px;border:2px solid var(--line);border-radius:50%;display:grid;place-items:center;color:#fff;font-size:.75rem;margin-top:1px}.mock-check-item.checked .mock-check-circle{background:var(--primary);border-color:var(--primary)}.mock-check-item.checked .mock-check-text{text-decoration:line-through;color:var(--muted)}
+
+    @media(max-width:920px){.public-drawing-grid{grid-template-columns:repeat(6,minmax(0,1fr))}.mock-exam-grid{grid-template-columns:1fr}}
+    @media(max-width:760px){.exam-overview-grid,.imported-rules-grid{grid-template-columns:1fr}.public-drawing-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.mock-phase-selector{grid-template-columns:1fr}.imported-rules-block{padding:18px}.section-title>a.btn{width:100%}}
+    @media(max-width:420px){.public-drawing-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+    /* 학습 프로그램 하위 탭과 안내 페이지 */
+    .software-hero{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(250px,.75fr);gap:20px;align-items:center;background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 13%,var(--surface)),color-mix(in srgb,var(--primary2) 11%,var(--surface)));overflow:hidden}
+    .software-kicker{font-size:.76rem;letter-spacing:.12em;font-weight:950;color:var(--primary);text-transform:uppercase}
+    .software-hero h2{font-size:clamp(1.8rem,4vw,2.75rem);line-height:1.12;letter-spacing:-.055em;margin:8px 0 12px}
+    .software-hero p{color:var(--muted);margin:0 0 18px}
+    .software-actions{display:flex;gap:9px;flex-wrap:wrap}
+    .software-badge-panel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .software-badge{padding:14px;border:1px solid var(--line);border-radius:16px;background:color-mix(in srgb,var(--surface) 82%,transparent);min-width:0}
+    .software-badge strong{display:block;font-size:1rem;margin-bottom:3px}.software-badge span{display:block;color:var(--muted);font-size:.8rem;word-break:keep-all}
+    .software-guide-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+    .guide-card h3{margin:0 0 12px;display:flex;align-items:center;gap:8px}.guide-card h3 .guide-num{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:color-mix(in srgb,var(--primary) 13%,var(--surface));color:var(--primary);font-size:.78rem}
+    .guide-card p{color:var(--muted)}
+    .step-list,.caution-list,.compat-list{margin:0;padding-left:21px;display:grid;gap:8px;color:var(--text)}
+    .step-list li::marker{color:var(--primary);font-weight:900}.caution-list li::marker{color:var(--danger)}
+    .shortcut-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .shortcut-item{display:grid;grid-template-columns:auto 1fr;gap:9px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:9px 10px;background:var(--surface2);min-width:0}
+    .shortcut-key{display:inline-flex;align-items:center;justify-content:center;min-width:38px;min-height:29px;padding:3px 8px;border:1px solid color-mix(in srgb,var(--line) 65%,var(--text));border-bottom-width:3px;border-radius:7px;background:var(--surface);font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-weight:900;font-size:.78rem;white-space:nowrap}
+    .shortcut-item span:last-child{font-size:.84rem;color:var(--muted);min-width:0}
+    .guide-note{margin-top:14px;border-left:4px solid var(--primary2);border-radius:0 13px 13px 0;padding:12px 14px;background:color-mix(in srgb,var(--primary2) 8%,var(--surface));font-size:.86rem;color:var(--muted)}
+    .program-flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}
+    .program-flow div{position:relative;border:1px solid var(--line);border-radius:14px;padding:13px;background:var(--surface);text-align:center;font-size:.82rem;font-weight:850}
+    .program-flow div:not(:last-child)::after{content:'›';position:absolute;right:-8px;top:50%;transform:translateY(-50%);z-index:2;color:var(--primary);font-size:1.3rem;font-weight:950}
+    .support-tags{display:flex;gap:7px;flex-wrap:wrap}.support-tags span{padding:6px 9px;border-radius:999px;background:var(--surface2);border:1px solid var(--line);font-size:.78rem;font-weight:800;color:var(--muted)}
+
+    /* 공정별 타이머: 카드 폭에 맞춰 시간 글자 크기를 자동 조절 */
+    .timer-shell{grid-template-columns:minmax(280px,330px) minmax(0,1fr)}
+    .timer-display{min-width:0;max-width:100%;overflow:hidden;container-type:inline-size}
+    .timer-clock{max-width:100%;white-space:nowrap;overflow:hidden;font-size:clamp(2rem,7vw,5.5rem);font-size:clamp(1.85rem,17cqi,5.5rem);letter-spacing:-.075em;padding-inline:.06em}
+
+    @media(max-width:980px){.software-hero{grid-template-columns:1fr}.software-guide-grid{grid-template-columns:1fr}.program-flow{grid-template-columns:1fr}.program-flow div:not(:last-child)::after{content:'↓';right:auto;left:50%;top:auto;bottom:-17px;transform:translateX(-50%)}}
+    @media(max-width:700px){.software-badge-panel,.shortcut-grid{grid-template-columns:1fr}.training-subnav-inner{justify-content:flex-start;overflow-x:auto;scrollbar-width:none}.training-subnav-inner::-webkit-scrollbar{display:none}.timer-clock{font-size:clamp(1.75rem,17cqi,4.7rem)}}
+
+
+
+    /* 상단 메뉴: 넓은 화면은 전체 노출, 좁은 화면은 한 줄 슬라이드 */
+    .topbar-inner{
+      display:grid !important;
+      grid-template-columns:auto minmax(0,1fr) auto;
+      grid-template-areas:
+        "back brand theme"
+        "nav nav nav";
+      align-items:center;
+      column-gap:12px;
+      row-gap:10px;
+    }
+    .back-pill{grid-area:back}
+    .brand{grid-area:brand;min-width:0 !important}
+    .icon-btn{grid-area:theme}
+    .nav-slider{
+      grid-area:nav;
+      min-width:0;
+      display:grid;
+      grid-template-columns:minmax(0,1fr);
+      align-items:center;
+      gap:7px;
+    }
+    .nav{
+      width:100%;
+      max-width:none !important;
+      margin:0 !important;
+      order:0 !important;
+      flex:none !important;
+      display:grid !important;
+      grid-template-columns:repeat(8,minmax(0,1fr));
+      gap:6px;
+      overflow:visible !important;
+      scroll-behavior:smooth;
+      overscroll-behavior-inline:contain;
+    }
+    .nav button{
+      width:100%;
+      min-width:0;
+      padding:10px 8px;
+      text-align:center;
+      white-space:nowrap;
+    }
+    .nav-slide-btn{
+      display:none;
+      width:38px;
+      height:40px;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:var(--surface);
+      color:var(--primary);
+      font-size:1.55rem;
+      font-weight:950;
+      line-height:1;
+      box-shadow:0 5px 14px rgba(26,38,74,.08);
+    }
+    .nav-slide-btn:hover:not(:disabled){background:var(--surface2);transform:translateY(-1px)}
+    .nav-slide-btn:disabled{opacity:.3;cursor:default;box-shadow:none}
+    .public-tracker-actions{gap:9px;flex-wrap:wrap}
+    .timer-display,.mock-timer-card{min-width:0;max-width:100%;overflow:hidden}
+    .timer-clock,.mock-timer-clock{
+      display:block;
+      width:100%;
+      max-width:100%;
+      min-width:0;
+      box-sizing:border-box;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:clip;
+      font-variant-numeric:tabular-nums;
+      line-height:1;
+      letter-spacing:-.065em;
+      font-size:3rem;
+      padding-inline:.08em;
+    }
+    @media(max-width:1100px){
+      .nav-slider{grid-template-columns:auto minmax(0,1fr) auto}
+      .nav-slide-btn{display:grid;place-items:center}
+      .nav{
+        display:flex !important;
+        gap:7px;
+        overflow-x:auto !important;
+        overflow-y:hidden !important;
+        scrollbar-width:none;
+        scroll-snap-type:x proximity;
+        -webkit-overflow-scrolling:touch;
+        padding:2px 1px 5px;
+      }
+      .nav::-webkit-scrollbar{display:none}
+      .nav button{
+        flex:0 0 auto;
+        width:auto;
+        min-width:126px;
+        scroll-snap-align:center;
+        padding:10px 14px;
+      }
+    }
+    @media(max-width:760px){
+      .topbar-inner{
+        grid-template-columns:auto minmax(0,1fr) auto;
+        grid-template-areas:
+          "back brand theme"
+          "nav nav nav";
+      }
+      .brand-title{font-size:.92rem}
+      .nav button{min-width:116px;font-size:.82rem;padding:9px 12px}
+      .nav-slide-btn{width:34px;height:38px}
+    }
+    @media(max-width:480px){
+      .topbar-inner{padding-inline:10px}
+      .back-pill{padding:8px 9px;font-size:.75rem}
+      .brand-mark{width:37px;height:37px;border-radius:11px}
+      .brand-title{font-size:.82rem}
+      .nav-slider{gap:5px}
+      .nav button{min-width:105px;font-size:.79rem;padding:9px 10px}
+      .nav-slide-btn{width:31px;height:36px;border-radius:10px;font-size:1.35rem}
+      .timer-display{padding:20px 14px}
+      .public-tracker-actions{justify-content:stretch}
+      .public-tracker-actions .btn{flex:1 1 145px}
+    }
+
+
+    /* 공개도면 학습관 내부 탭 및 과제 분석 */
+    .public-hub-header{align-items:flex-end}
+    .public-subtabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:7px;margin-bottom:20px;border:1px solid var(--line);border-radius:17px;background:var(--surface2);position:sticky;top:137px;z-index:12;box-shadow:0 8px 20px rgba(26,38,74,.06)}
+    .public-subtab-btn{border:1px solid transparent;border-radius:12px;background:transparent;color:var(--muted);padding:11px 13px;font-weight:900;transition:.18s ease;white-space:nowrap}
+    .public-subtab-btn:hover{background:var(--surface);color:var(--primary)}
+    .public-subtab-btn.active{border-color:color-mix(in srgb,var(--primary) 34%,var(--line));background:var(--surface);color:var(--primary);box-shadow:0 6px 16px rgba(26,38,74,.09)}
+    .public-subpanel{display:none;animation:fade .2s ease}
+    .public-subpanel.active{display:block}
+    .source-note{display:flex;gap:10px;align-items:flex-start;margin-bottom:18px;padding:15px 17px;border:1px solid color-mix(in srgb,var(--primary2) 25%,var(--line));border-radius:16px;background:color-mix(in srgb,var(--primary2) 7%,var(--surface));color:var(--muted)}
+    .source-note strong{color:var(--text)}
+    .task-analysis-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
+    .exam-task-card{padding:0;overflow:hidden}
+    .exam-task-head{padding:22px;background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 13%,var(--surface)),color-mix(in srgb,var(--primary2) 8%,var(--surface)));border-bottom:1px solid var(--line)}
+    .exam-task-card.print-task .exam-task-head{background:linear-gradient(135deg,color-mix(in srgb,var(--success) 12%,var(--surface)),color-mix(in srgb,var(--primary2) 8%,var(--surface)))}
+    .exam-task-meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+    .exam-task-head h3{margin:0 0 6px;font-size:1.32rem;letter-spacing:-.035em}
+    .exam-task-head p{margin:0;color:var(--muted);font-size:.9rem}
+    .exam-task-body{padding:18px}
+    .exam-flow{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:0 0 15px;padding:12px;border-radius:13px;background:var(--surface2);font-size:.85rem;font-weight:850}
+    .exam-flow span{padding:5px 8px;border-radius:9px;background:var(--surface);border:1px solid var(--line)}
+    .exam-flow b{color:var(--primary)}
+    .exam-details{border:1px solid var(--line);border-radius:14px;background:var(--surface);overflow:hidden;margin-top:10px}
+    .exam-details summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 15px;font-weight:950;cursor:pointer;background:var(--surface2)}
+    .exam-details summary::-webkit-details-marker{display:none}
+    .exam-details summary::after{content:'＋';color:var(--primary);font-size:1.15rem}
+    .exam-details[open] summary::after{content:'－'}
+    .exam-details-content{padding:15px}
+    .requirement-block{padding:13px 14px;border:1px solid var(--line);border-radius:13px;background:var(--surface);margin-bottom:10px}
+    .requirement-block:last-child{margin-bottom:0}
+    .requirement-block h4{margin:0 0 8px;color:var(--primary);font-size:.98rem}
+    .print-task .requirement-block h4{color:var(--success)}
+    .exam-list,.exam-sublist{margin:0;padding-left:21px;display:grid;gap:7px;font-size:.88rem}
+    .exam-list li::marker{color:var(--primary);font-weight:900}
+    .exam-sublist{margin-top:7px;padding-left:19px;color:var(--muted)}
+    .submission-table-wrap{overflow-x:auto;margin-top:12px}
+    .submission-table{width:100%;min-width:540px;border-collapse:collapse;font-size:.82rem}
+    .submission-table th,.submission-table td{border:1px solid var(--line);padding:9px 10px;text-align:left;vertical-align:top}
+    .submission-table th{background:var(--surface2);font-weight:900}
+    .disqualify-list{columns:1;margin:0;padding-left:22px;display:grid;gap:7px;font-size:.86rem}
+    .interpretation-intro{display:flex;align-items:center;gap:16px;margin-bottom:18px;padding:22px;background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 9%,var(--surface)),color-mix(in srgb,var(--primary2) 9%,var(--surface)))}
+    .interpretation-icon{width:62px;height:62px;border-radius:19px;display:grid;place-items:center;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;font-size:1.55rem;font-weight:950;box-shadow:0 12px 25px rgba(105,84,232,.22);flex:0 0 auto}
+    .interpretation-intro h3{font-size:1.35rem;margin:0 0 4px}.interpretation-intro p{margin:0;color:var(--muted)}
+    .interpretation-count{margin-left:auto;flex:0 0 auto;padding:7px 11px;border-radius:999px;background:var(--surface);border:1px solid var(--line);color:var(--primary);font-size:.8rem;font-weight:950}
+    .interpretation-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}
+    .interpretation-link-card{position:relative;display:block;width:100%;padding:0;overflow:hidden;border:1px solid var(--line);border-radius:19px;background:var(--surface);color:var(--text);text-align:left;box-shadow:0 8px 24px rgba(26,38,74,.055);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+    .interpretation-link-card:hover,.interpretation-link-card:focus-visible{transform:translateY(-3px);border-color:color-mix(in srgb,var(--primary) 52%,var(--line));box-shadow:0 15px 32px rgba(54,45,135,.14);outline:none}
+    .interpretation-thumb{position:relative;display:block;width:100%;height:clamp(170px,18vw,220px);overflow:hidden;background:linear-gradient(145deg,#f8fbff,#e8eef9)}
+    .interpretation-thumb img{display:block;width:100%;height:100%;object-fit:contain;padding:14px 16px 12px;transition:transform .22s ease}
+    .interpretation-link-card:hover .interpretation-thumb img{transform:scale(1.035)}
+    .interpretation-number{position:absolute;left:10px;top:10px;display:grid;place-items:center;min-width:44px;height:34px;padding:0 10px;border-radius:11px;background:rgba(20,28,50,.88);color:#fff;font-size:.82rem;font-weight:950;box-shadow:0 5px 14px rgba(0,0,0,.18)}
+    .interpretation-popup-mark{position:absolute;right:10px;top:10px;width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:rgba(255,255,255,.92);color:var(--primary);font-weight:950;box-shadow:0 5px 14px rgba(20,28,50,.13)}
+    .interpretation-link-body{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:82px;padding:13px 14px 14px;border-top:1px solid var(--line);background:var(--surface)}
+    .interpretation-link-body strong{display:block;font-size:.97rem}.interpretation-link-body span{display:block;color:var(--muted);font-size:.78rem;margin-top:2px}
+    .interpretation-open-label{color:var(--primary)!important;font-size:.78rem!important;font-weight:900;white-space:nowrap;margin:0!important}
+    .interpretation-modal{width:min(1480px,96vw);height:min(900px,94vh);max-width:none;max-height:none;padding:0;border:0;border-radius:22px;background:var(--surface);color:var(--text);box-shadow:0 30px 90px rgba(5,12,30,.42);overflow:hidden}
+    .interpretation-modal::backdrop{background:rgba(8,15,31,.72);backdrop-filter:blur(5px)}
+    .interpretation-modal-shell{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr);background:var(--surface)}
+    .interpretation-modal-head{display:flex;align-items:center;gap:12px;padding:12px 14px 12px 18px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--surface) 92%,var(--surface2));box-shadow:0 6px 18px rgba(18,28,49,.08);z-index:2}
+    .interpretation-modal-title-wrap{min-width:0;flex:1}.interpretation-modal-title{font-weight:950;letter-spacing:-.025em}.interpretation-modal-path{font-size:.75rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .interpretation-modal-actions{display:flex;gap:8px;flex:0 0 auto}.interpretation-modal-actions a,.interpretation-modal-actions button{min-height:38px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--text);padding:8px 11px;text-decoration:none;font-weight:900;font-size:.8rem}.interpretation-modal-actions a{color:var(--primary)}.interpretation-modal-actions button{width:40px;padding:0;font-size:1.15rem}
+    .interpretation-frame{width:100%;height:100%;border:0;background:#f4f7fb}
+    @media(max-width:1100px){.interpretation-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @media(max-width:980px){.task-analysis-grid{grid-template-columns:1fr}.public-subtabs{top:132px}.interpretation-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:760px){.public-subtabs{position:relative;top:auto;display:flex;overflow-x:auto;scrollbar-width:none;padding:6px}.public-subtabs::-webkit-scrollbar{display:none}.public-subtab-btn{flex:0 0 auto;min-width:150px}.public-hub-header{align-items:flex-start;flex-direction:column}.public-hub-header>a.btn{width:auto}.exam-task-head{padding:18px}.exam-task-body{padding:14px}.interpretation-intro{align-items:flex-start;padding:18px}.interpretation-count{margin-left:0}.interpretation-modal{width:100vw;height:100vh;border-radius:0}.interpretation-modal-head{padding:10px}.interpretation-modal-path{display:none}.interpretation-modal-actions a{display:none}}
+    @media(max-width:520px){.interpretation-grid{grid-template-columns:1fr}.interpretation-intro{display:grid;grid-template-columns:auto 1fr}.interpretation-count{grid-column:1/-1;justify-self:start}.interpretation-thumb{height:190px}.interpretation-thumb img{padding:16px 22px 12px}.interpretation-link-body{min-height:78px}}
+    @media(max-width:480px){.public-subtab-btn{min-width:135px;padding:10px 11px}.exam-details-content{padding:12px}}
+
+</style>
+</head>
+<body>
+<div class="app">
+<header class="topbar">
+<div class="topbar-inner">
+<a class="back-pill" href="../student.html">← 학생용 홈으로</a>
+<div class="brand">
+<div class="brand-mark">3D</div>
+<div><div class="brand-title">3D프린터운용기능사 실기 마스터</div><div class="brand-sub">모델링 · 어셈블리 · 슬라이싱 · 출력 · 안전</div></div>
+</div>
+<div class="nav-slider">
+<button aria-label="이전 메뉴 보기" class="nav-slide-btn nav-slide-prev" id="navSlidePrev" type="button">‹</button>
+<nav aria-label="주요 학습 메뉴" class="nav" id="mainNav" tabindex="0">
+<button class="active" data-page="home">홈</button>
+<button data-page="strategy">시험전략</button>
+<button aria-controls="cadSubnav" aria-expanded="false" class="training-menu-btn" id="cadMenuBtn" type="button">3D모델링 <span aria-hidden="true" class="menu-arrow">▾</span></button>
+<button aria-controls="slicingSoftwareSubnav" aria-expanded="false" class="training-menu-btn" id="slicingSoftwareMenuBtn" type="button">슬라이싱 <span aria-hidden="true" class="menu-arrow">▾</span></button>
+<button aria-controls="trainingSubnav" aria-expanded="false" class="training-menu-btn" id="trainingMenuBtn" type="button">훈련 연습 <span aria-hidden="true" class="menu-arrow">▾</span></button>
+<button data-page="safety">실격방지</button>
+<button data-page="public">공개도면</button>
+<button data-page="timer">타이머</button>
+</nav>
+<button aria-label="다음 메뉴 보기" class="nav-slide-btn nav-slide-next" id="navSlideNext" type="button">›</button>
+</div>
+<button aria-label="화면 테마 전환" class="icon-btn" id="themeBtn">◐</button>
+</div>
+<div aria-hidden="true" aria-label="3D 모델링 프로그램 메뉴" class="training-subnav" id="cadSubnav">
+<div class="training-subnav-inner">
+<span class="training-subnav-label">3D모델링</span>
+<button data-cad-page="cad-tinkercad" type="button">틴커캐드</button>
+<button data-cad-page="cad-solidworks" type="button">솔리드웍스</button>
+<button data-cad-page="cad-inventor" type="button">인벤터</button>
+<button data-cad-page="cad-fusion" type="button">퓨전360</button>
+</div>
+</div>
+<div aria-hidden="true" aria-label="슬라이싱 프로그램 메뉴" class="training-subnav" id="slicingSoftwareSubnav">
+<div class="training-subnav-inner">
+<span class="training-subnav-label">슬라이싱</span>
+<button data-slicing-software-page="slice-cura" type="button">Ultimaker Cura</button>
+<button data-slicing-software-page="slice-creality" type="button">Creality Print</button>
+<button data-slicing-software-page="slice-prusa" type="button">PrusaSlicer</button>
+</div>
+</div>
+<div aria-hidden="true" aria-label="훈련 연습 세부 메뉴" class="training-subnav" id="trainingSubnav">
+<div class="training-subnav-inner">
+<span class="training-subnav-label">훈련 연습</span>
+<button data-training-page="modeling" type="button">도면훈련</button>
+<button data-training-page="assembly" type="button">어셈블리</button>
+<button data-training-page="slicer" type="button">슬라이싱</button>
+<button data-training-page="output" type="button">출력 후가공</button>
+</div>
+</div>
+</header>
+<main>
+<section class="page active" id="home">
+<div class="hero">
+<div class="hero-grid">
+<div>
+<div class="eyebrow">CRAFTSMAN 3D PRINTER OPERATION · PRACTICAL</div>
+<h1>도면에서 출력물까지,<br/>3시간 실전 루틴 완성</h1>
+<p>주어진 도면을 빠르게 해석하고, 정확하게 모델링·조립한 뒤 슬라이싱과 출력 준비까지 이어지는 전체 과정을 반복 연습합니다. 모든 기능은 한 개의 HTML 파일 안에서 동작합니다.</p>
+<div class="hero-actions">
+<button class="btn btn-light" onclick="goPage('modeling')">✎ 도면 훈련 시작</button>
+<button class="btn btn-outline-light" onclick="goPage('timer')">⏱ 훈련 타이머</button>
+<a class="btn btn-outline-light" href="https://www.q-net.or.kr/cst006.do?artlSeq=5206759&amp;brdId=Q006&amp;code=1204&amp;gSite=Q&amp;id=cst00602" rel="noopener" target="_blank">Q-Net 공개문제</a>
+</div>
+</div>
+<div aria-hidden="true" class="printer-wrap">
+<svg class="printer-svg" viewbox="0 0 390 310">
+<rect fill="#ddd9ff" height="20" rx="8" width="320" x="35" y="20"></rect><rect fill="#ddd9ff" height="230" rx="8" width="18" x="45" y="39"></rect><rect fill="#ddd9ff" height="230" rx="8" width="18" x="327" y="39"></rect>
+<rect fill="#bbb5ff" height="12" rx="6" width="240" x="75" y="60"></rect>
+<g class="nozzle"><rect fill="#20283d" height="40" rx="10" width="66" x="144" y="52"></rect><rect fill="#ffd166" height="23" rx="4" width="14" x="170" y="90"></rect><path d="M172 112h10l-3 13h-4z" fill="#ff9b42"></path></g>
+<rect fill="#cbc7ff" height="17" rx="7" width="240" x="75" y="255"></rect><rect fill="#86e2eb" height="15" rx="6" width="202" x="94" y="235"></rect>
+<g class="layerGlow"><path d="M132 232h126l-12-16H144z" fill="#4fe0d1"></path><path d="M143 213h104l-10-16h-84z" fill="#61d8e7"></path><path d="M154 194h82l-8-16h-66z" fill="#7a7af4"></path><path d="M166 175h58l-6-15h-46z" fill="#977aff"></path></g>
+<rect fill="rgba(255,255,255,.45)" height="12" rx="6" width="170" x="110" y="280"></rect>
+</svg>
+</div>
+</div>
+</div>
+<div class="section-title"><div><h2>시험 핵심 정보</h2><p>공식 기준과 실전 대비용 학습 포인트를 분리해 확인하세요.</p></div></div>
+<div class="grid grid-4">
+<div class="card stat-card"><div class="num">3시간</div><div class="label">실기 작업형 시험시간</div></div>
+<div class="card stat-card"><div class="num">60점(36개)</div><div class="label">100점 만점 합격기준</div></div>
+<div class="card stat-card"><div class="num">27형별</div><div class="label">2026년 제2회부터 공개 도면</div></div>
+<div class="card stat-card"><div class="num">STP · STL</div><div class="label">모델링 파일 형식 점검</div></div>
+</div>
+
+<div class="section-title imported-section-title"><div><h2>실기 시험 개요</h2><p>제1과목 모델링과 제2과목 프린팅의 시험 흐름과 주의사항을 확인하세요.</p></div></div>
+<div class="exam-overview-grid">
+<article class="exam-overview-card modeling-overview">
+<h3><span class="overview-number">1</span>제1과목: 3D 모델링</h3>
+<ul>
+<li><strong>제한시간:</strong> 1시간</li>
+<li><strong>평가내용:</strong> 부품 1, 2 모델링 및 어셈블리(조립)</li>
+<li><strong>필수사항:</strong> 비번호 각인, 조립부 공차(±1mm 이하) 적용</li>
+<li><strong>제출파일:</strong> 3D CAD 원본, STEP, STL, G-code 등(감독관 지시 참조)</li>
+</ul>
+</article>
+<article class="exam-overview-card printing-overview">
+<h3><span class="overview-number">2</span>제2과목: 3D 프린팅</h3>
+<ul>
+<li><strong>제한시간:</strong> 2시간</li>
+<li><strong>평가내용:</strong> 프린터 세팅, 출력, 서포트 제거, 후가공</li>
+<li><strong>핵심주의:</strong> 슬라이싱 출력 예상 시간 <strong>80분 이내</strong> 세팅</li>
+<li><strong>실격주의:</strong> 후가공(서포트 제거) 중 부품 파손 시 즉시 실격</li>
+</ul>
+</article>
+</div>
+
+
+<div class="section-title"><div><h2>합격 루틴 6단계</h2><p>빠르게 만드는 것보다 검증 가능한 순서로 작업하는 것이 중요합니다.</p></div></div>
+<div class="workflow">
+<div class="step-card"><div class="step">STEP 01</div><h3>도면 분석</h3><p>기준면, 중심축, 대칭, 반복 형상과 핵심 치수를 먼저 표시합니다.</p></div>
+<div class="step-card"><div class="step">STEP 02</div><h3>스케치 구속</h3><p>완전구속을 목표로 치수와 기하 구속을 적용합니다.</p></div>
+<div class="step-card"><div class="step">STEP 03</div><h3>피처 모델링</h3><p>돌출·회전·컷·필렛·패턴 순서를 단순하게 유지합니다.</p></div>
+<div class="step-card"><div class="step">STEP 04</div><h3>어셈블리</h3><p>기준 부품을 고정하고 조립 구속과 간섭을 확인합니다.</p></div>
+<div class="step-card"><div class="step">STEP 05</div><h3>파일 제출</h3><p>요구 파일명과 형식, 저장 위치를 두 번 확인합니다.</p></div>
+<div class="step-card"><div class="step">STEP 06</div><h3>출력 준비</h3><p>방향·서포트·레이어·접착 설정을 검토해 G-code를 생성합니다.</p></div>
+</div>
+<div class="notice warning-notice" style="margin-top:18px"><strong>중요:</strong> 이 웹앱은 반복 훈련용입니다. 시험 직전에는 반드시 Q-Net의 최신 공개문제, 수험자 유의사항, 지참준비물, 시험장별 사용 프로그램을 다시 확인하세요.</div>
+</section>
+<section class="page" id="strategy">
+<div class="section-title"><div><h2>시험전략</h2><p>공식 시험시간 3시간을 기준으로 한 학습용 시간 배분 예시입니다.</p></div></div>
+<div class="grid grid-3">
+<div class="card"><span class="pill primary">0~10분</span><h3>도면 해석</h3><p class="muted">부품 수, 대칭 여부, 축 기준, 조립 관계, 누락하기 쉬운 구멍·홈·필렛을 표시합니다.</p></div>
+<div class="card"><span class="pill primary">10~75분</span><h3>부품 모델링</h3><p class="muted">복잡한 부품부터 시작하되, 중간 저장과 치수 검증을 반복합니다.</p></div>
+<div class="card"><span class="pill primary">75~105분</span><h3>어셈블리·간섭 확인</h3><p class="muted">기준 부품 고정 → 조립 구속 → 자유도·간섭·방향 확인 순서로 점검합니다.</p></div>
+<div class="card"><span class="pill primary">105~125분</span><h3>파일 변환·제출 점검</h3><p class="muted">원본, STP, STL 등 요구 형식을 저장하고 실제로 다시 열리는지 확인합니다.</p></div>
+<div class="card"><span class="pill primary">125~165분</span><h3>슬라이싱·출력 준비</h3><p class="muted">출력 방향, 서포트, 베드 접착, 온도, 속도, 예상 시간을 검토합니다.</p></div>
+<div class="card"><span class="pill success">165~180분</span><h3>최종 검수</h3><p class="muted">파일명, 제출 위치, 치수, 누락 피처, 조립 방향, 장비 안전 상태를 확인합니다.</p></div>
+</div>
+<div class="section-title"><div><h2>모델링 단축 전략</h2><p>CAD 프로그램과 관계없이 적용할 수 있는 공통 원칙입니다.</p></div></div>
+<div class="grid grid-2">
+<div class="card"><h3>형상을 기능 단위로 분해</h3><div class="check-list">
+<div class="check-item"><strong>①</strong><span>기본 몸체: 가장 큰 부피를 먼저 생성</span></div>
+<div class="check-item"><strong>②</strong><span>제거 형상: 관통구멍, 홈, 포켓을 묶어서 처리</span></div>
+<div class="check-item"><strong>③</strong><span>반복 형상: 원형·직선 패턴으로 복제</span></div>
+<div class="check-item"><strong>④</strong><span>마감 형상: 필렛·모따기는 마지막에 적용</span></div>
+</div></div>
+<div class="card"><h3>오류 복구가 쉬운 작업 순서</h3><div class="check-list">
+<div class="check-item"><strong>①</strong><span>스케치 이름과 피처 이름을 구분</span></div>
+<div class="check-item"><strong>②</strong><span>큰 단계가 끝날 때마다 다른 이름으로 저장</span></div>
+<div class="check-item"><strong>③</strong><span>외부참조와 불필요한 링크 최소화</span></div>
+<div class="check-item"><strong>④</strong><span>내보낸 파일을 새 문서에서 재확인</span></div>
+</div></div>
+</div>
+<div class="section-title"><div><h2>시험장 도착 후 확인</h2></div></div>
+<div class="card"><div class="check-list" id="strategyChecklist"></div></div>
+</section>
+
+<section class="page software-page" id="cad-tinkercad">
+<article class="card software-hero">
+<div>
+<div class="software-kicker">AUTODESK · WEB CAD</div>
+<h2>틴커캐드 Tinkercad</h2>
+<p>웹 브라우저에서 바로 사용하는 입문용 3D 설계 도구입니다. 기본 도형을 결합·제거하는 방식이 직관적이어서 형상 이해와 기초 모델링 연습에 적합합니다.</p>
+<div class="software-actions"><a class="btn btn-primary" href="https://www.tinkercad.com/3d-design" target="_blank" rel="noopener">↗ 틴커캐드 바로 시작</a><button class="btn btn-soft" type="button" onclick="goPage('timer')">⏱ 훈련 타이머 열기</button></div>
+</div>
+<div class="software-badge-panel"><div class="software-badge"><strong>설치</strong><span>별도 설치 없음</span></div><div class="software-badge"><strong>권장 대상</strong><span>CAD 입문자</span></div><div class="software-badge"><strong>작업 방식</strong><span>도형 조합·그룹</span></div><div class="software-badge"><strong>출력 형식</strong><span>STL · OBJ</span></div></div>
+</article>
+<div class="section-title"><div><h2>작업 흐름</h2><p>시험 연습에서는 아래 순서를 고정해 반복하세요.</p></div></div><div class="program-flow"><div>도형 배치</div><div>치수·정렬</div><div>Hole·Group</div><div>형상 검토</div><div>STL 내보내기</div></div>
+<div class="section-title"><div><h2>학습 가이드</h2><p>설치부터 시험용 파일 생성까지 순서대로 확인하세요.</p></div></div>
+<div class="software-guide-grid"><article class="card guide-card"><h3><span class="guide-num">01</span>프로그램 시작·접속</h3><ul class="compat-list"><li>Chrome·Edge 등 최신 브라우저로 접속합니다.</li><li>개인 Autodesk 계정 또는 교사가 제공한 학급 코드로 로그인합니다.</li><li>새 디자인 만들기 후 작업 평면의 단위를 mm로 확인합니다.</li></ul></article><article class="card guide-card"><h3><span class="guide-num">02</span>기본 모델링 방법</h3><ol class="step-list"><li>Box·Cylinder 등 기본 형상을 작업 평면에 배치합니다.</li><li>Ruler로 위치와 크기를 수치 입력하고 Align으로 중심을 맞춥니다.</li><li>제거할 형상은 Hole로 바꾼 뒤 대상과 함께 Group합니다.</li><li>복제·대칭·반복 기능으로 동일 형상을 빠르게 만듭니다.</li><li>Perspective보다 Orthographic 보기에서 치수와 정렬을 재확인합니다.</li></ol></article><article class="card guide-card"><h3><span class="guide-num">03</span>주요 단축키</h3><div class="shortcut-grid"><div class="shortcut-item"><span class="shortcut-key">W</span><span>작업 평면 지정</span></div><div class="shortcut-item"><span class="shortcut-key">R</span><span>눈금자 표시</span></div><div class="shortcut-item"><span class="shortcut-key">L</span><span>선택 형상 정렬</span></div><div class="shortcut-item"><span class="shortcut-key">D</span><span>작업 평면으로 내려놓기</span></div><div class="shortcut-item"><span class="shortcut-key">Ctrl+D</span><span>복제·반복</span></div><div class="shortcut-item"><span class="shortcut-key">Ctrl+G</span><span>그룹 결합</span></div><div class="shortcut-item"><span class="shortcut-key">Ctrl+Shift+G</span><span>그룹 해제</span></div><div class="shortcut-item"><span class="shortcut-key">F</span><span>선택 항목 화면 맞춤</span></div></div></article><article class="card guide-card"><h3><span class="guide-num">04</span>STL 파일 출력 방법</h3><ol class="step-list"><li>Export를 누릅니다.</li><li>선택한 형상만 출력할 경우 먼저 필요한 형상을 선택합니다.</li><li>STL을 선택해 다운로드합니다.</li><li>슬라이서에서 열어 단위가 mm인지, 바닥 면이 올바른지 확인합니다.</li></ol></article></div>
+<div class="notice warning-notice" style="margin-top:18px"><strong>주의사항:</strong> 틴커캐드는 브라우저 기반이므로 인터넷 연결과 계정 로그인이 필요합니다. 복잡한 치수 구속·어셈블리 기능은 제한적이므로 실제 시험장에서 허용되는 프로그램인지 반드시 확인하세요.</div>
+</section>
+
+<section class="page software-page" id="cad-solidworks">
+<article class="card software-hero">
+<div>
+<div class="software-kicker">DASSAULT SYSTÈMES · PARAMETRIC CAD</div>
+<h2>솔리드웍스 SOLIDWORKS</h2>
+<p>기계 부품의 파라메트릭 모델링과 어셈블리에 널리 사용되는 전문 CAD입니다. 스케치 구속, 피처 트리, 메이트와 간섭 검사를 체계적으로 연습할 수 있습니다.</p>
+<div class="software-actions"><a class="btn btn-primary" href="https://www.solidworks.com/support/downloads" target="_blank" rel="noopener">↗ 공식 다운로드·지원</a><button class="btn btn-soft" type="button" onclick="goPage('timer')">⏱ 훈련 타이머 열기</button></div>
+</div>
+<div class="software-badge-panel"><div class="software-badge"><strong>설치</strong><span>Windows 데스크톱</span></div><div class="software-badge"><strong>라이선스</strong><span>학교·교육용 확인</span></div><div class="software-badge"><strong>핵심 기능</strong><span>부품 · 어셈블리</span></div><div class="software-badge"><strong>출력 형식</strong><span>STEP · STL · 3MF</span></div></div>
+</article>
+<div class="section-title"><div><h2>작업 흐름</h2><p>시험 연습에서는 아래 순서를 고정해 반복하세요.</p></div></div><div class="program-flow"><div>스케치 완전구속</div><div>피처 모델링</div><div>부품 저장</div><div>메이트·간섭 검사</div><div>STEP·STL 출력</div></div>
+<div class="section-title"><div><h2>학습 가이드</h2><p>설치부터 시험용 파일 생성까지 순서대로 확인하세요.</p></div></div>
+<div class="software-guide-grid"><article class="card guide-card"><h3><span class="guide-num">01</span>설치 방법</h3><ol class="step-list"><li>학교 또는 개인에게 배정된 SOLIDWORKS 라이선스·시리얼 번호를 확인합니다.</li><li>공식 다운로드 페이지에서 사용 가능한 버전을 선택합니다.</li><li>SOLIDWORKS Installation Manager를 실행하고 개별 설치를 선택합니다.</li><li>제품 선택과 설치 위치를 확인한 뒤 설치를 완료합니다.</li><li>첫 실행 후 단위계를 MMGS(mm, g, s)로 설정합니다.</li></ol></article><article class="card guide-card"><h3><span class="guide-num">02</span>모델링·어셈블리 방법</h3><ol class="step-list"><li>새 파트에서 기준 평면을 선택하고 스케치를 완전구속합니다.</li><li>돌출 보스/베이스, 돌출 컷, 회전, 구멍 가공 마법사 순으로 기본 피처를 작성합니다.</li><li>필렛·모따기와 패턴은 형상 검증 후 적용합니다.</li><li>각 부품을 별도 저장하고 새 어셈블리에서 첫 부품을 고정합니다.</li><li>동심·일치·거리 메이트를 적용한 뒤 이동과 간섭 검사를 수행합니다.</li></ol></article><article class="card guide-card"><h3><span class="guide-num">03</span>주요 단축키</h3><div class="shortcut-grid"><div class="shortcut-item"><span class="shortcut-key">S</span><span>바로가기 도구 모음</span></div><div class="shortcut-item"><span class="shortcut-key">Space</span><span>보기 방향 창</span></div><div class="shortcut-item"><span class="shortcut-key">Ctrl+8</span><span>선택 면 정면 보기</span></div><div class="shortcut-item"><span class="shortcut-key">Ctrl+7</span><span>등각 보기</span></div><div class="shortcut-item"><span class="shortcut-key">F</span><span>화면 맞춤</span></div><div class="shortcut-item"><span class="shortcut-key">Ctrl+B</span><span>재생성</span></div><div class="shortcut-item"><span class="shortcut-key">Ctrl+Q</span><span>강제 재생성</span></div><div class="shortcut-item"><span class="shortcut-key">Ctrl+S</span><span>저장</span></div></div></article><article class="card guide-card"><h3><span class="guide-num">04</span>STL 파일 출력 방법</h3><ol class="step-list"><li>부품 또는 어셈블리를 엽니다.</li><li>파일 → 다른 이름으로 저장에서 STL을 선택하거나 파일 → Print3D를 사용합니다.</li><li>옵션에서 단위 mm, 해상도와 어셈블리 저장 방식을 확인합니다.</li><li>저장한 STL을 슬라이서에서 다시 열어 스케일·방향·메시 상태를 검사합니다.</li></ol></article></div>
+<div class="notice warning-notice" style="margin-top:18px"><strong>주의사항:</strong> 버전과 라이선스에 따라 메뉴 이름이 다를 수 있습니다. 어셈블리를 하나의 STL로 저장할지 부품별로 저장할지 문제지 지시를 우선하고, STL 내보내기 옵션의 단위를 반드시 mm로 확인하세요.</div>
+</section>
+
+<section class="page software-page" id="cad-inventor">
+<article class="card software-hero">
+<div>
+<div class="software-kicker">AUTODESK · MECHANICAL CAD</div>
+<h2>오토데스크 인벤터 Inventor</h2>
+<p>기계 설계와 조립에 특화된 파라메트릭 CAD입니다. 부품 IPT, 조립품 IAM 구조와 구속·조인트 기능을 활용해 실기 도면의 부품 및 조립 과정을 연습할 수 있습니다.</p>
+<div class="software-actions"><a class="btn btn-primary" href="https://www.autodesk.com/products/inventor/free-trial" target="_blank" rel="noopener">↗ Inventor 공식 설치</a><button class="btn btn-soft" type="button" onclick="goPage('timer')">⏱ 훈련 타이머 열기</button></div>
+</div>
+<div class="software-badge-panel"><div class="software-badge"><strong>설치</strong><span>Windows 데스크톱</span></div><div class="software-badge"><strong>교육용</strong><span>Autodesk 교육 계정</span></div><div class="software-badge"><strong>원본 형식</strong><span>IPT · IAM</span></div><div class="software-badge"><strong>출력 형식</strong><span>STEP · STL</span></div></div>
+</article>
+<div class="section-title"><div><h2>작업 흐름</h2><p>시험 연습에서는 아래 순서를 고정해 반복하세요.</p></div></div><div class="program-flow"><div>스케치 구속</div><div>피처 생성</div><div>IPT 저장</div><div>IAM 조립</div><div>STEP·STL 출력</div></div>
+<div class="section-title"><div><h2>학습 가이드</h2><p>설치부터 시험용 파일 생성까지 순서대로 확인하세요.</p></div></div>
+<div class="software-guide-grid"><article class="card guide-card"><h3><span class="guide-num">01</span>설치 방법</h3><ol class="step-list"><li>Autodesk 계정에 로그인하고 교육용 권한 또는 체험·구독 권한을 확인합니다.</li><li>공식 페이지 또는 Autodesk Account에서 버전·언어·운영체제를 선택합니다.</li><li>설치 프로그램을 실행해 기본 구성요소를 설치합니다.</li><li>첫 실행 시 프로젝트 파일 위치와 기본 템플릿을 확인합니다.</li><li>문서 설정에서 길이 단위를 mm로 맞춥니다.</li></ol></article><article class="card guide-card"><h3><span class="guide-num">02</span>모델링·조립 방법</h3><ol class="step-list"><li>새 Part에서 2D Sketch를 만들고 중심선·대칭·치수 구속을 적용합니다.</li><li>Extrude, Revolve, Hole, Sweep, Pattern으로 피처를 작성합니다.</li><li>Fillet·Chamfer는 마지막 단계에 배치해 수정성을 높입니다.</li><li>부품을 IPT로 각각 저장하고 새 Assembly에 Place합니다.</li><li>첫 부품을 Ground한 뒤 Constrain 또는 Joint로 위치를 결정하고 간섭을 분석합니다.</li></ol></article><article class="card guide-card"><h3><span class="guide-num">03</span>주요 단축키</h3><div class="shortcut-grid"><div class="shortcut-item"><span class="shortcut-key">F2</span><span>화면 이동 Pan</span></div><div class="shortcut-item"><span class="shortcut-key">F3</span><span>확대·축소 Zoom</span></div><div class="shortcut-item"><span class="shortcut-key">F4</span><span>회전 Orbit</span></div><div class="shortcut-item"><span class="shortcut-key">F5</span><span>이전 보기</span></div><div class="shortcut-item"><span class="shortcut-key">F6</span><span>홈 등각 보기</span></div><div class="shortcut-item"><span class="shortcut-key">S</span><span>스케치 시작</span></div><div class="shortcut-item"><span class="shortcut-key">E</span><span>돌출 Extrude</span></div><div class="shortcut-item"><span class="shortcut-key">H</span><span>구멍 Hole</span></div></div><div class="guide-note">단축키는 환경 설정과 버전에 따라 달라질 수 있으므로 시험장 PC에서 미리 확인하세요.</div></article><article class="card guide-card"><h3><span class="guide-num">04</span>STL 파일 출력 방법</h3><ol class="step-list"><li>파일 → 다른 이름으로 저장 → 사본 저장 또는 내보내기 → CAD 형식을 선택합니다.</li><li>파일 형식에서 STL을 선택합니다.</li><li>Options에서 단위를 mm로 맞추고 필요한 경우 Resolution을 High로 설정합니다.</li><li>STL을 슬라이서에 불러와 전체 크기와 곡면 분할 상태를 확인합니다.</li></ol></article></div>
+<div class="notice warning-notice" style="margin-top:18px"><strong>주의사항:</strong> STL 자체에는 단위 정보가 명확하지 않을 수 있으므로 내보내기 옵션과 슬라이서의 단위를 모두 mm로 맞추세요. 조립품을 내보낼 때 부품이 서로 겹치거나 분리되지 않았는지도 확인해야 합니다.</div>
+</section>
+
+<section class="page software-page" id="cad-fusion">
+<article class="card software-hero">
+<div>
+<div class="software-kicker">AUTODESK · CLOUD-CONNECTED CAD</div>
+<h2>오토데스크 퓨전 Fusion 360</h2>
+<p>파라메트릭·직접·서피스·메시 모델링과 조립 기능을 한 환경에서 제공하는 클라우드 연결형 CAD입니다. 개인 학습과 교육 환경에서 모델링부터 STL 생성까지 연습하기 좋습니다.</p>
+<div class="software-actions"><a class="btn btn-primary" href="https://www.autodesk.com/products/fusion-360/personal" target="_blank" rel="noopener">↗ Fusion 공식 설치</a><button class="btn btn-soft" type="button" onclick="goPage('timer')">⏱ 훈련 타이머 열기</button></div>
+</div>
+<div class="software-badge-panel"><div class="software-badge"><strong>설치</strong><span>Windows · macOS</span></div><div class="software-badge"><strong>데이터</strong><span>클라우드 프로젝트</span></div><div class="software-badge"><strong>핵심 기능</strong><span>컴포넌트 · 조인트</span></div><div class="software-badge"><strong>출력 형식</strong><span>STEP · STL · 3MF</span></div></div>
+</article>
+<div class="section-title"><div><h2>작업 흐름</h2><p>시험 연습에서는 아래 순서를 고정해 반복하세요.</p></div></div><div class="program-flow"><div>스케치·구속</div><div>Body·Component</div><div>피처 모델링</div><div>Joint·간섭 검사</div><div>Save as Mesh</div></div>
+<div class="section-title"><div><h2>학습 가이드</h2><p>설치부터 시험용 파일 생성까지 순서대로 확인하세요.</p></div></div>
+<div class="software-guide-grid"><article class="card guide-card"><h3><span class="guide-num">01</span>설치 방법</h3><ol class="step-list"><li>Autodesk 계정으로 로그인하고 개인용·교육용·체험판 등 적합한 이용 자격을 선택합니다.</li><li>공식 페이지에서 설치 파일을 내려받아 실행합니다.</li><li>설치 후 로그인하고 새 프로젝트와 디자인을 생성합니다.</li><li>Document Settings에서 Units를 mm로 변경합니다.</li><li>오프라인 시험 환경을 대비해 필요한 파일을 로컬로 내보내는 연습을 합니다.</li></ol></article><article class="card guide-card"><h3><span class="guide-num">02</span>모델링·조립 방법</h3><ol class="step-list"><li>Create Sketch에서 기준 평면을 선택하고 치수 D와 기하 구속을 적용합니다.</li><li>Extrude, Revolve, Hole, Sweep, Pattern으로 기본 형상을 만듭니다.</li><li>부품별로 Component를 생성해 피처와 원점을 분리합니다.</li><li>As-Built Joint 또는 Joint로 조립 관계와 움직임을 설정합니다.</li><li>Inspect의 Interference와 Measure로 간섭·치수를 검증합니다.</li></ol></article><article class="card guide-card"><h3><span class="guide-num">03</span>주요 단축키</h3><div class="shortcut-grid"><div class="shortcut-item"><span class="shortcut-key">S</span><span>도구 검색</span></div><div class="shortcut-item"><span class="shortcut-key">E</span><span>돌출 Extrude</span></div><div class="shortcut-item"><span class="shortcut-key">Q</span><span>Press Pull</span></div><div class="shortcut-item"><span class="shortcut-key">F</span><span>필렛</span></div><div class="shortcut-item"><span class="shortcut-key">M</span><span>이동·복사</span></div><div class="shortcut-item"><span class="shortcut-key">D</span><span>스케치 치수</span></div><div class="shortcut-item"><span class="shortcut-key">P</span><span>투영 Project</span></div><div class="shortcut-item"><span class="shortcut-key">X</span><span>구성선 전환</span></div></div></article><article class="card guide-card"><h3><span class="guide-num">04</span>STL 파일 출력 방법</h3><ol class="step-list"><li>브라우저 트리에서 Body 또는 Component를 오른쪽 클릭합니다.</li><li>Save as Mesh를 선택합니다.</li><li>Format을 STL 또는 3MF로 선택하고 단위와 정밀도를 확인합니다.</li><li>또는 Tools → Make → 3D Print에서 출력할 Body를 선택하고 파일로 저장합니다.</li><li>슬라이서에서 크기·방향·메시 품질을 최종 점검합니다.</li></ol></article></div>
+<div class="notice warning-notice" style="margin-top:18px"><strong>주의사항:</strong> 개인용 라이선스는 사용 목적에 제한이 있으므로 학교 수업에는 Autodesk 교육용 자격을 확인하세요. 클라우드 동기화 상태와 로컬 저장 파일을 모두 확인하고, Body와 Component를 혼동하지 않도록 주의하세요.</div>
+</section>
+
+<section class="page software-page" id="slice-cura">
+<article class="card software-hero">
+<div>
+<div class="software-kicker">ULTIMAKER · OPEN-SOURCE SLICER</div>
+<h2>Ultimaker Cura</h2>
+<p>무료 오픈 소스 슬라이서로 추천 모드와 400개 이상의 세부 설정을 제공합니다. UltiMaker 장비와 긴밀하게 연동되며 다양한 제조사 프로필 또는 사용자 정의 FFF 프린터를 활용할 수 있습니다.</p>
+<div class="software-actions"><a class="btn btn-primary" href="https://ultimaker.com/software/ultimaker-cura/" target="_blank" rel="noopener">↗ Cura 공식 다운로드</a><button class="btn btn-soft" type="button" onclick="goPage('timer')">⏱ 훈련 타이머 열기</button></div>
+</div>
+<div class="software-badge-panel"><div class="software-badge"><strong>운영체제</strong><span>Windows · macOS · Linux</span></div><div class="software-badge"><strong>기본 대상</strong><span>FDM/FFF 프린터</span></div><div class="software-badge"><strong>프로필</strong><span>UltiMaker · 다수 제3자</span></div><div class="software-badge"><strong>출력</strong><span>G-code · 네트워크</span></div></div>
+</article>
+<div class="section-title"><div><h2>작업 흐름</h2><p>시험 연습에서는 아래 순서를 고정해 반복하세요.</p></div></div><div class="program-flow"><div>프린터·재료 선택</div><div>STL 배치</div><div>품질·서포트 설정</div><div>Slice·Preview</div><div>G-code 저장</div></div>
+<div class="section-title"><div><h2>학습 가이드</h2><p>설치부터 시험용 파일 생성까지 순서대로 확인하세요.</p></div></div>
+<div class="software-guide-grid"><article class="card guide-card"><h3><span class="guide-num">01</span>설치 방법</h3><ol class="step-list"><li>공식 다운로드 페이지에서 운영체제에 맞는 설치 파일을 선택합니다.</li><li>설치 프로그램을 실행하고 안내에 따라 설치합니다.</li><li>첫 실행에서 Add a printer를 선택합니다.</li><li>목록에서 프린터 모델을 선택하거나 Custom FFF Printer를 구성합니다.</li><li>노즐 지름, 빌드 볼륨과 재료 프로필을 확인합니다.</li></ol></article><article class="card guide-card"><h3><span class="guide-num">02</span>지원 가능한 프린터</h3><ul class="compat-list"><li>UltiMaker 및 MakerBot 계열의 공식 통합 장비</li><li>버전에 포함된 Creality·Anycubic·Sovol·BIQU·Geeetech 등 제3자 프로필</li><li>프로필이 없는 일반 FDM/FFF 장비는 Custom Printer로 빌드 크기·G-code를 직접 설정</li><li>정확한 지원 목록은 설치한 Cura 버전의 Add Printer 화면에서 확인</li></ul></article><article class="card guide-card"><h3><span class="guide-num">03</span>출력 방법</h3><ol class="step-list"><li>STL·3MF 등을 불러오고 이동·회전·크기를 조정합니다.</li><li>재료와 품질 프로필을 선택하고 Layer Height, Wall, Infill, Support, Build Plate Adhesion을 설정합니다.</li><li>Slice 후 예상 시간과 재료량을 확인합니다.</li><li>Preview에서 첫 층, 벽, 인필, 서포트와 이동 경로를 층별로 검토합니다.</li><li>G-code를 USB/SD에 저장하거나 호환 네트워크 프린터로 전송합니다.</li></ol></article><article class="card guide-card"><h3><span class="guide-num">04</span>시험 대비 핵심 설정</h3><div class="support-tags"><span>레이어 0.20 mm</span><span>인필 10~20%</span><span>출력 방향</span><span>서포트 최소화</span><span>브림 검토</span><span>80분 이내 확인</span></div><div class="guide-note">수치는 학습용 출발점입니다. 시험장 프린터·필라멘트·문제 형상에 맞게 조정하세요.</div></article></div>
+<div class="notice warning-notice" style="margin-top:18px"><strong>주의사항:</strong> 프린터 모델을 잘못 선택하면 빌드 크기·시작 G-code·온도 범위가 달라질 수 있습니다. Slice만 누르지 말고 Preview에서 첫 층과 서포트 제거 가능성, 예상 출력 시간을 반드시 확인하세요.</div>
+</section>
+
+<section class="page software-page" id="slice-creality">
+<article class="card software-hero">
+<div>
+<div class="software-kicker">CREALITY · FDM SLICER</div>
+<h2>Creality Print</h2>
+<p>Creality가 개발한 FDM 슬라이싱 프로그램으로 Creality 장비의 공식 프로필, 고속 출력 설정, 네트워크 전송·모니터링 기능을 함께 제공합니다.</p>
+<div class="software-actions"><a class="btn btn-primary" href="https://www.creality.com/download" target="_blank" rel="noopener">↗ Creality Print 공식 다운로드</a><button class="btn btn-soft" type="button" onclick="goPage('timer')">⏱ 훈련 타이머 열기</button></div>
+</div>
+<div class="software-badge-panel"><div class="software-badge"><strong>운영체제</strong><span>Windows · macOS · Linux</span></div><div class="software-badge"><strong>기본 대상</strong><span>Creality FDM</span></div><div class="software-badge"><strong>대표 계열</strong><span>Ender · CR · K · Sermoon</span></div><div class="software-badge"><strong>출력</strong><span>G-code · LAN 전송</span></div></div>
+</article>
+<div class="section-title"><div><h2>작업 흐름</h2><p>시험 연습에서는 아래 순서를 고정해 반복하세요.</p></div></div><div class="program-flow"><div>프린터 추가</div><div>모델 배치</div><div>공정 프로필</div><div>Slice·Preview</div><div>파일 또는 LAN 출력</div></div>
+<div class="section-title"><div><h2>학습 가이드</h2><p>설치부터 시험용 파일 생성까지 순서대로 확인하세요.</p></div></div>
+<div class="software-guide-grid"><article class="card guide-card"><h3><span class="guide-num">01</span>설치 방법</h3><ol class="step-list"><li>Creality Download Center에서 Creality Print를 선택합니다.</li><li>운영체제와 CPU 환경에 맞는 설치 파일을 내려받아 실행합니다.</li><li>첫 실행에서 언어와 지역을 선택합니다.</li><li>사용할 프린터 모델을 추가하고 노즐·빌드 플레이트 정보를 확인합니다.</li><li>필라멘트와 공정 프로필을 선택해 기본 설정을 저장합니다.</li></ol></article><article class="card guide-card"><h3><span class="guide-num">02</span>지원 가능한 프린터</h3><ul class="compat-list"><li>Ender 시리즈, CR 시리즈, K 시리즈, Sermoon 등 Creality FDM 장비 중심</li><li>버전별로 내장되는 공식 프린터와 재료 프로필이 달라질 수 있음</li><li>LAN 출력·원격 모니터링은 해당 네트워크 기능을 지원하는 모델에서 사용</li><li>시험장 장비가 목록에 없으면 제조사 제공 프로필 또는 정확한 기계 파라미터 확인 필요</li></ul></article><article class="card guide-card"><h3><span class="guide-num">03</span>출력 방법</h3><ol class="step-list"><li>STL·3MF 모델을 불러오고 프린터의 빌드 플레이트 안에 배치합니다.</li><li>재료·노즐·공정 프로필을 선택합니다.</li><li>레이어, 벽, 인필, 속도, 서포트와 접착 설정을 조정합니다.</li><li>Slice Plate 후 Preview에서 레이어와 이동 경로를 확인합니다.</li><li>G-code를 저장하거나 호환 장비에 LAN으로 전송합니다.</li></ol></article><article class="card guide-card"><h3><span class="guide-num">04</span>시험 대비 점검</h3><div class="support-tags"><span>프린터 모델 일치</span><span>노즐 지름</span><span>빌드 볼륨</span><span>가속도·속도</span><span>서포트 접촉</span><span>예상 시간</span></div><div class="guide-note">고속 프로필은 출력 시간을 줄일 수 있지만 시험장 장비의 기계 한계와 필라멘트 유량을 넘어서는 설정은 피하세요.</div></article></div>
+<div class="notice warning-notice" style="margin-top:18px"><strong>주의사항:</strong> Creality Print의 버전이 바뀌면 메뉴와 프로필 구성이 달라질 수 있습니다. 고속 장비용 프로필을 일반 Ender·CR 장비에 적용하지 말고, 시험장 프린터 모델과 펌웨어에 맞는 프로필을 사용하세요.</div>
+</section>
+
+<section class="page software-page" id="slice-prusa">
+<article class="card software-hero">
+<div>
+<div class="software-kicker">PRUSA RESEARCH · OPEN-SOURCE SLICER</div>
+<h2>PrusaSlicer</h2>
+<p>오픈 소스 기반의 기능이 풍부한 슬라이서입니다. Original Prusa 장비뿐 아니라 여러 제3자 제조사 프로필과 사용자 정의 프린터 구성을 지원하며, 세밀한 출력·필라멘트·프린터 프로필 관리가 강점입니다.</p>
+<div class="software-actions"><a class="btn btn-primary" href="https://www.prusa3d.com/p/prusaslicer/" target="_blank" rel="noopener">↗ PrusaSlicer 공식 다운로드</a><button class="btn btn-soft" type="button" onclick="goPage('timer')">⏱ 훈련 타이머 열기</button></div>
+</div>
+<div class="software-badge-panel"><div class="software-badge"><strong>운영체제</strong><span>Windows · macOS · Linux</span></div><div class="software-badge"><strong>기본 대상</strong><span>FDM/FFF · 일부 SLA</span></div><div class="software-badge"><strong>프로필</strong><span>Prusa · 제3자 · Custom</span></div><div class="software-badge"><strong>출력</strong><span>G-code · SD/USB</span></div></div>
+</article>
+<div class="section-title"><div><h2>작업 흐름</h2><p>시험 연습에서는 아래 순서를 고정해 반복하세요.</p></div></div><div class="program-flow"><div>구성 마법사</div><div>3개 프로필 확인</div><div>모델 배치</div><div>Slice Now·Preview</div><div>G-code 내보내기</div></div>
+<div class="section-title"><div><h2>학습 가이드</h2><p>설치부터 시험용 파일 생성까지 순서대로 확인하세요.</p></div></div>
+<div class="software-guide-grid"><article class="card guide-card"><h3><span class="guide-num">01</span>설치 방법</h3><ol class="step-list"><li>공식 페이지에서 운영체제에 맞는 설치 파일을 내려받습니다.</li><li>설치 후 Configuration Wizard를 실행합니다.</li><li>Prusa 계정 로그인 또는 Configuration Sources를 선택합니다.</li><li>사용할 제조사·프린터·노즐 지름과 필라멘트 프로필을 활성화합니다.</li><li>목록에 없으면 Custom Printer에서 빌드 크기와 G-code 특성을 설정합니다.</li></ol></article><article class="card guide-card"><h3><span class="guide-num">02</span>지원 가능한 프린터</h3><ul class="compat-list"><li>Original Prusa MK·MINI·XL·CORE 계열 등 공식 Prusa 프로필</li><li>Configuration Wizard에 제공되는 Creality·LulzBot 등 제3자 벤더 프로필</li><li>Custom Printer를 통한 일반 FDM/FFF 장비 설정</li><li>프로필 소스와 지원 모델은 버전 및 온라인 구성 자료에 따라 변경될 수 있음</li></ul></article><article class="card guide-card"><h3><span class="guide-num">03</span>출력 방법</h3><ol class="step-list"><li>STL·3MF를 불러오고 플레이트에 배치·회전·스케일 조정합니다.</li><li>Print Settings, Filament, Printer 세 프로필을 확인합니다.</li><li>레이어·벽·인필·서포트·브림을 조정하고 Slice Now를 실행합니다.</li><li>Preview에서 도구 경로, 속도, 유량, 서포트와 예상 시간을 확인합니다.</li><li>Export G-code 또는 감지된 SD/USB 드라이브로 내보냅니다.</li></ol></article><article class="card guide-card"><h3><span class="guide-num">04</span>시험 대비 점검</h3><div class="support-tags"><span>Printer 프로필</span><span>Filament 프로필</span><span>Print 프로필</span><span>서포트 임계각</span><span>Seam 위치</span><span>G-code 형식</span></div><div class="guide-note">일부 Prusa 장비는 Binary G-code를 지원하지만 일반 시험장 장비에는 ASCII .gcode가 필요할 수 있습니다. 프린터가 지원하는 파일 형식을 우선 확인하세요.</div></article></div>
+<div class="notice warning-notice" style="margin-top:18px"><strong>주의사항:</strong> 다른 프린터 프로필을 그대로 복사하면 시작·종료 G-code와 베드 크기가 맞지 않을 수 있습니다. Binary G-code 사용 여부, 노즐 지름, 필라멘트 직경, 원점 위치를 시험장 장비에 맞게 확인하세요.</div>
+</section>
+<section class="page" id="modeling">
+<div class="section-title"><div><h2>도면 치수 훈련</h2><p>무작위 형상의 핵심 치수를 읽고 입력하며 도면 해석 속도를 높입니다.</p></div><div class="toolbar"><button class="btn btn-soft" id="newDrawingBtn">새 도면</button><button class="btn btn-primary" id="checkDrawingBtn">정답 확인</button></div></div>
+<div class="trainer-layout">
+<div class="card drawing-board">
+<div class="drawing-grid"></div>
+<svg aria-label="무작위 치수 도면" class="shape-svg" id="drawingSvg" viewbox="0 0 560 390"></svg>
+</div>
+<div class="card">
+<span class="pill primary" id="drawingType">TYPE A</span>
+<h3 style="margin:10px 0 4px">핵심 치수 입력</h3>
+<p class="muted">도면의 노란색 치수선과 형상을 보고 값을 입력하세요.</p>
+<div class="input-grid" id="dimensionInputs"></div>
+<div class="feedback" id="drawingFeedback">새 도면을 생성한 뒤 치수를 입력하세요.</div>
+<div class="section-title" style="margin-top:24px"><div><h2 style="font-size:1.15rem">모델링 순서 메모</h2></div></div>
+<textarea id="modelingMemo" placeholder="예: 정면 스케치 → 돌출 30 → 중앙 관통홀 → 측면 홈 → 필렛" style="width:100%;min-height:120px;border:1px solid var(--line);border-radius:13px;background:var(--surface);color:var(--text);padding:12px;resize:vertical"></textarea>
+<div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-soft" id="saveMemoBtn">메모 저장</button><button class="btn btn-soft" id="clearMemoBtn">메모 지우기</button></div>
+</div>
+</div>
+<div class="section-title"><div><h2>스케치 구속 점검</h2><p>모델링 오류의 대부분은 기준과 구속이 불명확할 때 발생합니다.</p></div></div>
+<div class="grid grid-3">
+<div class="card"><h3>기준 설정</h3><p class="muted">원점·중심선·대칭축을 먼저 사용해 치수 변경에도 형상이 안정적으로 유지되도록 합니다.</p></div>
+<div class="card"><h3>치수 최소화</h3><p class="muted">중복 치수를 피하고 설계 의도가 드러나는 핵심 치수만 남깁니다.</p></div>
+<div class="card"><h3>완전구속 확인</h3><p class="muted">남은 자유도가 없는지 확인한 뒤 피처를 생성합니다.</p></div>
+</div>
+</section>
+<section class="page" id="assembly">
+<div class="section-title"><div><h2>어셈블리 검증 시뮬레이터</h2><p>조립 구속, 정렬, 간섭, 자유도 확인 절차를 연습합니다.</p></div></div>
+<div class="assembly-stage">
+<div class="card assembly-visual">
+<div class="drawing-grid"></div>
+<div class="assembly-part part-a" id="partA"></div>
+<div class="assembly-part part-b" id="partB"></div>
+<div style="position:absolute;left:18px;top:18px;z-index:3"><span class="pill" style="background:rgba(255,255,255,.11);color:#fff">ASSEMBLY PREVIEW</span></div>
+<div id="assemblyStatus" style="position:absolute;left:18px;right:18px;bottom:18px;z-index:3;padding:12px;border-radius:12px;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.14)">현재 상태를 검사하세요.</div>
+</div>
+<div class="card assembly-controls">
+<div class="toggle-row"><div><strong>기준 부품 고정</strong><div class="muted">첫 부품의 위치를 고정합니다.</div></div><label class="switch"><input id="fixBase" type="checkbox"/><span class="slider"></span></label></div>
+<div class="toggle-row"><div><strong>축 정렬 구속</strong><div class="muted">홀과 축의 중심을 일치시킵니다.</div></div><label class="switch"><input id="axisMate" type="checkbox"/><span class="slider"></span></label></div>
+<div class="toggle-row"><div><strong>면 일치 구속</strong><div class="muted">접촉해야 할 두 면을 일치시킵니다.</div></div><label class="switch"><input id="faceMate" type="checkbox"/><span class="slider"></span></label></div>
+<div class="toggle-row"><div><strong>간섭 발생</strong><div class="muted">잘못된 치수로 부품이 겹친 상황입니다.</div></div><label class="switch"><input id="collisionToggle" type="checkbox"/><span class="slider"></span></label></div>
+<button class="btn btn-primary" id="inspectAssemblyBtn">조립 상태 검사</button>
+<div class="notice"><strong>검사 순서:</strong> 기준 부품 고정 → 축·면 구속 → 남은 자유도 확인 → 간섭 검사 → 분해도와 방향 검토</div>
+</div>
+</div>
+<div class="section-title"><div><h2>제출 파일 점검</h2></div></div>
+<div class="grid grid-4">
+<div class="card"><span class="pill primary">원본</span><h3>편집 가능한 CAD 파일</h3><p class="muted">피처 트리와 부품 구성이 정상인지 확인합니다.</p></div>
+<div class="card"><span class="pill primary">STP/STEP</span><h3>중립 3D 교환 파일</h3><p class="muted">어셈블리 또는 부품 형상이 누락 없이 열리는지 확인합니다.</p></div>
+<div class="card"><span class="pill primary">STL</span><h3>출력용 메시 파일</h3><p class="muted">단위, 방향, 메시 오류, 스케일을 확인합니다.</p></div>
+<div class="card"><span class="pill danger">파일명</span><h3>수험번호·지정 규칙</h3><p class="muted">문제지에서 요구한 파일명과 저장 위치를 그대로 따릅니다.</p></div>
+</div>
+</section>
+<section class="page" id="slicer">
+<div class="section-title"><div><h2>슬라이싱 설정 시뮬레이터</h2><p>설정 변화가 시간, 재료, 품질, 실패 위험에 미치는 경향을 확인합니다.</p></div></div>
+<div class="sim-layout">
+<div class="card">
+<div class="control-group"><div class="control-label"><span>재료</span><strong id="materialVal">PLA</strong></div><select id="material"><option>PLA</option><option>PETG</option><option>ABS</option><option>TPU</option></select></div>
+<div class="control-group"><div class="control-label"><span>레이어 높이</span><strong id="layerVal">0.20 mm</strong></div><input id="layer" max="0.36" min="0.08" step="0.02" type="range" value="0.20"/></div>
+<div class="control-group"><div class="control-label"><span>인필</span><strong id="infillVal">20%</strong></div><input id="infill" max="100" min="0" step="5" type="range" value="20"/></div>
+<div class="control-group"><div class="control-label"><span>노즐 온도</span><strong id="tempVal">205℃</strong></div><input id="temp" max="270" min="170" step="5" type="range" value="205"/></div>
+<div class="control-group"><div class="control-label"><span>베드 온도</span><strong id="bedVal">60℃</strong></div><input id="bed" max="110" min="0" step="5" type="range" value="60"/></div>
+<div class="control-group"><div class="control-label"><span>출력 속도</span><strong id="speedVal">50 mm/s</strong></div><input id="speed" max="120" min="20" step="5" type="range" value="50"/></div>
+<div class="toggle-row"><div><strong>서포트 사용</strong><div class="muted">오버행을 지지하지만 시간과 후가공이 증가합니다.</div></div><label class="switch"><input id="support" type="checkbox"/><span class="slider"></span></label></div>
+<div class="toggle-row"><div><strong>브림 사용</strong><div class="muted">바닥 접착 면적을 넓힙니다.</div></div><label class="switch"><input id="brim" type="checkbox"/><span class="slider"></span></label></div>
+<button class="btn btn-primary" id="simulateBtn" style="width:100%;margin-top:14px">설정 분석</button>
+</div>
+<div class="card sim-screen">
+<div class="sim-grid-bg"></div>
+<div style="position:relative;z-index:2"><span class="pill" style="background:rgba(255,255,255,.11);color:#fff">LIVE PREVIEW</span><h3 style="margin:8px 0 0">적층 미리보기</h3></div>
+<div class="sim-model"><div class="model-box" id="modelBox"></div></div>
+<div style="position:relative;z-index:2">
+<div class="sim-metrics"><div class="metric"><small>시간 지수</small><strong id="timeMetric">100</strong></div><div class="metric"><small>재료 지수</small><strong id="materialMetric">100</strong></div><div class="metric"><small>표면 품질</small><strong id="qualityMetric">보통</strong></div><div class="metric"><small>실패 위험</small><strong id="riskMetric">낮음</strong></div></div>
+<div class="warning-box" id="simWarning">현재 설정은 PLA의 일반적인 학습 범위에 가깝습니다.</div>
+</div>
+</div>
+</div>
+<div class="section-title"><div><h2>출력 방향 판단</h2></div></div>
+<div class="grid grid-3">
+<div class="card"><h3>바닥 면적</h3><p class="muted">넓고 평평한 면을 베드에 배치하면 접착과 안정성이 좋아집니다.</p></div>
+<div class="card"><h3>서포트 최소화</h3><p class="muted">오버행 각도와 브리지를 고려해 불필요한 지지대를 줄입니다.</p></div>
+<div class="card"><h3>강도 방향</h3><p class="muted">적층 방향에 따라 층간 강도가 달라지므로 실제 하중 방향을 고려합니다.</p></div>
+</div>
+</section>
+<section class="page" id="output">
+<div class="section-title"><div><h2>출력 오류 진단</h2><p>카드를 열어 원인과 개선 방법을 확인하세요.</p></div></div>
+<div class="fault-grid" id="faultGrid"></div>
+<div class="section-title"><div><h2>출력 전·중·후 체크리스트</h2></div></div>
+<div class="grid grid-3">
+<div class="card"><span class="pill primary">출력 전</span><div class="check-list" id="beforePrint"></div></div>
+<div class="card"><span class="pill primary">출력 중</span><div class="check-list" id="duringPrint"></div></div>
+<div class="card"><span class="pill primary">출력 후</span><div class="check-list" id="afterPrint"></div></div>
+</div>
+<div class="section-title"><div><h2>후가공 순서</h2></div></div>
+<div class="workflow" style="grid-template-columns:repeat(5,1fr)">
+<div class="step-card"><div class="step">01</div><h3>냉각</h3><p>베드와 출력물이 충분히 식은 뒤 분리합니다.</p></div>
+<div class="step-card"><div class="step">02</div><h3>분리</h3><p>헤라 방향과 손 위치를 안전하게 유지합니다.</p></div>
+<div class="step-card"><div class="step">03</div><h3>서포트 제거</h3><p>얇은 돌출부가 부러지지 않게 작은 조각부터 제거합니다.</p></div>
+<div class="step-card"><div class="step">04</div><h3>표면 정리</h3><p>니퍼·줄·사포를 사용해 버와 흔적을 정리합니다.</p></div>
+<div class="step-card"><div class="step">05</div><h3>치수 검사</h3><p>조립부, 홀, 전체 크기와 기능을 확인합니다.</p></div>
+</div>
+</section>
+<section class="page" id="safety"><div class="imported-rules-block">
+<div class="imported-rules-header">
+<div class="imported-rules-icon">⚠</div>
+<div>
+<h2>실격 및 오작 기준</h2>
+<p>실기 시험 중 아래 사항에 해당하면 0점 처리되므로 반드시 숙지하세요.</p>
+</div>
+</div>
+<div class="imported-rules-grid">
+<article class="imported-rule-item"><h3>출력 시간 80분 초과</h3><p>슬라이싱 프로그램에서 예상 출력 시간이 80분을 초과하도록 세팅하면 실격 처리됩니다. 레이어 높이, 내부 채움(Infill) 등을 조절하여 반드시 80분 이내로 맞추세요.</p></article>
+<article class="imported-rule-item"><h3>출력물 파손</h3><p>서포트를 제거하는 후가공 작업 중 부품이 부러지거나 심각하게 손상되면 즉시 실격입니다. 특히 얇은 연결 부위나 관절 부위를 조심하세요.</p></article>
+<article class="imported-rule-item"><h3>치수 오차 범위 초과 (±1mm)</h3><p>도면에 제시된 치수와 실제 모델링 또는 출력물의 치수가 ±1mm 이상 차이가 나면 감점 또는 실격의 사유가 될 수 있습니다.</p></article>
+<article class="imported-rule-item"><h3>동작 불량 (융착)</h3><p>공차(A, B)를 너무 좁게 주어 출력 후 부품 1과 부품 2가 붙어버려 움직이지 않으면 실격입니다.</p></article>
+<article class="imported-rule-item"><h3>비번호 각인 누락</h3><p>도면에 지시된 위치에 자신의 비번호(수험번호)를 각인하지 않거나 잘못된 번호를 각인하면 오작으로 처리됩니다.</p></article>
+<article class="imported-rule-item"><h3>미완성 및 제출 누락</h3><p>지정된 시간 내에 요구하는 모든 파일(보통 모델링 4개, 슬라이싱 1개 등 총 8개 포맷)을 저장하여 제출하지 못하면 실격입니다.</p></article>
+</div>
+<div class="imported-tip-box">
+<h3>💡 예기치 못한 상황 대처</h3>
+<ul>
+<li><strong>정전 또는 기계 고장:</strong> 당황하지 말고 감독위원에게 즉시 보고하세요. "작업정지시간 + 5분"의 추가 시간이 부여됩니다.</li>
+<li><strong>안전장구 미착용:</strong> 방진마스크 및 보호장갑 미착용 시 채점상 불이익(감점)이 있으니 반드시 착용하세요.</li>
+<li><strong>베드 안착 실패:</strong> 출력 시작 후 1~2 레이어가 베드에 잘 붙는지(안착) 3~5분간 꼭 지켜보세요. 실패 시 즉시 중지하고 다시 출력해야 합니다.</li>
+</ul>
+</div>
+</div>
+<div class="section-title"><div><h2>실격·감점 위험 방지</h2><p>정확한 실격 기준은 최신 공개문제를 우선하며, 아래는 시험장에서 반드시 경계할 공통 위험입니다.</p></div></div>
+<div class="safety-grid">
+<div class="risk-card"><span class="pill danger">파일·과제</span><h3>제출 오류</h3><ul><li>지정 파일 또는 형식 누락</li><li>다른 폴더나 잘못된 이름으로 저장</li><li>파일이 열리지 않거나 형상이 누락됨</li><li>요구된 작업을 완료하지 못함</li></ul></div>
+<div class="risk-card"><span class="pill danger">모델링</span><h3>치명적 형상 오류</h3><ul><li>핵심 치수 불일치</li><li>필수 부품·구멍·홈 누락</li><li>조립 방향 반대 또는 간섭 발생</li><li>STL 단위·스케일 오류</li></ul></div>
+<div class="risk-card"><span class="pill danger">장비</span><h3>안전 위반</h3><ul><li>가열된 노즐·베드 접촉</li><li>가동 중 장비 내부에 손을 넣음</li><li>공구를 부적절하게 사용</li><li>감독위원 지시를 따르지 않음</li></ul></div>
+<div class="risk-card"><span class="pill danger">출력물</span><h3>파손·기능 불량</h3><ul><li>후가공 중 얇은 부품 파손</li><li>조립부가 끼워지지 않음</li><li>서포트가 완전히 제거되지 않음</li><li>출력 방향 오류로 기능 구현 실패</li></ul></div>
+</div>
+<div class="section-title"><div><h2>개인 보호와 장비 안전</h2></div></div>
+<div class="grid grid-3">
+<div class="card"><h3>열 위험</h3><p class="muted">노즐과 히팅베드는 냉각 여부를 확인한 뒤 접근합니다. 온도 표시가 낮아져도 잔열이 남을 수 있습니다.</p></div>
+<div class="card"><h3>기계적 위험</h3><p class="muted">축 이동 중 벨트·풀리·리드스크루와 이동부에 손이나 공구가 닿지 않게 합니다.</p></div>
+<div class="card"><h3>환기·분진</h3><p class="muted">재료와 후가공 방식에 맞는 환기, 집진, 보호구 사용 원칙을 지킵니다.</p></div>
+</div>
+<div class="section-title"><div><h2>시험 직전 최종 확인</h2></div></div>
+<div class="card"><div class="check-list" id="finalSafetyChecklist"></div><div class="spacer"></div><div class="progress-wrap"><div class="progress-bar" id="safetyProgress"></div></div><p class="muted" id="safetyProgressText" style="margin-bottom:0"></p></div>
+</section>
+<section class="page" id="public">
+<div class="section-title public-hub-header"><div><h2>공개도면 학습관</h2><p>공개문제의 과제 요구사항을 분석하고, 도면 해석 자료와 27형별 연습 진도를 한곳에서 관리하세요.</p></div><a class="btn btn-primary" href="https://www.q-net.or.kr/cst006.do?artlSeq=5206759&amp;brdId=Q006&amp;code=1204&amp;gSite=Q&amp;id=cst00602" rel="noopener" target="_blank">Q-Net 공개문제</a></div>
+
+<div aria-label="공개도면 세부 메뉴" class="public-subtabs" role="tablist">
+<button aria-controls="public-panel-assignment" aria-selected="true" class="public-subtab-btn active" data-public-tab="assignment" id="public-tab-assignment" role="tab" type="button">과제분석</button>
+<button aria-controls="public-panel-interpretation" aria-selected="false" class="public-subtab-btn" data-public-tab="interpretation" id="public-tab-interpretation" role="tab" type="button">공개도면 분석</button>
+<button aria-controls="public-panel-tracker" aria-selected="false" class="public-subtab-btn" data-public-tab="tracker" id="public-tab-tracker" role="tab" type="button">공개도면 연습 트래커</button>
+</div>
+
+<div aria-labelledby="public-tab-assignment" class="public-subpanel active" id="public-panel-assignment" role="tabpanel">
+<div class="source-note"><span aria-hidden="true">▤</span><div><strong>2026년 4월 1일 공개문제 기준</strong><br>첨부된 한국산업인력공단 공개문제의 시험 1(3D모델링작업)과 시험 2(3D프린팅작업)을 학습용으로 구조화했습니다. 실제 응시 전에는 Q-Net 최신 파일을 다시 확인하세요.</div></div>
+<div class="task-analysis-grid">
+
+<article class="card exam-task-card">
+<div class="exam-task-head">
+<div class="exam-task-meta"><span class="pill primary">시험 1</span><span class="pill">시험시간 1시간</span></div>
+<h3>과제명: 3D모델링작업</h3>
+<p>3D모델링 → 어셈블리 → 슬라이싱 순서로 수행하는 과제입니다.</p>
+</div>
+<div class="exam-task-body">
+<div class="exam-flow"><span>3D모델링</span><b>→</b><span>어셈블리</span><b>→</b><span>슬라이싱</span></div>
+<details class="exam-details" open>
+<summary>1. 요구사항</summary>
+<div class="exam-details-content">
+<div class="requirement-block"><h4>가. 3D모델링</h4><ol class="exam-list"><li>주어진 도면의 부품 ①, ②를 1:1 척도로 모델링합니다.</li><li>상호 움직임이 발생하는 부위의 치수 A, B는 수험자가 결정하되 기준치수와의 차이를 ±1 mm 이하로 설정합니다.</li><li>도면에 지정된 위치에 부여받은 비번호를 음각으로 각인합니다. 글자체·크기·깊이는 도면과 유사하게 작업하며, 비번호 2번은 ‘2’ 또는 ‘02’처럼 각인할 수 있습니다.</li></ol></div>
+<div class="requirement-block"><h4>나. 어셈블리</h4><ol class="exam-list"><li>각 부품을 1:1 척도와 도면의 조립 상태로 어셈블리하고, 지정 위치에 비번호가 각인되어 있는지 확인합니다.</li><li>하나의 조립된 형태로 다음 파일을 저장합니다.<ul class="exam-sublist"><li>사용 소프트웨어의 기본 확장자</li><li>STP(STEP) 확장자 - 버전이 여러 개면 상위 버전</li><li>슬라이싱 작업용 STL 확장자</li><li>움직이는 부분은 출력 가능성을 고려해 동작 범위 안에서 위치를 조정할 수 있음</li><li>파일명은 부여받은 비번호로 저장</li></ul></li></ol></div>
+<div class="requirement-block"><h4>다. 슬라이싱</h4><ol class="exam-list"><li>어셈블리 형상을 1:1 척도와 조립된 상태로 출력할 수 있도록 슬라이싱합니다.</li><li>수험자가 직접 출력할 3D프린터 기종을 확인하고 설정값을 결정하며, 예상 출력시간이 1시간 20분 이내가 되도록 합니다.</li><li>시험장 프린터에서 출력 가능한 확장자로 저장하고 파일명은 비번호로 지정합니다.</li></ol></div>
+<div class="requirement-block"><h4>최종 제출파일</h4><div class="submission-table-wrap"><table class="submission-table"><thead><tr><th>구분</th><th>작업명</th><th>예시 파일명(비번호 02)</th><th>용도·비고</th></tr></thead><tbody><tr><td>1</td><td rowspan="3">어셈블리</td><td>02.***</td><td>수험자 사용 소프트웨어 기본 확장자</td></tr><tr><td>2</td><td>02.STP</td><td>채점용, 비번호 각인 확인</td></tr><tr><td>3</td><td>02.STL</td><td>슬라이서 소프트웨어 작업용</td></tr><tr><td>4</td><td>슬라이싱</td><td>02.***</td><td>시험장 3D프린터 출력용 확장자</td></tr></tbody></table></div><ul class="exam-sublist"><li>출력 예상시간을 시험감독위원에게 확인받고 USB 또는 SD-card에 최종 파일을 저장해 제출합니다.</li><li>모델링 채점은 STP 파일을 기준으로 하며, 감독위원이 다른 작업 파일을 추가로 요구할 수 있습니다.</li></ul></div>
+</div>
+</details>
+<details class="exam-details">
+<summary>2. 수험자 유의사항</summary>
+<div class="exam-details-content"><ol class="exam-list"><li>시험 시작 전 장비 이상 유무를 확인합니다.</li><li>감독위원이 지정한 위치에 비번호 폴더를 만든 뒤 작업내용을 저장하고, 제출·시험 종료 후 저장내용을 삭제합니다.</li><li>인터넷 등 네트워크가 차단된 환경에서 작업합니다.</li><li>정전·기계고장에 대비해 수시 저장하며, 문제 발생 시 ‘작업정지시간 + 5분’의 추가시간이 부여됩니다.</li><li>시험 중에는 시험감독위원의 지시에 따라야 합니다.</li></ol><div class="requirement-block" style="margin-top:12px"><h4>실격 및 채점 제외</h4><ol class="disqualify-list"><li>수험 도중 기권 의사를 표현한 경우</li><li>실기시험 과정 중 하나라도 불참한 경우</li><li>장비 조작·재료 취급 미숙으로 위해 우려가 있다고 감독위원 전원이 판단한 경우</li><li>봉인을 훼손하거나 저장매체를 주고받은 경우</li><li>휴대폰을 소지·사용하거나 인터넷·네트워크를 이용한 경우</li><li>3D모델링작업 또는 3D프린팅작업 중 하나라도 0점인 경우</li><li>감독위원의 정당한 지시에 불응한 경우</li><li>시험시간 안에 작품을 제출하지 못한 경우</li><li>최종 제출파일(어셈블리·슬라이싱) 중 하나라도 제출하지 않은 경우</li><li>슬라이서 예상 출력시간이 1시간 20분을 초과한 경우</li><li>STP 어셈블리에 비번호가 없거나 다른 번호를 각인한 경우</li><li>STP 어셈블리의 지정 위치에 음각 비번호를 각인하지 않은 경우</li><li>채점용 어셈블리를 1:1 척도로 제출하지 않은 경우</li><li>채점용 어셈블리를 조립된 상태로 제출하지 않은 경우</li><li>모델링 길이 치수가 한 곳이라도 ±2 mm를 초과한 경우</li></ol></div></div>
+</details>
+</div>
+</article>
+
+<article class="card exam-task-card print-task">
+<div class="exam-task-head">
+<div class="exam-task-meta"><span class="pill success">시험 2</span><span class="pill">시험시간 2시간</span></div>
+<h3>과제명: 3D프린팅작업</h3>
+<p>3D프린터 세팅 → 3D프린팅 → 후처리를 작업시간 구분 없이 수행합니다.</p>
+</div>
+<div class="exam-task-body">
+<div class="exam-flow"><span>3D프린터 세팅</span><b>→</b><span>3D프린팅</span><b>→</b><span>후처리</span></div>
+<details class="exam-details" open>
+<summary>1. 요구사항</summary>
+<div class="exam-details-content">
+<div class="requirement-block"><h4>가. 3D프린터 세팅</h4><ol class="exam-list"><li>노즐·베드 등의 이물질을 제거해 출력 방해요소가 없도록 합니다.</li><li>PLA 필라멘트 장착 여부와 소재 이상 유무를 점검해 정상 작동 상태로 만듭니다.</li><li>베드 레벨링 기능 등을 활용해 베드 위치를 설정합니다.</li><li><strong>별도의 샘플 프로그램을 작성해 출력 테스트를 할 수 없습니다.</strong></li></ol></div>
+<div class="requirement-block"><h4>나. 3D프린팅</h4><ol class="exam-list"><li>출력용 파일을 수험자가 3D프린터에 직접 입력합니다. 무선 네트워크를 이용한 데이터 전송은 사용할 수 없습니다.</li><li>3D프린터의 장비 설정값은 수험자가 결정합니다.</li><li>설정을 완료한 뒤 모델링 형상을 도면과 같은 1:1 척도와 조립된 상태로 출력합니다.</li></ol></div>
+<div class="requirement-block"><h4>다. 후처리</h4><ol class="exam-list"><li>출력 후 서포트와 거스러미를 제거해 제출합니다.</li><li>노즐·베드 등 사용한 프린터를 시험 전 상태와 같이 정리하고 감독위원에게 확인받습니다.</li></ol></div>
+</div>
+</details>
+<details class="exam-details">
+<summary>2. 수험자 유의사항</summary>
+<div class="exam-details-content"><ol class="exam-list"><li>시험 시작 전 장비 이상 유무를 확인합니다.</li><li>출력용 파일은 1회 이상 출력할 수 있으나 시험시간 안에 작품을 제출해야 합니다.</li><li>정전·기계고장에 대비해 수시로 체크합니다. 문제 발생 시 ‘작업정지시간 + 5분’이 부여되며, 중간 재시작이 불가능하다고 판단되면 처음부터 다시 출력합니다.</li><li>장비 손상 우려가 있는 공구·재료는 사용 전 관리위원에게 확인받습니다.</li><li>시험 중 감독위원의 지시에 따라야 합니다.</li><li>날이 있는 공구와 고온 노즐의 위험을 막기 위해 보호장갑을 착용합니다. 미착용 시 채점상 불이익이 있을 수 있습니다.</li><li>출력 중 유해가스 차단을 위해 방진마스크를 착용합니다. 미착용 시 채점상 불이익이 있을 수 있습니다.</li><li>창문 개방·환풍기 가동 등으로 충분한 환기 상태를 유지합니다.</li></ol><div class="requirement-block" style="margin-top:12px"><h4>실격 및 채점 제외</h4><ol class="disqualify-list"><li>수험 도중 기권 의사를 표현한 경우</li><li>실기시험 과정 중 하나라도 불참한 경우</li><li>장비 조작·재료 취급 미숙으로 위해 우려가 있다고 감독위원 전원이 판단한 경우</li><li>봉인을 훼손하거나 저장매체를 주고받은 경우</li><li>휴대폰을 소지·사용하거나 인터넷·네트워크를 이용한 경우</li><li>수험자가 직접 3D프린터를 세팅하지 못한 경우</li><li>확인 미숙으로 설정조건·프로그램 때문에 프린팅이 되지 않은 경우</li><li>서포트를 제거하지 않고 제출한 경우</li><li>3D모델링작업 또는 3D프린팅작업 중 하나라도 0점인 경우</li><li>감독위원의 정당한 지시에 불응한 경우</li><li>시험시간 안에 작품을 제출하지 못한 경우</li><li>제시된 동작범위를 100% 만족하지 못하거나 범위를 초과해 움직이는 경우</li><li>일부 형상이 누락되거나 없는 형상이 포함되어 도면과 다른 경우</li><li>형상이 불완전해 감독위원 합의로 채점 대상에서 제외된 경우</li><li>서포트 제거 등 후처리 과정에서 파손된 경우</li><li>모델링 어셈블리를 1:1 척도와 조립된 상태로 출력하지 않은 경우</li><li>출력물에 비번호가 없거나 다른 비번호를 각인한 경우</li></ol></div></div>
+</details>
+</div>
+</article>
+</div>
+</div>
+
+<div aria-labelledby="public-tab-interpretation" class="public-subpanel" hidden id="public-panel-interpretation" role="tabpanel">
+<article class="card interpretation-intro">
+<div class="interpretation-icon">3D</div>
+<div><h3>공개도면 1~27번 분석</h3><p>어셈블리 이미지를 눌러 각 도면의 모델링·조립 해석 파일을 현재 화면의 팝업으로 확인합니다.</p></div>
+<span class="interpretation-count">총 27개 도면</span>
+</article>
+<div aria-label="공개도면 분석 링크 목록" class="interpretation-grid" id="interpretationGrid"></div>
+</div>
+
+<div aria-labelledby="public-tab-tracker" class="public-subpanel" hidden id="public-panel-tracker" role="tabpanel">
+<div class="section-title"><div><h2>공개도면 연습 트래커</h2><p>27개의 공개도면을 연습하며 한 번 누르면 모델링 완료, 두 번 누르면 출력 완료로 변경합니다.</p></div></div>
+<article class="card public-tracker-card">
+<div class="public-progress-area">
+<div class="public-progress-row"><div class="public-progress-label"><strong id="publicModeledLabel">모델링 완료 (0/27)</strong><span id="publicModeledPercent">0%</span></div><div class="public-progress-track"><div class="public-progress-fill modeled" id="publicModeledProgress"></div></div></div>
+<div class="public-progress-row"><div class="public-progress-label"><strong id="publicPrintedLabel">출력(후가공) 완료 (0/27)</strong><span id="publicPrintedPercent">0%</span></div><div class="public-progress-track"><div class="public-progress-fill printed" id="publicPrintedProgress"></div></div></div>
+</div>
+<div aria-label="진도 상태 안내" class="public-legend"><span><i class="public-legend-dot none"></i>미진행</span><span><i class="public-legend-dot modeled"></i>모델링 완료</span><span><i class="public-legend-dot printed"></i>출력 완료</span></div>
+<div class="public-drawing-grid" id="publicDrawingGrid"></div>
+<div class="public-tracker-actions"><button class="btn btn-soft" id="publicResetTracker" type="button">진도 초기화</button></div>
+</article>
+</div>
+</section><section class="page" id="timer"><div class="mock-exam-block">
+<div class="section-title"><div><h2>과목별 타이머</h2><p>제1과목과 제2과목의 제한시간과 필수 체크리스트를 사용해 실제 시험 순서대로 연습하세요.</p></div></div>
+<div aria-label="실기 과목 선택" class="mock-phase-selector" role="group">
+<button class="mock-phase-btn active" data-mock-phase="1" type="button">제1과목: 모델링 (1시간)</button>
+<button class="mock-phase-btn" data-mock-phase="2" type="button">제2과목: 프린팅 (2시간)</button>
+</div>
+<div class="mock-exam-grid">
+<article class="card mock-timer-card">
+<span class="pill primary">과목별 타이머</span>
+<h3 id="mockTimerTitle">3D 모델링 작업 (도면 해석 및 조립)</h3>
+<div aria-live="polite" class="mock-timer-clock" id="mockTimerDisplay">01:00:00</div>
+<div class="mock-timer-controls">
+<button class="btn btn-success" id="mockTimerToggle" type="button">▶ 시작</button>
+<button class="btn btn-danger" id="mockTimerReset" type="button">↻ 초기화</button>
+</div>
+</article>
+<article class="card">
+<h3 style="margin-top:0">⚙ 필수 체크리스트</h3>
+<div class="mock-checklist" id="mockChecklist"></div>
+</article>
+</div>
+</div>
+<div class="section-title"><div><h2>공정별 타이머</h2><p>도면 분석부터 최종 검수까지 공정별 시간을 조정해 자신만의 3시간 작업 루틴을 연습하세요.</p></div></div>
+<div class="timer-shell">
+<div class="card timer-display">
+<span class="pill primary" id="currentPhasePill">대기</span>
+<div class="timer-clock" id="timerClock">03:00:00</div>
+<div class="timer-label" id="timerLabel">전체 연습 시간</div>
+<div class="timer-actions"><button class="btn btn-success" id="timerStartBtn">시작</button><button class="btn btn-warning" id="timerPauseBtn">일시정지</button><button class="btn btn-danger" id="timerResetBtn">초기화</button></div>
+<div class="notice" style="margin-top:22px;text-align:left"><strong>운영 팁:</strong> 단계가 끝나면 다음 단계 버튼을 눌러 실제 소요 시간을 기록하세요. 반복할수록 본인에게 맞는 시간 배분을 찾을 수 있습니다.</div>
+</div>
+<div class="card"><div class="phase-list" id="phaseList"></div><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-top:16px"><strong>설정 총합</strong><strong id="phaseTotal">180분</strong></div></div>
+</div>
+</section>
+</main>
+<footer class="footer"><strong>3D프린터운용기능사 실기 학습 웹앱</strong><br/>교육용 자체 제작 자료입니다. 시험 세부사항은 Q-Net 최신 공고와 공개문제를 우선합니다.</footer>
+</div>
+<dialog aria-labelledby="interpretationModalTitle" class="interpretation-modal" id="interpretationModal">
+<div class="interpretation-modal-shell">
+<header class="interpretation-modal-head">
+<div class="interpretation-modal-title-wrap"><div class="interpretation-modal-title" id="interpretationModalTitle">공개도면 분석</div><div class="interpretation-modal-path" id="interpretationModalPath"></div></div>
+<div class="interpretation-modal-actions"><a href="#" id="interpretationNewWindow" rel="noopener" target="_blank">새 창에서 열기</a><button aria-label="팝업 닫기" id="interpretationModalClose" type="button">×</button></div>
+</header>
+<iframe class="interpretation-frame" id="interpretationFrame" loading="lazy" referrerpolicy="no-referrer" title="공개도면 분석 내용"></iframe>
+</div>
+</dialog>
+<div class="toast" id="toast"></div>
+<script>
+  const STORE={
+    get(key,fallback){try{const v=localStorage.getItem(key);return v===null?fallback:JSON.parse(v)}catch(e){return fallback}},
+    set(key,value){try{localStorage.setItem(key,JSON.stringify(value))}catch(e){}}
+  };
+  const toastEl=document.getElementById('toast');
+  // 공개도면 1~27번 시각화 링크와 팝업 뷰어
+  const fileRunsInsidePublic=location.pathname.split('/').includes('public');
+  const publicBasePath=fileRunsInsidePublic?'.':'./public';
+  const interpretationGrid=document.getElementById('interpretationGrid');
+  const interpretationModal=document.getElementById('interpretationModal');
+  const interpretationFrame=document.getElementById('interpretationFrame');
+  const interpretationModalTitle=document.getElementById('interpretationModalTitle');
+  const interpretationModalPath=document.getElementById('interpretationModalPath');
+  const interpretationNewWindow=document.getElementById('interpretationNewWindow');
+  const interpretationModalClose=document.getElementById('interpretationModalClose');
+  function getInterpretationAssets(number){
+    const serial=String(number).padStart(2,'0');
+    return {
+      serial,
+      image:`${publicBasePath}/images/thee_d_sketch/${serial}도면 - 어셈블리.png`,
+      page:`${publicBasePath}/thee_d_interpretation/drawing${serial}_modeling_simulator.html`
+    };
+  }
+  function openInterpretationPopup(number){
+    const item=getInterpretationAssets(number);
+    interpretationModalTitle.textContent=`공개도면 ${number}번 분석`;
+    interpretationModalPath.textContent=item.page;
+    interpretationNewWindow.href=item.page;
+    interpretationFrame.title=`공개도면 ${number}번 모델링 및 조립 해석`;
+    interpretationFrame.src=item.page;
+    if(typeof interpretationModal.showModal==='function') interpretationModal.showModal();
+    else window.open(item.page,'_blank','noopener');
+  }
+  function renderInterpretationLinks(){
+    if(!interpretationGrid)return;
+    interpretationGrid.innerHTML='';
+    for(let number=1;number<=27;number++){
+      const item=getInterpretationAssets(number);
+      const button=document.createElement('button');
+      button.type='button';
+      button.className='interpretation-link-card';
+      button.setAttribute('aria-label',`공개도면 ${number}번 분석 팝업 열기`);
+      button.innerHTML=`<span class="interpretation-thumb"><img alt="공개도면 ${number}번 어셈블리 형상" loading="lazy"><b class="interpretation-number">${item.serial}번</b><i aria-hidden="true" class="interpretation-popup-mark">↗</i></span><span class="interpretation-link-body"><span><strong>공개도면 ${number}번</strong><span>모델링·조립 해석 보기</span></span><span class="interpretation-open-label">팝업 열기</span></span>`;
+      const image=button.querySelector('img');
+      image.src=item.image;
+      image.addEventListener('error',()=>{
+        image.removeAttribute('src');
+        image.alt=`${number}번 어셈블리 이미지를 불러오지 못했습니다.`;
+        image.style.padding='28px';
+        image.style.background='color-mix(in srgb,var(--danger) 7%,var(--surface))';
+      });
+      button.addEventListener('click',()=>openInterpretationPopup(number));
+      interpretationGrid.appendChild(button);
+    }
+  }
+  interpretationModalClose?.addEventListener('click',()=>interpretationModal.close());
+  interpretationModal?.addEventListener('click',event=>{
+    if(event.target===interpretationModal)interpretationModal.close();
+  });
+  interpretationModal?.addEventListener('close',()=>{
+    interpretationFrame.src='about:blank';
+  });
+  renderInterpretationLinks();
+  function toast(msg){toastEl.textContent=msg;toastEl.classList.add('show');setTimeout(()=>toastEl.classList.remove('show'),1700)}
+
+  // 좁은 화면에서 상단 메뉴를 좌우로 이동하는 슬라이드 내비게이션
+  const mainNav=document.getElementById('mainNav');
+  const navSlidePrev=document.getElementById('navSlidePrev');
+  const navSlideNext=document.getElementById('navSlideNext');
+  function updateNavSlideButtons(){
+    if(!mainNav||!navSlidePrev||!navSlideNext)return;
+    const scrollable=mainNav.scrollWidth>mainNav.clientWidth+2;
+    navSlidePrev.disabled=!scrollable||mainNav.scrollLeft<=2;
+    navSlideNext.disabled=!scrollable||mainNav.scrollLeft+mainNav.clientWidth>=mainNav.scrollWidth-2;
+  }
+  function slideMainNav(direction){
+    if(!mainNav)return;
+    const amount=Math.max(210,Math.round(mainNav.clientWidth*.72));
+    mainNav.scrollBy({left:direction*amount,behavior:'smooth'});
+  }
+  navSlidePrev?.addEventListener('click',()=>slideMainNav(-1));
+  navSlideNext?.addEventListener('click',()=>slideMainNav(1));
+  mainNav?.addEventListener('scroll',updateNavSlideButtons,{passive:true});
+  mainNav?.addEventListener('wheel',event=>{
+    if(mainNav.scrollWidth<=mainNav.clientWidth||Math.abs(event.deltaY)<=Math.abs(event.deltaX))return;
+    event.preventDefault();
+    mainNav.scrollLeft+=event.deltaY;
+  },{passive:false});
+  window.addEventListener('resize',updateNavSlideButtons,{passive:true});
+  function revealActiveNavButton(){
+    const active=mainNav?.querySelector('button.active');
+    active?.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+    setTimeout(updateNavSlideButtons,220);
+  }
+  requestAnimationFrame(updateNavSlideButtons);
+  const NAV_GROUPS={
+    cad:{pages:new Set(['cad-tinkercad','cad-solidworks','cad-inventor','cad-fusion']),button:document.getElementById('cadMenuBtn'),subnav:document.getElementById('cadSubnav'),selector:'[data-cad-page]',dataset:'cadPage'},
+    slicingSoftware:{pages:new Set(['slice-cura','slice-creality','slice-prusa']),button:document.getElementById('slicingSoftwareMenuBtn'),subnav:document.getElementById('slicingSoftwareSubnav'),selector:'[data-slicing-software-page]',dataset:'slicingSoftwarePage'},
+    training:{pages:new Set(['modeling','assembly','slicer','output']),button:document.getElementById('trainingMenuBtn'),subnav:document.getElementById('trainingSubnav'),selector:'[data-training-page]',dataset:'trainingPage'}
+  };
+  function setGroupMenu(groupName,open,closeOthers=true){
+    Object.entries(NAV_GROUPS).forEach(([name,group])=>{
+      const shouldOpen=name===groupName?open:(closeOthers?false:group.subnav.classList.contains('open'));
+      group.subnav.classList.toggle('open',shouldOpen);
+      group.subnav.setAttribute('aria-hidden',String(!shouldOpen));
+      group.button.setAttribute('aria-expanded',String(shouldOpen));
+    });
+  }
+  function groupForPage(id){return Object.entries(NAV_GROUPS).find(([,group])=>group.pages.has(id))?.[0]||null}
+  function goPage(id){
+    const target=document.getElementById(id);
+    if(!target||!target.classList.contains('page'))return;
+    document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===id));
+    document.querySelectorAll('.nav button[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===id));
+    const activeGroup=groupForPage(id);
+    Object.entries(NAV_GROUPS).forEach(([name,group])=>{
+      group.button.classList.toggle('active',name===activeGroup);
+      document.querySelectorAll(group.selector).forEach(b=>b.classList.toggle('active',b.dataset[group.dataset]===id));
+    });
+    if(activeGroup)setGroupMenu(activeGroup,true);else Object.keys(NAV_GROUPS).forEach(name=>setGroupMenu(name,false,false));
+    revealActiveNavButton();
+    if(id==='timer' && typeof scheduleTimerFit==='function')setTimeout(scheduleTimerFit,30);
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  document.querySelectorAll('.nav button[data-page]').forEach(b=>b.addEventListener('click',()=>goPage(b.dataset.page)));
+  Object.entries(NAV_GROUPS).forEach(([name,group])=>{
+    group.button.addEventListener('click',()=>setGroupMenu(name,group.button.getAttribute('aria-expanded')!=='true'));
+    document.querySelectorAll(group.selector).forEach(b=>b.addEventListener('click',()=>goPage(b.dataset[group.dataset])));
+  });
+  const theme=STORE.get('tdp_practical_theme','light');document.body.classList.toggle('dark',theme==='dark');
+  document.getElementById('themeBtn').addEventListener('click',()=>{document.body.classList.toggle('dark');STORE.set('tdp_practical_theme',document.body.classList.contains('dark')?'dark':'light')});
+  const strategyItems=['시험장 CAD 프로그램과 버전 확인','개인 지참 공구·보호구 확인','저장 경로와 제출 폴더 위치 확인','단위계가 mm인지 확인','자동 저장 주기와 백업 방법 확인','프린터 재료와 슬라이서 프로필 확인'];
+  const finalSafetyItems=['최신 공개문제의 실격사항 읽기','파일명과 저장 위치 재확인','STP·STL 파일을 다시 열어 확인','모든 부품과 필수 형상 존재 확인','어셈블리 방향·간섭·자유도 확인','노즐·베드 냉각 및 전원 상태 확인','작업대 정리와 공구 반납 확인'];
+  function renderChecklist(containerId,items,key,progressId,textId){const container=document.getElementById(containerId);const checked=new Set(STORE.get(key,[]));container.innerHTML=items.map((item,i)=>`<label class="check-item ${checked.has(i)?'done':''}"><input type="checkbox" data-i="${i}" ${checked.has(i)?'checked':''}><span>${item}</span></label>`).join('');function update(){const now=[...container.querySelectorAll('input:checked')].map(x=>Number(x.dataset.i));STORE.set(key,now);container.querySelectorAll('.check-item').forEach(el=>el.classList.toggle('done',el.querySelector('input').checked));if(progressId){const pct=Math.round(now.length/items.length*100);document.getElementById(progressId).style.width=pct+'%';document.getElementById(textId).textContent=`${now.length}/${items.length} 완료 · ${pct}%`;}}container.onchange=update;update()}
+  renderChecklist('strategyChecklist',strategyItems,'tdp_strategy_progress');
+  renderChecklist('finalSafetyChecklist',finalSafetyItems,'tdp_safety_progress','safetyProgress','safetyProgressText');
+
+  const drawingTemplates=[
+    {name:'TYPE A · 계단형 브래킷',keys:['W','H','T','D'],labels:['전체 폭 W','전체 높이 H','두께 T','구멍 지름 D'],gen:()=>({W:r(70,110,5),H:r(50,90,5),T:r(20,40,5),D:r(12,28,2)}),svg:v=>`<path class="shape-line" d="M130 285V120h120v65h150v100z"/><circle class="shape-line" cx="190" cy="205" r="${v.D*1.3}"/><line class="dim-line" x1="130" y1="320" x2="400" y2="320"/><text class="dim-text" x="245" y="347">W=${v.W}</text><line class="dim-line" x1="95" y1="120" x2="95" y2="285"/><text class="dim-text" x="35" y="205" transform="rotate(-90 35 205)">H=${v.H}</text><line class="dim-line" x1="130" y1="90" x2="250" y2="90"/><text class="dim-text" x="172" y="80">T=${v.T}</text><line class="dim-line" x1="190" y1="205" x2="260" y2="155"/><text class="dim-text" x="263" y="150">Ø${v.D}</text>`},
+    {name:'TYPE B · 플랜지 축',keys:['L','D1','D2','F'],labels:['전체 길이 L','축 지름 D1','플랜지 지름 D2','플랜지 두께 F'],gen:()=>({L:r(80,140,5),D1:r(18,36,2),D2:r(50,90,5),F:r(12,24,2)}),svg:v=>`<rect class="shape-line" x="120" y="180" width="300" height="60" rx="30"/><rect class="shape-line" x="135" y="135" width="70" height="150" rx="12"/><line class="dim-line" x1="120" y1="320" x2="420" y2="320"/><text class="dim-text" x="250" y="347">L=${v.L}</text><line class="dim-line" x1="455" y1="180" x2="455" y2="240"/><text class="dim-text" x="468" y="215">Ø${v.D1}</text><line class="dim-line" x1="90" y1="135" x2="90" y2="285"/><text class="dim-text" x="25" y="215" transform="rotate(-90 25 215)">Ø${v.D2}</text><line class="dim-line" x1="135" y1="105" x2="205" y2="105"/><text class="dim-text" x="150" y="92">F=${v.F}</text>`},
+    {name:'TYPE C · 슬롯 플레이트',keys:['W','H','S','R'],labels:['플레이트 폭 W','플레이트 높이 H','슬롯 길이 S','모서리 반지름 R'],gen:()=>({W:r(80,140,5),H:r(50,90,5),S:r(35,70,5),R:r(5,15,1)}),svg:v=>`<rect class="shape-line" x="100" y="115" width="360" height="180" rx="${v.R*2}"/><rect class="shape-line" x="205" y="175" width="150" height="55" rx="27"/><line class="dim-line" x1="100" y1="330" x2="460" y2="330"/><text class="dim-text" x="250" y="357">W=${v.W}</text><line class="dim-line" x1="70" y1="115" x2="70" y2="295"/><text class="dim-text" x="18" y="215" transform="rotate(-90 18 215)">H=${v.H}</text><line class="dim-line" x1="205" y1="150" x2="355" y2="150"/><text class="dim-text" x="250" y="138">S=${v.S}</text><line class="dim-line" x1="440" y1="120" x2="395" y2="90"/><text class="dim-text" x="350" y="80">R${v.R}</text>`}
+  ];
+  function r(min,max,step){return Math.floor(Math.random()*((max-min)/step+1))*step+min}
+  let drawing={};
+  function newDrawing(){const tpl=drawingTemplates[Math.floor(Math.random()*drawingTemplates.length)];const values=tpl.gen();drawing={tpl,values};document.getElementById('drawingType').textContent=tpl.name;document.getElementById('drawingSvg').innerHTML=tpl.svg(values);document.getElementById('dimensionInputs').innerHTML=tpl.keys.map((key,i)=>`<div class="field"><label>${tpl.labels[i]}</label><input type="number" data-key="${key}" placeholder="값 입력"></div>`).join('');document.getElementById('drawingFeedback').className='feedback';document.getElementById('drawingFeedback').textContent='도면의 치수를 읽어 입력하세요.'}
+  document.getElementById('newDrawingBtn').addEventListener('click',newDrawing);
+  document.getElementById('checkDrawingBtn').addEventListener('click',()=>{let correct=0;const rows=[];document.querySelectorAll('#dimensionInputs input').forEach(input=>{const key=input.dataset.key;const val=Number(input.value);const ok=val===drawing.values[key];if(ok)correct++;rows.push(`${key}: ${ok?'정답':'오답'} (정답 ${drawing.values[key]})`)});const fb=document.getElementById('drawingFeedback');fb.className='feedback '+(correct===drawing.tpl.keys.length?'ok':'bad');fb.innerHTML=`${correct}/${drawing.tpl.keys.length} 정답<br><small>${rows.join(' · ')}</small>`;if(correct===drawing.tpl.keys.length){const n=STORE.get('tdp_drawing_success',0)+1;STORE.set('tdp_drawing_success',n);toast(`도면 훈련 ${n}회 성공`)}});
+  document.getElementById('modelingMemo').value=STORE.get('tdp_modeling_memo','');document.getElementById('saveMemoBtn').addEventListener('click',()=>{STORE.set('tdp_modeling_memo',document.getElementById('modelingMemo').value);toast('모델링 메모를 저장했습니다.')});document.getElementById('clearMemoBtn').addEventListener('click',()=>{document.getElementById('modelingMemo').value='';STORE.set('tdp_modeling_memo','');toast('메모를 지웠습니다.')});
+  newDrawing();
+
+  const assemblyInputs=['fixBase','axisMate','faceMate','collisionToggle'];assemblyInputs.forEach(id=>document.getElementById(id).addEventListener('change',updateAssemblyVisual));
+  function updateAssemblyVisual(){const aligned=document.getElementById('axisMate').checked&&document.getElementById('faceMate').checked;document.getElementById('partB').classList.toggle('misaligned',!aligned);const collision=document.getElementById('collisionToggle').checked;document.querySelectorAll('.assembly-part').forEach(p=>p.classList.toggle('collision',collision))}
+  document.getElementById('inspectAssemblyBtn').addEventListener('click',()=>{const fix=document.getElementById('fixBase').checked,axis=document.getElementById('axisMate').checked,face=document.getElementById('faceMate').checked,col=document.getElementById('collisionToggle').checked;let msg='',ok=false;if(!fix)msg='기준 부품이 고정되지 않아 어셈블리 전체가 움직일 수 있습니다.';else if(!axis||!face)msg='조립 구속이 부족해 정렬 또는 위치 자유도가 남아 있습니다.';else if(col)msg='간섭이 감지되었습니다. 부품 치수와 조립 방향을 다시 확인하세요.';else{msg='기준 고정, 축·면 구속, 간섭 검사 상태가 양호합니다.';ok=true}const el=document.getElementById('assemblyStatus');el.textContent=msg;el.style.background=ok?'rgba(81,210,134,.18)':'rgba(255,113,129,.18)';toast(ok?'조립 검사 통과':'조립 상태를 보완하세요')});updateAssemblyVisual();
+
+  function updateSim(){const mat=document.getElementById('material').value,layer=Number(document.getElementById('layer').value),infill=Number(document.getElementById('infill').value),temp=Number(document.getElementById('temp').value),bed=Number(document.getElementById('bed').value),speed=Number(document.getElementById('speed').value),support=document.getElementById('support').checked,brim=document.getElementById('brim').checked;document.getElementById('materialVal').textContent=mat;document.getElementById('layerVal').textContent=layer.toFixed(2)+' mm';document.getElementById('infillVal').textContent=infill+'%';document.getElementById('tempVal').textContent=temp+'℃';document.getElementById('bedVal').textContent=bed+'℃';document.getElementById('speedVal').textContent=speed+' mm/s';const layers=Math.max(12,Math.round(54*(.2/layer)));document.getElementById('modelBox').innerHTML=Array.from({length:layers},(_,i)=>`<div class="model-layer" style="height:${Math.max(2,layer*30)}px;animation-delay:${i*7}ms;width:${80+Math.sin(i/layers*Math.PI)*20}%"></div>`).join('');let time=Math.round(100*(.2/layer)*(1+infill/150)*(50/speed)*(support?1.25:1)*(brim?1.06:1));let material=Math.round(75+infill*.9+(support?25:0)+(brim?7:0));let quality=layer<=.12?'매우 높음':layer<=.2?'높음':layer<=.28?'보통':'초안';const ranges={PLA:{n:[190,220],b:[45,70]},PETG:{n:[225,250],b:[65,90]},ABS:{n:[230,260],b:[90,110]},TPU:{n:[210,240],b:[30,60]}};const range=ranges[mat];let risk=0,msg=[];if(temp<range.n[0]){risk+=2;msg.push('노즐 온도가 낮아 압출 부족·층간 접착 저하 가능')}else if(temp>range.n[1]){risk+=2;msg.push('노즐 온도가 높아 스트링·과열 가능')}else msg.push(`${mat}의 일반적인 노즐 온도 범위에 가까움`);if(bed<range.b[0]){risk+=1;msg.push('베드 온도가 낮아 첫 층 접착을 확인')}else if(bed>range.b[1]){risk+=1;msg.push('베드 온도가 높아 바닥 변형 가능')};if(speed>90){risk+=2;msg.push('고속 설정으로 진동·유량 한계 위험')};if(layer>.3){risk+=1;msg.push('큰 레이어 높이로 세부 표현 저하')};if(!brim&&mat==='ABS'){risk+=1;msg.push('ABS는 수축이 커 접착 보조를 검토')};const riskText=risk>=5?'높음':risk>=3?'보통':'낮음';document.getElementById('timeMetric').textContent=time;document.getElementById('materialMetric').textContent=material;document.getElementById('qualityMetric').textContent=quality;document.getElementById('riskMetric').textContent=riskText;document.getElementById('simWarning').textContent=msg.join(' · ')}
+  ['material','layer','infill','temp','bed','speed','support','brim'].forEach(id=>document.getElementById(id).addEventListener('input',updateSim));document.getElementById('simulateBtn').addEventListener('click',()=>{updateSim();toast('슬라이싱 설정을 분석했습니다.')});updateSim();
+
+  const faults=[
+    {title:'첫 층이 붙지 않음',cause:'베드 레벨 불량, 노즐 간격 과대, 베드 오염, 온도 부족',fix:'레벨링 재확인, Z 오프셋 조정, 베드 청소, 브림·첫 층 속도 조정'},
+    {title:'워핑·모서리 들뜸',cause:'재료 수축, 급격한 냉각, 접착 면적 부족',fix:'베드 온도·챔버·브림 검토, 팬과 주변 바람 관리'},
+    {title:'스트링',cause:'온도 과다, 리트랙션 부족, 이동 경로 문제',fix:'노즐 온도 낮추기, 리트랙션 거리·속도 조정, 이동 최적화'},
+    {title:'언더 익스트루전',cause:'노즐 막힘, 온도 부족, 필라멘트 공급 불량',fix:'노즐 청소, 압출기 장력 확인, 온도·유량 보정'},
+    {title:'레이어 시프트',cause:'벨트 느슨함, 충돌, 과속, 모터 탈조',fix:'벨트·풀리 점검, 속도·가속도 감소, 간섭 제거'},
+    {title:'오버행 처짐',cause:'지지대 부족, 냉각 부족, 속도·온도 부적정',fix:'출력 방향 변경, 서포트 추가, 팬·온도·속도 조정'},
+    {title:'코끼리 발',cause:'첫 층 과압착, 베드 온도 과다',fix:'Z 오프셋과 첫 층 높이 보정, 베드 온도 조절'},
+    {title:'층간 분리',cause:'노즐 온도 부족, 팬 과다, 재료 습기, 외풍',fix:'온도 상승, 냉각 완화, 재료 건조, 출력 환경 안정화'},
+    {title:'치수 오차',cause:'수축, 과압출, 축 보정, 홀 보정 부족',fix:'캘리퍼 측정 후 스케일·유량·홀 보정값 적용'}
+  ];
+  document.getElementById('faultGrid').innerHTML=faults.map((f,i)=>`<article class="fault-card"><div class="fault-head"><span>${f.title}</span><button data-fault="${i}">열기</button></div><div class="fault-body"><strong>주요 원인</strong><p>${f.cause}</p><strong>개선 방법</strong><p style="margin-bottom:0">${f.fix}</p></div></article>`).join('');document.querySelectorAll('[data-fault]').forEach(b=>b.addEventListener('click',()=>{const card=b.closest('.fault-card');card.classList.toggle('open');b.textContent=card.classList.contains('open')?'닫기':'열기'}));
+  renderChecklist('beforePrint',['베드 청소와 레벨링 확인','필라멘트 종류·상태 확인','노즐·베드 목표 온도 확인','출력 방향·서포트·브림 확인','예상 시간과 재료량 확인'],'tdp_before_print');
+  renderChecklist('duringPrint',['첫 층 압출과 접착 관찰','이상 소음·충돌 여부 확인','필라멘트 공급과 스풀 회전 확인','워핑·레이어 시프트 관찰','장비 주변 정리와 환기 유지'],'tdp_during_print');
+  renderChecklist('afterPrint',['충분히 냉각 후 출력물 분리','서포트와 브림 안전하게 제거','버·날카로운 모서리 정리','치수·조립·기능 확인','장비·작업대 청소와 전원 확인'],'tdp_after_print');
+
+  let phases=STORE.get('tdp_timer_phases',[{name:'도면 분석',min:10},{name:'부품 모델링',min:65},{name:'어셈블리',min:30},{name:'파일 저장·변환',min:20},{name:'슬라이싱·출력 준비',min:40},{name:'최종 검수',min:15}]);let timerState={running:false,remaining:phases.reduce((a,b)=>a+b.min,0)*60,interval:null,current:-1};
+  function formatTime(sec){sec=Math.max(0,sec);const h=String(Math.floor(sec/3600)).padStart(2,'0'),m=String(Math.floor(sec%3600/60)).padStart(2,'0'),s=String(sec%60).padStart(2,'0');return `${h}:${m}:${s}`}
+  function renderPhases(){const root=document.getElementById('phaseList');root.innerHTML=phases.map((p,i)=>`<div class="phase-row ${timerState.current===i?'active':''}"><strong>${i+1}. ${p.name}</strong><input type="number" min="1" max="180" value="${p.min}" data-phase-min="${i}" aria-label="${p.name} 분"><button data-start-phase="${i}">이 단계</button></div>`).join('');root.querySelectorAll('[data-phase-min]').forEach(inp=>inp.addEventListener('change',()=>{phases[Number(inp.dataset.phaseMin)].min=Math.max(1,Number(inp.value)||1);STORE.set('tdp_timer_phases',phases);resetTimer(false);renderPhases()}));root.querySelectorAll('[data-start-phase]').forEach(btn=>btn.addEventListener('click',()=>{timerState.current=Number(btn.dataset.startPhase);timerState.remaining=phases[timerState.current].min*60;timerState.running=false;clearInterval(timerState.interval);updateTimerDisplay();renderPhases();toast(`${phases[timerState.current].name} 단계로 설정했습니다.`)}));document.getElementById('phaseTotal').textContent=phases.reduce((a,b)=>a+b.min,0)+'분'}
+  function updateTimerDisplay(){document.getElementById('timerClock').textContent=formatTime(timerState.remaining);document.getElementById('currentPhasePill').textContent=timerState.current>=0?phases[timerState.current].name:'전체 연습';document.getElementById('timerLabel').textContent=timerState.running?'진행 중':'일시정지 또는 대기'}
+  function startTimer(){if(timerState.running)return;timerState.running=true;timerState.interval=setInterval(()=>{timerState.remaining--;updateTimerDisplay();if(timerState.remaining<=0){clearInterval(timerState.interval);timerState.running=false;toast('설정 시간이 종료되었습니다.');if('Notification'in window&&Notification.permission==='granted')new Notification('3D프린팅 실기 타이머 종료')}},1000);updateTimerDisplay()}
+  function resetTimer(showToast=true){clearInterval(timerState.interval);timerState.running=false;timerState.current=-1;timerState.remaining=phases.reduce((a,b)=>a+b.min,0)*60;updateTimerDisplay();if(showToast)toast('타이머를 초기화했습니다.')}
+  document.getElementById('timerStartBtn').addEventListener('click',()=>{if('Notification'in window&&Notification.permission==='default')Notification.requestPermission();startTimer()});document.getElementById('timerPauseBtn').addEventListener('click',()=>{clearInterval(timerState.interval);timerState.running=false;updateTimerDisplay();toast('타이머를 일시정지했습니다.')});document.getElementById('timerResetBtn').addEventListener('click',()=>resetTimer(true));renderPhases();resetTimer(false);
+
+
+
+
+
+  // 공개도면 학습관 내부 탭
+  const publicTabButtons=[...document.querySelectorAll('[data-public-tab]')];
+  const publicSubpanels=[...document.querySelectorAll('.public-subpanel')];
+  function setPublicTab(tabName){
+    publicTabButtons.forEach(button=>{
+      const active=button.dataset.publicTab===tabName;
+      button.classList.toggle('active',active);
+      button.setAttribute('aria-selected',String(active));
+      button.tabIndex=active?0:-1;
+    });
+    publicSubpanels.forEach(panel=>{
+      const active=panel.id===`public-panel-${tabName}`;
+      panel.classList.toggle('active',active);
+      panel.hidden=!active;
+    });
+    if(tabName==='tracker')setTimeout(updatePublicTracker,20);
+  }
+  publicTabButtons.forEach((button,index)=>{
+    button.addEventListener('click',()=>setPublicTab(button.dataset.publicTab));
+    button.addEventListener('keydown',event=>{
+      if(event.key!=='ArrowLeft'&&event.key!=='ArrowRight')return;
+      event.preventDefault();
+      const direction=event.key==='ArrowRight'?1:-1;
+      const next=(index+direction+publicTabButtons.length)%publicTabButtons.length;
+      publicTabButtons[next].focus();
+      setPublicTab(publicTabButtons[next].dataset.publicTab);
+    });
+  });
+
+  // 공개도면 27종 학습 진도 관리
+  const PUBLIC_TOTAL_DRAWINGS=27;
+  const PUBLIC_DRAWING_KEY='threeDPrinterPractice.drawings';
+  const publicValidStatuses=new Set(['none','modeled','printed']);
+  const publicSaved=STORE.get(PUBLIC_DRAWING_KEY,[]);
+  let publicDrawings=Array.from({length:PUBLIC_TOTAL_DRAWINGS},(_,index)=>publicValidStatuses.has(publicSaved[index])?publicSaved[index]:'none');
+  function publicNextStatus(status){return status==='none'?'modeled':status==='modeled'?'printed':'none'}
+  function updatePublicTracker(){
+    const modeled=publicDrawings.filter(status=>status==='modeled'||status==='printed').length;
+    const printed=publicDrawings.filter(status=>status==='printed').length;
+    const modeledRate=Math.round(modeled/PUBLIC_TOTAL_DRAWINGS*100);
+    const printedRate=Math.round(printed/PUBLIC_TOTAL_DRAWINGS*100);
+    document.getElementById('publicModeledLabel').textContent=`모델링 완료 (${modeled}/${PUBLIC_TOTAL_DRAWINGS})`;
+    document.getElementById('publicPrintedLabel').textContent=`출력(후가공) 완료 (${printed}/${PUBLIC_TOTAL_DRAWINGS})`;
+    document.getElementById('publicModeledPercent').textContent=`${modeledRate}%`;
+    document.getElementById('publicPrintedPercent').textContent=`${printedRate}%`;
+    document.getElementById('publicModeledProgress').style.width=`${modeledRate}%`;
+    document.getElementById('publicPrintedProgress').style.width=`${printedRate}%`;
+  }
+  function renderPublicDrawings(){
+    const root=document.getElementById('publicDrawingGrid');
+    root.innerHTML='';
+    publicDrawings.forEach((status,index)=>{
+      const button=document.createElement('button');
+      button.type='button';
+      button.className=`public-drawing-btn ${status}`;
+      button.textContent=`도면 ${index+1}`;
+      const stateText=status==='none'?'미진행':status==='modeled'?'모델링 완료':'출력 완료';
+      button.setAttribute('aria-label',`도면 ${index+1}, 현재 상태 ${stateText}`);
+      button.addEventListener('click',()=>{publicDrawings[index]=publicNextStatus(publicDrawings[index]);STORE.set(PUBLIC_DRAWING_KEY,publicDrawings);renderPublicDrawings()});
+      root.appendChild(button);
+    });
+    updatePublicTracker();
+  }
+  document.getElementById('publicResetTracker').addEventListener('click',()=>{if(!confirm('27개 공개도면의 학습 진도를 모두 초기화할까요?'))return;publicDrawings=Array(PUBLIC_TOTAL_DRAWINGS).fill('none');STORE.set(PUBLIC_DRAWING_KEY,publicDrawings);renderPublicDrawings();toast('공개도면 진도를 초기화했습니다.')});
+  renderPublicDrawings();
+
+  // 과목별 타이머
+  const mockModelingChecks=[
+    ['m1','부품 1 (Part 1) 모델링 완료'],
+    ['m2','부품 2 (Part 2) 모델링 완료'],
+    ['m3','비번호(수험번호) 음각/양각 각인 확인 (예: 01)'],
+    ['m4','상호 움직이는 부위 (A, B) 공차 적용 완료 (보통 ±1mm 이하, 실무상 0.5~0.8mm)'],
+    ['m5','어셈블리(조립) 메이트 설정 및 움직임 확인'],
+    ['m6','요구된 확장자로 저장 (원형, STP, STL 등 감독관 지시 확인)']
+  ];
+  const mockPrintingChecks=[
+    ['p1','슬라이싱 프로그램에서 STL 불러오기 및 배치 최적화'],
+    ['p2','예상 출력 시간 80분 이내 확인 (초과 시 실격)'],
+    ['p3','G-Code 저장 및 USB 메모리로 이동'],
+    ['p4','3D 프린터 베드 레벨링 및 노즐/베드 예열 확인'],
+    ['p5','출력 시작 및 1~2레이어 안착 상태 확인'],
+    ['p6','출력 완료 후 베드에서 조심스럽게 분리'],
+    ['p7','니퍼/라디오펜치 등으로 서포트 제거 (파손 절대 주의!)'],
+    ['p8','부품 1과 2가 서로 원활하게 가동되는지 최종 확인']
+  ];
+  let mockPhase=1;
+  let mockTimeLeft=60*60;
+  let mockRunning=false;
+  let mockInterval=null;
+  let mockChecklistState={
+    1:STORE.get('threeDPrinterPractice.checklist.phase1',{}),
+    2:STORE.get('threeDPrinterPractice.checklist.phase2',{})
+  };
+  const mockPhaseButtons=[...document.querySelectorAll('.mock-phase-btn')];
+  function mockDuration(selectedPhase){return selectedPhase===1?60*60:120*60}
+  function mockFormatTime(seconds){const safe=Math.max(0,seconds),hours=Math.floor(safe/3600),minutes=Math.floor(safe%3600/60),secs=safe%60;return `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(secs).padStart(2,'0')}`}
+  function updateMockTimer(){const display=document.getElementById('mockTimerDisplay');display.textContent=mockFormatTime(mockTimeLeft);display.classList.toggle('warning',mockTimeLeft<600);document.getElementById('mockTimerToggle').textContent=mockRunning?'Ⅱ 일시정지':'▶ 시작'}
+  function stopMockTimer(){mockRunning=false;if(mockInterval!==null){clearInterval(mockInterval);mockInterval=null}updateMockTimer()}
+  function toggleMockTimer(){if(mockRunning){stopMockTimer();return}if(mockTimeLeft<=0)mockTimeLeft=mockDuration(mockPhase);mockRunning=true;updateMockTimer();mockInterval=setInterval(()=>{mockTimeLeft--;updateMockTimer();if(mockTimeLeft<=0){stopMockTimer();toast('과목별 타이머 시간이 종료되었습니다.')}},1000)}
+  function resetMockTimer(){stopMockTimer();mockTimeLeft=mockDuration(mockPhase);updateMockTimer();toast('과목별 타이머를 초기화했습니다.')}
+  function renderMockChecklist(){
+    const items=mockPhase===1?mockModelingChecks:mockPrintingChecks;
+    const root=document.getElementById('mockChecklist');root.innerHTML='';
+    items.forEach(([id,text])=>{
+      const checked=Boolean(mockChecklistState[mockPhase][id]);
+      const button=document.createElement('button');button.type='button';button.className=`mock-check-item${checked?' checked':''}`;button.setAttribute('aria-pressed',String(checked));
+      button.innerHTML=`<span class="mock-check-circle" aria-hidden="true">${checked?'✓':''}</span><span class="mock-check-text"></span>`;button.querySelector('.mock-check-text').textContent=text;
+      button.addEventListener('click',()=>{mockChecklistState[mockPhase][id]=!mockChecklistState[mockPhase][id];STORE.set(`threeDPrinterPractice.checklist.phase${mockPhase}`,mockChecklistState[mockPhase]);renderMockChecklist()});root.appendChild(button);
+    });
+  }
+  function switchMockPhase(newPhase){if(newPhase===mockPhase)return;stopMockTimer();mockPhase=newPhase;mockTimeLeft=mockDuration(mockPhase);mockPhaseButtons.forEach(button=>button.classList.toggle('active',Number(button.dataset.mockPhase)===mockPhase));document.getElementById('mockTimerTitle').textContent=mockPhase===1?'3D 모델링 작업 (도면 해석 및 조립)':'3D 프린팅 및 후가공 작업';updateMockTimer();renderMockChecklist()}
+  mockPhaseButtons.forEach(button=>button.addEventListener('click',()=>switchMockPhase(Number(button.dataset.mockPhase))));
+  document.getElementById('mockTimerToggle').addEventListener('click',toggleMockTimer);
+  document.getElementById('mockTimerReset').addEventListener('click',resetMockTimer);
+  updateMockTimer();renderMockChecklist();
+
+
+  // 타이머 숫자를 실제 카드 너비에 맞추는 브라우저 독립형 보정
+  function fitTimerClockElement(element){
+    if(!element || element.getClientRects().length===0) return;
+    element.style.fontSize='88px';
+    let size=88;
+    const minimum=28;
+    while(element.scrollWidth>element.clientWidth && size>minimum){
+      size-=1;
+      element.style.fontSize=size+'px';
+    }
+  }
+  function fitAllTimerClocks(){
+    fitTimerClockElement(document.getElementById('timerClock'));
+    fitTimerClockElement(document.getElementById('mockTimerDisplay'));
+  }
+  let timerFitFrame=0;
+  function scheduleTimerFit(){
+    cancelAnimationFrame(timerFitFrame);
+    timerFitFrame=requestAnimationFrame(fitAllTimerClocks);
+  }
+  window.addEventListener('resize',scheduleTimerFit,{passive:true});
+  document.querySelectorAll(`[data-page="timer"], [onclick*="goPage('timer')"]`).forEach(element=>{
+    element.addEventListener('click',()=>setTimeout(scheduleTimerFit,30));
+  });
+  if(document.fonts && document.fonts.ready){document.fonts.ready.then(scheduleTimerFit)}
+  setTimeout(scheduleTimerFit,50);
+
+</script>
+</body>
+</html>
