@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>공개도면 1번 | 3D 모델링·조립 시뮬레이터</title>
+<meta content="3D프린터운용기능사 실기 공개도면 1번의 객체 1·2 모델링 과정과 간섭 없는 하부 삽입 조립 시뮬레이터" name="description"/>
+<style>
+    :root{
+      --bg:#f3f6fb; --panel:#ffffff; --ink:#162033; --muted:#62708a;
+      --line:#dce4f0; --brand:#3157d5; --brand2:#13a8a8; --warn:#b45309;
+      --soft:#eef2ff; --shadow:0 16px 44px rgba(31,45,72,.10);
+      --radius:22px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:linear-gradient(180deg,#eef3fb 0,#f8fafc 34%,#f4f7fb 100%);color:var(--ink);font-family:Pretendard,"Noto Sans KR",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.65}
+    button,input{font:inherit}
+    a{color:inherit}
+    .shell{width:min(1450px,calc(100% - 28px));margin:0 auto;padding:24px 0 72px}
+    .hero{position:relative;overflow:hidden;border-radius:28px;padding:34px;background:linear-gradient(135deg,#172554,#263ea6 55%,#087f8c);color:white;box-shadow:var(--shadow)}
+    .hero:after{content:"";position:absolute;right:-100px;top:-140px;width:420px;height:420px;border-radius:50%;border:72px solid rgba(255,255,255,.08)}
+    .hero-grid{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1.55fr) minmax(260px,.75fr);gap:28px;align-items:center}
+    .eyebrow{display:inline-flex;gap:9px;align-items:center;padding:7px 12px;border:1px solid rgba(255,255,255,.24);border-radius:999px;background:rgba(255,255,255,.10);font-size:.85rem;font-weight:800;letter-spacing:.04em}
+    h1{margin:14px 0 10px;font-size:clamp(2rem,4vw,3.7rem);line-height:1.12;letter-spacing:-.045em}
+    .hero p{margin:0;max-width:860px;color:rgba(255,255,255,.86);font-size:1.03rem}
+    .hero-badges{display:flex;flex-wrap:wrap;gap:9px;margin-top:20px}
+    .hero-badge{padding:8px 11px;border-radius:11px;background:rgba(255,255,255,.12);font-size:.86rem;font-weight:700}
+    .hero-thumb{background:rgba(255,255,255,.96);border-radius:18px;padding:12px;transform:rotate(1.4deg);box-shadow:0 14px 32px rgba(0,0,0,.20)}
+    .hero-thumb img{display:block;width:100%;height:270px;object-fit:contain;border-radius:12px;background:#fff}
+    .notice{display:flex;gap:12px;align-items:flex-start;margin:20px 0;padding:15px 17px;border:1px solid #f7d8a7;background:#fff8e8;color:#71420a;border-radius:15px}
+    .notice strong{display:block;margin-bottom:2px}
+    .section{margin-top:24px}
+    .section-head{display:flex;justify-content:space-between;gap:20px;align-items:end;margin:0 4px 12px}
+    .section-head h2{margin:0;font-size:clamp(1.4rem,2.4vw,2rem);letter-spacing:-.035em}
+    .section-head p{margin:3px 0 0;color:var(--muted)}
+    .panel{background:var(--panel);border:1px solid rgba(208,218,233,.85);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .drawing-grid{display:grid;grid-template-columns:1fr 1fr .62fr;gap:14px;padding:14px}
+    .drawing-card{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:16px;background:#fbfcfe;min-height:270px}
+    .drawing-card img{width:100%;height:100%;max-height:390px;object-fit:contain;display:block;background:#fff;transition:.25s transform}
+    .drawing-card:hover img{transform:scale(1.018)}
+    .tag{position:absolute;left:12px;top:12px;z-index:2;padding:6px 10px;border-radius:999px;background:rgba(18,28,49,.88);color:white;font-size:.78rem;font-weight:800}
+    .zoom-btn{position:absolute;right:12px;bottom:12px;border:0;border-radius:10px;background:#fff;padding:8px 10px;box-shadow:0 6px 18px rgba(22,32,51,.15);cursor:pointer;font-weight:800;color:#334155}
+    .app-grid{display:grid;grid-template-columns:330px minmax(0,1fr);gap:18px;padding:18px}
+    .steps{display:flex;flex-direction:column;gap:8px}
+    .step-btn{width:100%;display:grid;grid-template-columns:38px 1fr;gap:10px;text-align:left;border:1px solid var(--line);background:#fff;border-radius:14px;padding:11px;cursor:pointer;transition:.18s}
+    .step-btn:hover{transform:translateY(-1px);border-color:#aebdf5}
+    .step-btn.active{border-color:#8097ec;background:linear-gradient(135deg,#edf1ff,#f5ffff);box-shadow:0 8px 20px rgba(49,87,213,.12)}
+    .step-no{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:#edf1f7;color:#42506b;font-weight:900}
+    .step-btn.active .step-no{background:var(--brand);color:#fff}
+    .step-title{font-weight:900;line-height:1.3}
+    .step-sub{display:block;color:var(--muted);font-size:.78rem;margin-top:2px;line-height:1.35}
+    .stage-wrap{min-width:0}
+    .viewer{position:relative;height:620px;overflow:hidden;border-radius:18px;background:radial-gradient(circle at 50% 35%,#ffffff 0,#edf3fb 62%,#dfe8f5 100%);border:1px solid var(--line)}
+    #simCanvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}#simCanvas:active{cursor:grabbing}.canvas-hint{position:absolute;right:14px;bottom:14px;z-index:4;padding:8px 11px;border:1px solid rgba(208,218,233,.92);border-radius:11px;background:rgba(255,255,255,.84);color:#5c6980;font-size:.76rem;font-weight:800;backdrop-filter:blur(8px)}
+    .viewer-overlay{position:absolute;left:14px;top:14px;z-index:5;max-width:min(430px,calc(100% - 28px));padding:13px 15px;border-radius:14px;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border:1px solid rgba(208,218,233,.95);box-shadow:0 9px 26px rgba(31,45,72,.12)}
+    .viewer-overlay .kicker{font-size:.73rem;font-weight:900;color:var(--brand);letter-spacing:.06em;text-transform:uppercase}
+    .viewer-overlay h3{margin:2px 0 2px;font-size:1.12rem}
+    .viewer-overlay p{margin:0;color:var(--muted);font-size:.86rem;line-height:1.5}
+    .loading-note{position:absolute;inset:0;display:grid;place-items:center;z-index:1;color:#64748b;font-weight:800;text-align:center;padding:30px}
+    .fallback-sim{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:60px 20px 20px}
+    .fallback-sim svg{width:min(86%,760px);height:auto;filter:drop-shadow(0 18px 22px rgba(30,41,59,.12))}
+    .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+    .tool-btn,.view-btn{border:1px solid var(--line);background:#fff;color:#334155;border-radius:11px;padding:9px 12px;cursor:pointer;font-weight:800;font-size:.86rem}
+    .tool-btn:hover,.view-btn:hover{border-color:#91a5ec;color:var(--brand)}
+    .tool-btn.primary{background:var(--brand);color:white;border-color:var(--brand)}
+    .tool-btn.stop{background:#fff7ed;color:#9a3412;border-color:#fed7aa}
+    .control-grid{display:grid;grid-template-columns:repeat(4,minmax(145px,1fr));gap:10px;margin-top:10px}
+    .control{padding:11px 12px;border:1px solid var(--line);border-radius:13px;background:#fafcff}
+    .control label{display:flex;justify-content:space-between;gap:8px;font-size:.79rem;font-weight:800;color:#43506a;margin-bottom:7px}
+    .control output{color:var(--brand)}
+    .control input[type="range"]{width:100%;accent-color:var(--brand)}
+    .toggle-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:11px;padding:10px 2px;color:#42506a;font-size:.85rem;font-weight:800}
+    .toggle-row label{display:flex;gap:7px;align-items:center;cursor:pointer}
+    .toggle-row input{accent-color:var(--brand)}
+    .guide{display:grid;grid-template-columns:1.15fr .85fr;gap:14px;margin-top:14px}
+    .guide-card{padding:18px;border:1px solid var(--line);border-radius:16px;background:#fff}
+    .guide-card h3{margin:0 0 7px;font-size:1.05rem}
+    .guide-card ol,.guide-card ul{margin:0;padding-left:20px;color:#43506a}
+    .guide-card li+li{margin-top:6px}
+    .tip-box{background:linear-gradient(135deg,#eef2ff,#ecfeff)}
+    .dim-table{width:100%;border-collapse:collapse;font-size:.88rem}
+    .dim-table th,.dim-table td{padding:10px 9px;border-bottom:1px solid var(--line);text-align:left}
+    .dim-table th{color:#526079;background:#f8fafc}
+    .dim-table td:last-child{font-weight:800;color:#334155}
+    .assembly-flow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:16px}
+    .flow-card{position:relative;padding:18px 15px;border:1px solid var(--line);border-radius:16px;background:#fff;min-height:164px}
+    .flow-card:not(:last-child):after{content:"→";position:absolute;right:-18px;top:50%;transform:translateY(-50%);width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#fff;color:var(--brand);font-weight:900;z-index:2;box-shadow:0 3px 9px rgba(31,45,72,.15)}
+    .flow-icon{width:42px;height:42px;border-radius:13px;background:var(--soft);display:grid;place-items:center;color:var(--brand);font-weight:950;font-size:1.1rem;margin-bottom:10px}
+    .flow-card h3{font-size:1rem;margin:0 0 5px}
+    .flow-card p{font-size:.85rem;color:var(--muted);margin:0}
+    .checklist{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:16px}
+    .check{border:1px solid var(--line);border-radius:15px;padding:15px;background:#fff}
+    .check strong{display:block;margin-bottom:4px}
+    .check span{color:var(--muted);font-size:.86rem}
+    footer{margin-top:28px;text-align:center;color:#718096;font-size:.85rem}
+    dialog{border:0;border-radius:18px;padding:0;max-width:min(95vw,980px);box-shadow:0 30px 80px rgba(15,23,42,.35)}
+    dialog::backdrop{background:rgba(15,23,42,.66)}
+    .dialog-head{display:flex;justify-content:space-between;align-items:center;padding:12px 15px;border-bottom:1px solid var(--line)}
+    .dialog-head button{border:0;background:#eef2f7;border-radius:9px;padding:7px 10px;cursor:pointer;font-weight:900}
+    dialog img{display:block;max-width:92vw;max-height:82vh;object-fit:contain;background:#fff}
+    @media(max-width:1050px){.hero-grid{grid-template-columns:1fr}.hero-thumb{display:none}.app-grid{grid-template-columns:1fr}.steps{display:grid;grid-template-columns:repeat(2,1fr)}.viewer{height:560px}.drawing-grid{grid-template-columns:1fr 1fr}.drawing-card:last-child{grid-column:1/-1}.control-grid{grid-template-columns:repeat(2,1fr)}.guide{grid-template-columns:1fr}.assembly-flow{grid-template-columns:repeat(2,1fr)}.flow-card:nth-child(2):after{display:none}.checklist{grid-template-columns:1fr 1fr}}
+    @media(max-width:670px){.shell{width:min(100% - 16px,1450px);padding-top:8px}.hero{padding:24px 19px;border-radius:20px}.drawing-grid{grid-template-columns:1fr}.drawing-card:last-child{grid-column:auto}.steps{grid-template-columns:1fr}.viewer{height:500px}.viewer-overlay{position:relative;left:auto;top:auto;margin:10px;max-width:none}.control-grid{grid-template-columns:1fr}.assembly-flow,.checklist{grid-template-columns:1fr}.flow-card:after{display:none!important}.app-grid{padding:10px}.section-head{align-items:start;flex-direction:column}}
+  </style>
+</head>
+<body>
+<main class="shell">
+<header class="hero">
+<div class="hero-grid">
+<div>
+<span class="eyebrow">3D프린터운용기능사 · 공개도면 테스트 버전</span>
+<h1>도면 1번<br/>객체 1·2 정밀 모델링 &amp; 조립</h1>
+<p>정면·우측면·상단면과 입체도를 순서대로 읽고, 형상을 단계별로 생성한 뒤 객체 2를 객체 1 아래에서 X축으로 180° 뒤집고 아래에서 위로 삽입한 다음, 마지막에 Z축으로 90° 돌려 잠그는 조립 과정을 연습합니다.</p>
+<div class="hero-badges">
+<span class="hero-badge">한 페이지 구성</span><span class="hero-badge">3D 회전·확대</span><span class="hero-badge">단계별 표시</span><span class="hero-badge">조립 애니메이션</span>
+</div>
+</div>
+<div class="hero-thumb"><img alt="3D프린터운용기능사 공개도면 1번 어셈블리" src="../images/thee_d_sketch/01도면 - 어셈블리.png" data-asset-path="../images/thee_d_sketch/01도면 - 어셈블리.png"/></div>
+</div>
+</header>
+<div class="notice">
+<div aria-hidden="true">⚠️</div>
+<div><strong>치수 사용 안내</strong>원본 공개도면은 척도 NS이며 이 페이지에는 실제 치수가 표시되어 있지 않습니다. 아래 수치는 모델링 순서와 결합 원리를 연습하기 위한 <b>교육용 가상 치수</b>입니다. 실제 시험에서는 지급 도면과 요구사항의 치수를 우선 적용하세요.</div>
+</div>
+<section class="section" id="drawing-analysis">
+<div class="section-head"><div><h2>1. 도면 읽기</h2><p>1페이지의 객체 1, 객체 2, 조립 입체도를 분리해 관찰합니다.</p></div></div>
+<div class="panel drawing-grid">
+<figure class="drawing-card"><span class="tag">객체 1</span><img alt="공개도면 1번 객체 1의 정면도, 우측면도, 상단면도, 입체도" src="../images/thee_d_sketch/01도면 - 1번객체.png" data-asset-path="../images/thee_d_sketch/01도면 - 1번객체.png"/><button class="zoom-btn" data-image="../images/thee_d_sketch/01도면 - 1번객체.png">확대</button></figure>
+<figure class="drawing-card"><span class="tag">객체 2</span><img alt="공개도면 1번 객체 2의 정면도, 우측면도, 상단면도, 입체도" src="../images/thee_d_sketch/01도면 - 2번객체.png" data-asset-path="../images/thee_d_sketch/01도면 - 2번객체.png"/><button class="zoom-btn" data-image="../images/thee_d_sketch/01도면 - 2번객체.png">확대</button></figure>
+<figure class="drawing-card"><span class="tag">조립 상태</span><img alt="공개도면 1번 객체 1과 2의 최종 어셈블리" src="../images/thee_d_sketch/01도면 - 어셈블리.png" data-asset-path="../images/thee_d_sketch/01도면 - 어셈블리.png"/><button class="zoom-btn" data-image="../images/thee_d_sketch/01도면 - 어셈블리.png">확대</button></figure>
+</div>
+</section>
+<section class="section" id="modeling-simulator">
+<div class="section-head"><div><h2>2. 단계별 모델링 시뮬레이터</h2><p>왼쪽 단계를 클릭하거나 이전·다음 버튼으로 순서대로 진행하세요.</p></div></div>
+<div class="panel app-grid">
+<nav aria-label="모델링 단계" class="steps">
+<button class="step-btn active" data-stage="0"><span class="step-no">1</span><span><span class="step-title">형상 분석</span><span class="step-sub">기준면과 결합 관계 확인</span></span></button>
+<button class="step-btn" data-stage="1"><span class="step-no">2</span><span><span class="step-title">객체 1 바닥·모따기</span><span class="step-sub">D형 외곽 돌출 후 뒤쪽 하부 모따기</span></span></button>
+<button class="step-btn" data-stage="2"><span class="step-no">3</span><span><span class="step-title">객체 1 중앙 홈</span><span class="step-sub">상단 슬롯을 관통 제거</span></span></button>
+<button class="step-btn" data-stage="3"><span class="step-no">4</span><span><span class="step-title">객체 1 뒤판</span><span class="step-sub">세로 벽과 장공 생성</span></span></button>
+<button class="step-btn" data-stage="4"><span class="step-no">5</span><span><span class="step-title">객체 2 생성</span><span class="step-sub">I형 윤곽 스케치와 돌출</span></span></button>
+<button class="step-btn" data-stage="5"><span class="step-no">6</span><span><span class="step-title">하부 정렬·X축 180° 회전</span><span class="step-sub">객체 1 아래에서 앞뒤 방향으로 뒤집기</span></span></button>
+<button class="step-btn" data-stage="6"><span class="step-no">7</span><span><span class="step-title">삽입 후 Z축 90° 잠금</span><span class="step-sub">+Z 삽입 완료 후 수평 방향으로 회전</span></span></button>
+</nav>
+<div class="stage-wrap">
+<div class="viewer" id="viewer">
+<div class="viewer-overlay"><div class="kicker" id="stageKicker">STEP 1 / 7</div><h3 id="stageTitle">형상 분석</h3><p id="stageDesc">객체 1은 U자형 D형 베이스와 장공이 있는 세로 뒤판, 객체 2는 둥근 상부 머리·좁은 목·하부 걸림턱으로 해석합니다.</p></div>
+<canvas aria-label="객체 1과 객체 2의 3D 모델링 및 조립 시뮬레이터" id="simCanvas"></canvas>
+<div class="canvas-hint">마우스 드래그: 회전 · 휠: 확대/축소 · 더블클릭: 초기화</div>
+</div>
+<div class="toolbar">
+<button class="tool-btn" id="prevStep">← 이전 단계</button><button class="tool-btn primary" id="nextStep">다음 단계 →</button>
+<button class="tool-btn" id="playAssembly">조립 애니메이션</button><button class="tool-btn stop" id="stopAnimation">정지</button>
+<button class="view-btn" data-view="iso">입체</button><button class="view-btn" data-view="front">정면</button><button class="view-btn" data-view="right">우측</button><button class="view-btn" data-view="top">상단</button><button class="view-btn" id="resetCamera">화면 초기화</button>
+</div>
+<div class="control-grid">
+<div class="control"><label>분해 거리 <output id="explodeOut">0</output></label><input id="explodeRange" max="48" min="0" type="range" value="0"/></div>
+<div class="control"><label>객체 1 길이 <output id="baseLengthOut">50</output></label><input id="baseLength" max="62" min="44" type="range" value="50"/></div>
+<div class="control"><label>객체 1 폭 <output id="baseWidthOut">32</output></label><input id="baseWidth" max="40" min="28" type="range" value="32"/></div>
+<div class="control"><label>뒤판 높이 <output id="wallHeightOut">28</output></label><input id="wallHeight" max="36" min="24" type="range" value="28"/></div>
+</div>
+<div class="toggle-row">
+<label><input id="autoRotate" type="checkbox"/> 자동 회전</label><label><input id="wireframe" type="checkbox"/> 와이어프레임</label><label><input id="transparent" type="checkbox"/> 반투명</label><label><input checked="" id="showAxes" type="checkbox"/> 기준축 표시</label>
+</div>
+<div class="guide">
+<article class="guide-card"><h3 id="guideTitle">작업 순서</h3><ol id="guideList"><li>조립 입체도에서 객체 1과 객체 2의 접촉 위치를 확인합니다.</li><li>객체 1은 바닥 형상과 뒤판을 분리해 생각합니다.</li><li>객체 2는 정면 윤곽을 만든 뒤 일정 두께로 돌출합니다.</li></ol></article>
+<aside class="guide-card tip-box"><h3>현재 단계 핵심</h3><p id="stageTip">먼저 중심선과 대칭 관계를 잡으면 스케치 구속이 쉬워집니다.</p></aside>
+</div>
+</div>
+</div>
+</section>
+<section class="section" id="virtual-dimensions">
+<div class="section-head"><div><h2>3. 교육용 가상 치수</h2><p>실제 시험 치수가 아니라 시뮬레이터 형상 생성을 위한 예시값입니다.</p></div></div>
+<div class="panel" style="padding:16px;overflow:auto">
+<table class="dim-table"><thead><tr><th>구분</th><th>항목</th><th>가상값</th><th>모델링 기능 예시</th></tr></thead><tbody>
+<tr><td>객체 1</td><td>바닥 전체</td><td id="dimBase">50 × 32 × 6 mm</td><td>외곽 스케치 → 돌출 → 뒤쪽 하부 모따기</td></tr>
+<tr><td>객체 1</td><td>중앙 개구부</td><td>교육용 비례값</td><td>D형 내곽 스케치 → 관통 제거</td></tr>
+<tr><td>객체 1</td><td>뒤판</td><td id="dimWall">32 × 28 × 6 mm</td><td>상단 모서리 라운드 → 캡슐 장공 제거</td></tr>
+<tr><td>객체 2</td><td>걸림 부품</td><td>교육용 비례값</td><td>둥근 머리·목·하부 걸림턱 생성</td></tr>
+<tr><td>조립</td><td>방향 전환</td><td>X축 180° + Z축 90°</td><td>X축 뒤집기 → +Z 삽입 → Z축 잠금 회전</td></tr>
+</tbody></table>
+</div>
+</section>
+<section class="section" id="assembly-guide">
+<div class="section-head"><div><h2>4. 두 객체 조립</h2><p>도면의 조립 입체도를 바탕으로 한 교육용 조립 순서입니다.</p></div></div>
+<div class="panel assembly-flow">
+<article class="flow-card"><div class="flow-icon">01</div><h3>객체 1 아래에서 중심 맞춤</h3><p>객체 2 전체가 객체 1의 밑면보다 아래에 있도록 내린 뒤, 객체 2의 중심을 중앙 개구부 중심과 정확히 맞춥니다.</p></article>
+<article class="flow-card"><div class="flow-icon">02</div><h3>X축으로 180° 회전</h3><p>객체 2가 객체 1과 완전히 떨어진 하부 위치에서 X축을 중심으로 180° 뒤집힙니다. 회전 중에는 객체 1과 접촉하지 않습니다.</p></article>
+<article class="flow-card"><div class="flow-icon">03</div><h3>아래에서 위로 삽입</h3><p>X축 회전이 끝난 객체 2를 수평 이동시키지 않고 중앙 개구부를 따라 +Z 방향으로 올립니다. 이때 아직 Z축 회전은 하지 않습니다.</p></article>
+<article class="flow-card"><div class="flow-icon">04</div><h3>Z축으로 90° 잠금 회전</h3><p>삽입이 완전히 끝난 뒤 객체 2를 Z축 기준으로 90° 회전시켜 위쪽 걸림턱이 개구부를 가로질러 걸리도록 하고 최종 어셈블리 형상을 확인합니다.</p></article>
+</div>
+</section>
+<section class="section">
+<div class="section-head"><div><h2>5. 최종 점검</h2><p>모델 저장 전 확인할 항목입니다.</p></div></div>
+<div class="panel checklist">
+<div class="check"><strong>모따기·형상</strong><span>객체 1 우측면도의 뒤쪽 하부 경사 모따기와 D형 내·외곽, 뒤판 상단 라운드가 반영되었는가?</span></div>
+<div class="check"><strong>관통 방향</strong><span>중앙 개구부와 뒤판의 캡슐형 장공이 도면 방향으로 완전히 관통되었는가?</span></div>
+<div class="check"><strong>조립 간섭·잠금</strong><span>객체 2가 X축으로 180° 회전한 뒤 +Z 방향으로 삽입되고, 삽입 완료 후에만 Z축으로 90° 회전하여 걸리는가?</span></div>
+</div>
+</section>
+<footer>공개도면 1번 웹앱 · public/thee_d_interpretation 기준 상대경로 연동 · 교육용 가상 치수 적용</footer>
+</main>
+<dialog id="imageDialog"><div class="dialog-head"><strong>도면 확대 보기</strong><button id="closeDialog">닫기</button></div><img alt="확대한 공개도면" id="dialogImage"/></dialog>
+<script>
+  (()=>{
+    'use strict';
+    const stageData=[
+      {k:'STEP 1 / 7',t:'형상 분석',d:'객체 1은 U자형 D형 베이스와 장공이 있는 세로 뒤판, 객체 2는 둥근 상부 머리·좁은 목·하부 걸림턱으로 해석합니다.',tip:'정면·우측면·상단면을 함께 비교해 각 라운드와 관통부의 방향을 먼저 확정합니다.',items:['객체 1의 상단면에서 외곽 D형과 내부 D형 개구부를 구분합니다.','객체 1 뒤판의 상단 모서리와 가로 캡슐형 장공을 확인합니다.','객체 2는 둥근 상부 머리, 좁은 목, 넓은 하부 걸림턱으로 나눕니다.']},
+      {k:'STEP 2 / 7',t:'객체 1 외곽 베이스·모따기',d:'상단면의 D형 외곽을 스케치해 돌출한 뒤, 우측면도에 나타난 뒤쪽 하부 경사면을 모따기로 가공합니다.',tip:'모따기는 뒤판 앞쪽의 내부 모서리가 아니라, 베이스 밑면과 뒤판 바깥면이 만나는 뒤쪽 하부 모서리에 폭 전체로 적용합니다.',items:['상단 기준면에 세로 중심선을 만들고 D형 외곽을 닫습니다.','우측면도에 맞춰 베이스 두께만큼 돌출합니다.','뒤쪽 하부 모서리를 폭 전체에 걸쳐 경사면으로 잘라 우측면도의 대각선을 재현합니다.']},
+      {k:'STEP 3 / 7',t:'객체 1 중앙 개구부',d:'외곽과 같은 중심을 갖는 내부 D형을 스케치하여 관통 제거하고 U자형 베이스를 만듭니다.',tip:'내곽의 앞쪽도 반원이며 뒤쪽은 평평하게 닫혀 있다는 점을 상단면에서 확인합니다.',items:['베이스 윗면에 내부 D형 윤곽을 배치합니다.','외곽과 내곽의 중심선 및 좌우 간격을 구속합니다.','베이스 전체를 관통 제거하여 중앙 개구부를 만듭니다.']},
+      {k:'STEP 4 / 7',t:'객체 1 뒤판과 장공',d:'뒤쪽 직선부 위에 상단 모서리가 둥근 뒤판을 세우고 가로 캡슐형 장공을 관통 제거합니다.',tip:'기존처럼 사각 뒤판·사각 구멍으로 만들지 말고, 정면도에 표시된 상단 라운드와 장공 끝의 반원을 반영합니다.',items:['베이스 뒤쪽에 뒤판 외곽을 스케치하고 두께 방향으로 돌출합니다.','뒤판 위쪽 좌우 모서리에 같은 반지름의 라운드를 적용합니다.','가로 캡슐형 장공을 중심에 맞춰 관통 제거합니다.']},
+      {k:'STEP 5 / 7',t:'객체 2 형상 생성',d:'둥근 상부 머리, 좁은 중앙 목, 넓은 하부 걸림턱을 하나의 대칭 형상으로 생성합니다.',tip:'상부는 완전한 반원이 아니라 윗모서리만 둥근 사각형에 가깝고, 하부 걸림턱은 수평 직선 형상입니다.',items:['정면 기준면에 세로 중심선을 만듭니다.','상부 머리의 평평한 측면과 둥근 윗모서리를 작성합니다.','좁은 목과 넓은 하부 걸림턱을 연결한 뒤 우측면 두께만큼 돌출합니다.']},
+      {k:'STEP 6 / 7',t:'하부 정렬·X축 180° 회전',d:'객체 2 전체를 객체 1의 밑면 아래에 둔 상태에서 중앙 개구부 중심을 맞추고 X축 기준으로 180° 뒤집습니다.',tip:'먼저 객체 2의 모든 부분이 객체 1 밑면보다 아래에 있도록 충분한 간격을 둡니다. 그 상태에서 X축으로 회전해야 실제 출력물끼리 부딪히지 않습니다.',items:['객체 2의 중심을 객체 1 중앙 개구부 중심과 맞춥니다.','객체 2의 가장 높은 부분도 객체 1 밑면보다 아래에 있도록 간격을 확보합니다.','X축을 중심으로 180° 회전하여 하부 걸림턱이 위쪽, 둥근 머리가 아래쪽을 향하게 합니다.']},
+      {k:'STEP 7 / 7',t:'아래에서 위로 삽입 후 Z축 90° 잠금',d:'X축으로 180° 뒤집힌 객체 2를 중앙 개구부를 따라 +Z 방향으로 끝까지 올린 뒤, 마지막에 Z축 기준으로 90° 회전하여 최종 어셈블리 방향으로 잠급니다.',tip:'삽입 중에는 Z축 회전을 시작하지 않습니다. 걸림턱이 베이스 윗면을 완전히 지난 뒤 제자리에서 90° 회전해야 실제 출력물끼리 간섭하지 않습니다.',items:['X축 180° 회전 상태와 중앙 정렬을 유지한 채 객체 2를 +Z 방향으로 올립니다.','위쪽 걸림턱이 베이스 윗면을 완전히 지난 위치에서 상승을 멈춥니다.','객체 2를 Z축 기준으로 90° 회전하여 걸림턱이 개구부를 가로지르도록 잠그고 최종 형상과 비교합니다.']}
+    ];
+
+    const canvas=document.getElementById('simCanvas');
+    const ctx=canvas.getContext('2d');
+    const params={baseLength:50,baseWidth:32,wallHeight:28,explode:0};
+    const view={yaw:-0.72,pitch:0.58,scale:7.0,targetZ:10};
+    let currentStage=0,faces=[],drag=null,assembly=null,lastTime=performance.now();
+    const els={title:document.getElementById('stageTitle'),desc:document.getElementById('stageDesc'),kicker:document.getElementById('stageKicker'),tip:document.getElementById('stageTip'),list:document.getElementById('guideList')};
+
+
+    document.querySelectorAll('img[data-asset-path]').forEach(img=>img.addEventListener('error',()=>{
+      const path=img.dataset.assetPath||img.getAttribute('src');
+      img.removeAttribute('src');
+      img.alt='이미지를 불러오지 못했습니다: '+path;
+      img.style.minHeight='210px';
+      img.style.padding='28px';
+      img.style.background='#fff1f2';
+      img.style.color='#9f1239';
+      img.style.fontWeight='800';
+      img.style.objectFit='contain';
+    }));
+
+    document.querySelectorAll('.zoom-btn').forEach(btn=>btn.addEventListener('click',()=>{document.getElementById('dialogImage').src=btn.dataset.image;document.getElementById('imageDialog').showModal()}));
+    document.getElementById('closeDialog').addEventListener('click',()=>document.getElementById('imageDialog').close());
+    document.getElementById('imageDialog').addEventListener('click',e=>{if(e.target.id==='imageDialog')e.currentTarget.close()});
+
+    function updateGuide(stage){
+      currentStage=Math.max(0,Math.min(6,stage)); assembly=null;
+      const d=stageData[currentStage]; els.kicker.textContent=d.k;els.title.textContent=d.t;els.desc.textContent=d.d;els.tip.textContent=d.tip;els.list.innerHTML=d.items.map(v=>`<li>${v}</li>`).join('');
+      document.querySelectorAll('.step-btn').forEach((b,i)=>b.classList.toggle('active',i===currentStage));
+    }
+    document.querySelectorAll('.step-btn').forEach(b=>b.addEventListener('click',()=>updateGuide(Number(b.dataset.stage))));
+    document.getElementById('prevStep').addEventListener('click',()=>updateGuide(currentStage-1));
+    document.getElementById('nextStep').addEventListener('click',()=>updateGuide(currentStage+1));
+
+    const V=(x,y,z)=>({x,y,z});
+    const clone=v=>V(v.x,v.y,v.z);
+    function addFace(vertices,color,part,obj){faces.push({vertices,color,part,obj});}
+    function addBox(cx,cy,cz,sx,sy,sz,color,part,obj){
+      const x0=cx-sx/2,x1=cx+sx/2,y0=cy-sy/2,y1=cy+sy/2,z0=cz-sz/2,z1=cz+sz/2;
+      const p=[V(x0,y0,z0),V(x1,y0,z0),V(x1,y1,z0),V(x0,y1,z0),V(x0,y0,z1),V(x1,y0,z1),V(x1,y1,z1),V(x0,y1,z1)];
+      [[4,5,6,7],[0,3,2,1],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]].forEach(f=>addFace(f.map(i=>p[i]),color,part,obj));
+    }
+    function addHalfDisk(cx,cy,z0,r,h,color,part,obj,segments=22){
+      const a0=Math.PI/2,a1=Math.PI*1.5,ct=V(cx,cy,z0+h),cb=V(cx,cy,z0);
+      for(let i=0;i<segments;i++){
+        const a=a0+(a1-a0)*i/segments,b=a0+(a1-a0)*(i+1)/segments;
+        const p0=V(cx+r*Math.cos(a),cy+r*Math.sin(a),z0),p1=V(cx+r*Math.cos(b),cy+r*Math.sin(b),z0),q0=V(p0.x,p0.y,z0+h),q1=V(p1.x,p1.y,z0+h);
+        addFace([clone(ct),q0,q1],color,part,obj);addFace([clone(cb),p1,p0],color,part,obj);addFace([p0,p1,q1,q0],color,part,obj);
+      }
+    }
+    function addHalfRing(cx,cy,z0,ro,ri,h,color,part,obj,segments=24){
+      const a0=Math.PI/2,a1=Math.PI*1.5;
+      for(let i=0;i<segments;i++){
+        const a=a0+(a1-a0)*i/segments,b=a0+(a1-a0)*(i+1)/segments;
+        const o0=V(cx+ro*Math.cos(a),cy+ro*Math.sin(a),z0),o1=V(cx+ro*Math.cos(b),cy+ro*Math.sin(b),z0),i0=V(cx+ri*Math.cos(a),cy+ri*Math.sin(a),z0),i1=V(cx+ri*Math.cos(b),cy+ri*Math.sin(b),z0);
+        const O0=V(o0.x,o0.y,z0+h),O1=V(o1.x,o1.y,z0+h),I0=V(i0.x,i0.y,z0+h),I1=V(i1.x,i1.y,z0+h);
+        addFace([O0,O1,I1,I0],color,part,obj);addFace([o0,i0,i1,o1],color,part,obj);addFace([o0,o1,O1,O0],color,part,obj);addFace([i1,i0,I0,I1],color,part,obj);
+      }
+      for(const a of [a0,a1]){
+        const o=V(cx+ro*Math.cos(a),cy+ro*Math.sin(a),z0),i=V(cx+ri*Math.cos(a),cy+ri*Math.sin(a),z0),O=V(o.x,o.y,z0+h),I=V(i.x,i.y,z0+h);addFace([o,O,I,i],color,part,obj);
+      }
+    }
+    function addHalfCylinderY(cx,cy,cz,r,length,color,part,obj,segments=20){
+      const y0=cy-length/2,y1=cy+length/2;
+      for(let i=0;i<segments;i++){
+        const a=Math.PI*i/segments,b=Math.PI*(i+1)/segments;
+        const p0=V(cx+r*Math.cos(a),y0,cz+r*Math.sin(a)),p1=V(cx+r*Math.cos(b),y0,cz+r*Math.sin(b));
+        const q0=V(p0.x,y1,p0.z),q1=V(p1.x,y1,p1.z);
+        addFace([p0,p1,q1,q0],color,part,obj);
+        addFace([V(cx,y0,cz),p1,p0],color,part,obj);addFace([V(cx,y1,cz),q0,q1],color,part,obj);
+      }
+    }
+
+    function addExtrudedProfileY(points,cy,depth,color,part,obj){
+      const y0=cy-depth/2,y1=cy+depth/2;
+      const front=points.map(p=>V(p.x,y0,p.z)),back=points.map(p=>V(p.x,y1,p.z));
+      addFace(front,color,part,obj);addFace([...back].reverse(),color,part,obj);
+      for(let i=0;i<points.length;i++){const j=(i+1)%points.length;addFace([front[i],front[j],back[j],back[i]],color,part,obj);}
+    }
+    function addExtrudedProfileX(points,cx,depth,color,part,obj){
+      const x0=cx-depth/2,x1=cx+depth/2;
+      const front=points.map(p=>V(x0,p.y,p.z)),back=points.map(p=>V(x1,p.y,p.z));
+      addFace(front,color,part,obj);addFace([...back].reverse(),color,part,obj);
+      for(let i=0;i<points.length;i++){const j=(i+1)%points.length;addFace([front[i],front[j],back[j],back[i]],color,part,obj);}
+    }
+    function roundedTopProfileX(cx,z0,width,height,r,segments=8){
+      const zTop=z0+height,pts=[{x:cx-width/2,z:z0},{x:cx+width/2,z:z0},{x:cx+width/2,z:zTop-r}];
+      const cr=cx+width/2-r,cl=cx-width/2+r,cz=zTop-r;
+      for(let i=0;i<=segments;i++){const a=i/segments*Math.PI/2;pts.push({x:cr+r*Math.cos(a),z:cz+r*Math.sin(a)});}
+      for(let i=0;i<=segments;i++){const a=Math.PI/2+i/segments*Math.PI/2;pts.push({x:cl+r*Math.cos(a),z:cz+r*Math.sin(a)});}
+      pts.push({x:cx-width/2,z:z0});return pts;
+    }
+    function roundedTopProfileYZ(cy,z0,width,height,r,segments=8){
+      return roundedTopProfileX(cy,z0,width,height,r,segments).map(p=>({y:p.x,z:p.z}));
+    }
+    function addCapsuleCornerFillX(cx,depth,cornerY,cornerZ,centerY,centerZ,r,a0,a1,color,part,obj,segments=7){
+      const x0=cx-depth/2,x1=cx+depth/2;
+      const arc=[];for(let i=0;i<=segments;i++){const a=a0+(a1-a0)*i/segments;arc.push({y:centerY+r*Math.cos(a),z:centerZ+r*Math.sin(a)});}
+      for(let i=0;i<arc.length-1;i++){
+        addFace([V(x0,cornerY,cornerZ),V(x0,arc[i].y,arc[i].z),V(x0,arc[i+1].y,arc[i+1].z)],color,part,obj);
+        addFace([V(x1,cornerY,cornerZ),V(x1,arc[i+1].y,arc[i+1].z),V(x1,arc[i].y,arc[i].z)],color,part,obj);
+        addFace([V(x0,arc[i].y,arc[i].z),V(x1,arc[i].y,arc[i].z),V(x1,arc[i+1].y,arc[i+1].z),V(x0,arc[i+1].y,arc[i+1].z)],color,part,obj);
+      }
+    }
+    function buildGeometry(){
+      faces=[];
+      const L=params.baseLength,W=params.baseWidth,H=params.wallHeight;
+      const blue='#4e6fdd',blue2='#5c7be2',teal='#16a4a3';
+      const baseT=6,frontC=-L/2+W/2,back=L/2,wallT=6;
+
+      // 객체 1: 도면의 D형 외곽 솔리드(개구부 가공 전)
+      // 우측면도의 뒤쪽 하부 대각선은 베이스 폭 전체를 가로지르는 실제 모따기 면이다.
+      const rearChamfer=Math.min(baseT,6),chamferStart=back-rearChamfer;
+      addBox((frontC+chamferStart)/2,0,baseT/2,chamferStart-frontC,W,baseT,blue,'baseSolid','obj1');
+      addHalfDisk(frontC,0,0,W/2,baseT,blue,'baseSolid','obj1',34);
+      addExtrudedProfileY([
+        {x:chamferStart,z:0},
+        {x:back,z:baseT},
+        {x:chamferStart,z:baseT}
+      ],0,W,blue,'baseSolid','obj1');
+
+      // 객체 1: 앞쪽 반원 + 양쪽 직선 레일 + 뒤쪽 연결부 + 뒤쪽 하부 모따기
+      const ro=W/2,ri=Math.max(6.5,W*.235),rail=ro-ri,railCenter=(ro+ri)/2;
+      const innerBack=back-10;
+      addHalfRing(frontC,0,0,ro,ri,baseT,blue,'baseRing','obj1',34);
+      addBox((frontC+innerBack)/2, railCenter,baseT/2,innerBack-frontC,rail,baseT,blue,'baseRing','obj1');
+      addBox((frontC+innerBack)/2,-railCenter,baseT/2,innerBack-frontC,rail,baseT,blue,'baseRing','obj1');
+      if(chamferStart>innerBack){
+        addBox((innerBack+chamferStart)/2,0,baseT/2,chamferStart-innerBack,W,baseT,blue,'baseRing','obj1');
+      }
+      addExtrudedProfileY([
+        {x:chamferStart,z:0},
+        {x:back,z:baseT},
+        {x:chamferStart,z:baseT}
+      ],0,W,blue,'baseRing','obj1');
+
+      // 객체 1 뒤판: 상부 좌우 모서리가 둥근 외곽 + 실제 캡슐형 장공
+      const wallX=back-wallT/2,wallZ0=baseT,wallTop=baseT+H;
+      const slotW=Math.min(21,W-10),slotH=8,slotR=slotH/2,slotZ=baseT+H*.57;
+      const slotLeft=-slotW/2,slotRight=slotW/2,slotBottom=slotZ-slotR,slotTop=slotZ+slotR;
+      const straightHalf=(slotW-2*slotR)/2;
+      // 아래 영역
+      if(slotBottom>wallZ0)addBox(wallX,0,(wallZ0+slotBottom)/2,wallT,W,slotBottom-wallZ0,blue2,'wall','obj1');
+      // 상부 영역은 상단 라운드 외곽 프로파일로 생성
+      const topProfile=roundedTopProfileYZ(0,slotTop,W,wallTop-slotTop,5.2,9);
+      addExtrudedProfileX(topProfile,wallX,wallT,blue2,'wall','obj1');
+      // 장공 좌우 영역
+      if(slotLeft>-W/2)addBox(wallX,(-W/2+slotLeft)/2,slotZ,wallT,slotLeft+W/2,slotH,blue2,'wall','obj1');
+      if(W/2>slotRight)addBox(wallX,(slotRight+W/2)/2,slotZ,wallT,W/2-slotRight,slotH,blue2,'wall','obj1');
+      // 사각 개구의 네 모서리를 채워 캡슐형 끝단 구현
+      addCapsuleCornerFillX(wallX,wallT,slotLeft,slotTop,-straightHalf,slotZ,slotR,Math.PI,Math.PI/2,blue2,'wall','obj1');
+      addCapsuleCornerFillX(wallX,wallT,slotLeft,slotBottom,-straightHalf,slotZ,slotR,Math.PI,Math.PI*1.5,blue2,'wall','obj1');
+      addCapsuleCornerFillX(wallX,wallT,slotRight,slotTop,straightHalf,slotZ,slotR,0,Math.PI/2,blue2,'wall','obj1');
+      addCapsuleCornerFillX(wallX,wallT,slotRight,slotBottom,straightHalf,slotZ,slotR,0,-Math.PI/2,blue2,'wall','obj1');
+
+      // 객체 2: 둥근 윗모서리를 가진 머리 + 좁은 목 + 하부 걸림턱
+      const depth=6.5,footW=17.5,footH=5,neckW=7,neckH=11.5,headW=19.5,headH=15.5;
+      addBox(0,0,footH/2,footW,depth,footH,teal,'key','obj2');
+      addBox(0,0,footH+neckH/2,neckW,depth,neckH,teal,'key','obj2');
+      const headZ0=footH+neckH;
+      const headProfile=roundedTopProfileX(0,headZ0,headW,headH,6,10);
+      addExtrudedProfileY(headProfile,0,depth,teal,'key','obj2');
+    }
+
+    function smooth01(v){v=Math.max(0,Math.min(1,v));return v*v*(3-2*v);}
+    function objectState(obj,now){
+      // 실제 조립 순서
+      // 1) 객체 1 아래에서 X축으로 180° 뒤집기
+      // 2) X·Y 중심을 유지하며 중앙 개구부를 따라 +Z 방향으로 삽입
+      // 3) 걸림턱이 베이스 윗면을 완전히 지난 뒤 Z축으로 90° 회전해 잠금
+      const finalX=2.5,finalZ=12,startZ=-40,finalRz=Math.PI/2;
+      if(obj==='obj1'){
+        let tx=0;if(currentStage===0)tx=-18;else if(currentStage<5)tx-=params.explode*.25;
+        return {tx,ty:0,tz:0,rx:0,rz:0};
+      }
+      if(assembly){
+        const p=Math.min(1,(now-assembly.start)/assembly.duration);
+        // 단계가 겹치지 않도록 순차 실행한다.
+        const rotateX=smooth01(p/.30);
+        const lift=smooth01((p-.30)/.45);
+        const rotateZ=smooth01((p-.75)/.25);
+        if(p>=1){
+          assembly=null;currentStage=6;syncStageTextOnly();
+          return {tx:finalX-params.explode,ty:0,tz:finalZ,rx:Math.PI,rz:finalRz};
+        }
+        return {
+          tx:finalX-params.explode,
+          ty:0,
+          tz:startZ+(finalZ-startZ)*lift,
+          rx:Math.PI*rotateX,
+          rz:finalRz*rotateZ
+        };
+      }
+      if(currentStage===0)return {tx:29,ty:0,tz:0,rx:0,rz:Math.PI/10};
+      if(currentStage===4)return {tx:0,ty:0,tz:0,rx:0,rz:0};
+      if(currentStage===5)return {tx:finalX-params.explode,ty:0,tz:startZ,rx:0,rz:0};
+      if(currentStage===6)return {tx:finalX-params.explode,ty:0,tz:finalZ,rx:Math.PI,rz:finalRz};
+      return {tx:29+params.explode*.7,ty:0,tz:0,rx:0,rz:0};
+    }
+    function syncStageTextOnly(){const d=stageData[6];els.kicker.textContent=d.k;els.title.textContent=d.t;els.desc.textContent=d.d;els.tip.textContent=d.tip;els.list.innerHTML=d.items.map(v=>`<li>${v}</li>`).join('');document.querySelectorAll('.step-btn').forEach((b,i)=>b.classList.toggle('active',i===6));}
+    function partVisible(part){
+      if(currentStage===0)return part==='baseRing'||part==='wall'||part==='key';
+      if(currentStage===1)return part==='baseSolid';
+      if(currentStage===2)return part==='baseRing';
+      if(currentStage===3)return part==='baseRing'||part==='wall';
+      if(currentStage===4)return part==='key';
+      return part==='baseRing'||part==='wall'||part==='key';
+    }
+    function transformPoint(v,state){const rx=state.rx||0,rz=state.rz||0,cx=Math.cos(rx),sx=Math.sin(rx),cz=Math.cos(rz),sz=Math.sin(rz);const y1=cx*v.y-sx*v.z,z1=sx*v.y+cx*v.z;return V(cz*v.x-sz*y1+state.tx,sz*v.x+cz*y1+state.ty,z1+state.tz);}
+    function cameraPoint(v){
+      const z=v.z-view.targetZ,cy=Math.cos(view.yaw),sy=Math.sin(view.yaw),cp=Math.cos(view.pitch),sp=Math.sin(view.pitch);
+      const x1=cy*v.x-sy*v.y,y1=sy*v.x+cy*v.y,y2=cp*y1-sp*z,z2=sp*y1+cp*z;
+      const f=240/(240+y2);return {x:canvas.clientWidth/2+x1*view.scale*f,y:canvas.clientHeight*.55-z2*view.scale*f,depth:y2,scale:f};
+    }
+    function cross(a,b,c){const u=V(b.x-a.x,b.y-a.y,b.z-a.z),v=V(c.x-a.x,c.y-a.y,c.z-a.z);return V(u.y*v.z-u.z*v.y,u.z*v.x-u.x*v.z,u.x*v.y-u.y*v.x);}
+    function normalize(n){const l=Math.hypot(n.x,n.y,n.z)||1;return V(n.x/l,n.y/l,n.z/l);}
+    function shade(hex,f){const n=parseInt(hex.slice(1),16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;return `rgb(${Math.round(Math.min(255,r*f))},${Math.round(Math.min(255,g*f))},${Math.round(Math.min(255,b*f))})`;}
+    function drawLine3(a,b,color,width=1,dash=[]){const A=cameraPoint(a),B=cameraPoint(b);ctx.save();ctx.strokeStyle=color;ctx.lineWidth=width;ctx.setLineDash(dash);ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();ctx.restore();}
+    function drawGrid(){
+      const size=60,step=10,z=-12;for(let i=-size;i<=size;i+=step){drawLine3(V(-size,i,z),V(size,i,z),'rgba(95,113,143,.16)',1);drawLine3(V(i,-size,z),V(i,size,z),'rgba(95,113,143,.16)',1)}
+      if(document.getElementById('showAxes').checked){drawLine3(V(0,0,z),V(35,0,z),'rgba(220,65,65,.82)',2);drawLine3(V(0,0,z),V(0,35,z),'rgba(38,145,90,.82)',2);drawLine3(V(0,0,z),V(0,0,30),'rgba(45,93,210,.85)',2);const labels=[['X',V(38,0,z),'#b91c1c'],['Y',V(0,38,z),'#15803d'],['Z',V(0,0,33),'#1d4ed8']];ctx.save();ctx.font='800 12px system-ui';labels.forEach(([t,p,c])=>{const P=cameraPoint(p);ctx.fillStyle=c;ctx.fillText(t,P.x+3,P.y-3)});ctx.restore();}
+    }
+    function draw(now){
+      const w=canvas.clientWidth,h=canvas.clientHeight;ctx.clearRect(0,0,w,h);drawGrid();
+      const wire=document.getElementById('wireframe').checked,transparent=document.getElementById('transparent').checked;
+      const renderFaces=[];
+      for(const face of faces){if(!partVisible(face.part))continue;const st=objectState(face.obj,now),world=face.vertices.map(v=>transformPoint(v,st)),screen=world.map(cameraPoint),depth=screen.reduce((a,p)=>a+p.depth,0)/screen.length;renderFaces.push({face,world,screen,depth});}
+      renderFaces.sort((a,b)=>b.depth-a.depth);
+      const light=normalize(V(-.7,-.8,1.4));
+      for(const rf of renderFaces){const n=normalize(cross(rf.world[0],rf.world[1],rf.world[2])),lum=.66+.34*Math.abs(n.x*light.x+n.y*light.y+n.z*light.z);ctx.save();ctx.beginPath();rf.screen.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.globalAlpha=transparent?.46:1;if(!wire){ctx.fillStyle=shade(rf.face.color,lum);ctx.fill()}ctx.globalAlpha=transparent?.62:1;ctx.strokeStyle='rgba(22,32,51,.55)';ctx.lineWidth=wire?1.15:.72;ctx.stroke();ctx.restore();}
+      // 객체 2의 식별 문자
+      if(partVisible('key')){const st=objectState('obj2',now),center=transformPoint(V(0,-3.37,25),st),normalPt=transformPoint(V(0,-4.9,25),st),p=cameraPoint(center),pn=cameraPoint(normalPt);if(pn.depth<p.depth-.02){ctx.save();ctx.translate(p.x,p.y);const right=cameraPoint(transformPoint(V(3,-3.37,25),st));ctx.rotate(Math.atan2(right.y-p.y,right.x-p.x));ctx.font=`900 ${Math.max(13,17*p.scale)}px system-ui`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='rgba(7,52,56,.88)';ctx.fillText('01',0,0);ctx.restore();}}
+      ctx.save();ctx.fillStyle='rgba(49,87,213,.88)';ctx.font='800 12px system-ui';ctx.fillText('교육용 가상 형상',14,h-17);ctx.restore();
+    }
+    function resize(){const r=canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.max(1,Math.round(r.width*dpr));canvas.height=Math.max(1,Math.round(r.height*dpr));ctx.setTransform(dpr,0,0,dpr,0,0);}
+    new ResizeObserver(resize).observe(canvas);
+    canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,yaw:view.yaw,pitch:view.pitch}});
+    canvas.addEventListener('pointermove',e=>{if(!drag)return;view.yaw=drag.yaw+(e.clientX-drag.x)*.009;view.pitch=Math.max(-1.45,Math.min(1.45,drag.pitch+(e.clientY-drag.y)*.008))});
+    canvas.addEventListener('pointerup',()=>drag=null);canvas.addEventListener('pointercancel',()=>drag=null);
+    canvas.addEventListener('wheel',e=>{e.preventDefault();view.scale=Math.max(3.8,Math.min(13,view.scale*(e.deltaY>0?.92:1.08)))},{passive:false});
+    canvas.addEventListener('dblclick',()=>setView('iso'));
+    function setView(v){if(v==='iso'){view.yaw=-.72;view.pitch=.58;view.scale=7}if(v==='front'){view.yaw=0;view.pitch=0;view.scale=8}if(v==='right'){view.yaw=-Math.PI/2;view.pitch=0;view.scale=8}if(v==='top'){view.yaw=0;view.pitch=Math.PI/2;view.scale=8}}
+    document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));document.getElementById('resetCamera').addEventListener('click',()=>setView('iso'));
+
+    function bindRange(id,key,outId,rebuildNeeded=false){const input=document.getElementById(id),out=document.getElementById(outId);input.addEventListener('input',()=>{params[key]=Number(input.value);out.textContent=input.value;if(rebuildNeeded)buildGeometry();updateDimLabels()})}
+    bindRange('explodeRange','explode','explodeOut');bindRange('baseLength','baseLength','baseLengthOut',true);bindRange('baseWidth','baseWidth','baseWidthOut',true);bindRange('wallHeight','wallHeight','wallHeightOut',true);
+    function updateDimLabels(){document.getElementById('dimBase').textContent=`${params.baseLength} × ${params.baseWidth} × 6 mm`;document.getElementById('dimWall').textContent=`${params.baseWidth} × ${params.wallHeight} × 6 mm`;}
+    document.getElementById('playAssembly').addEventListener('click',()=>{currentStage=5;const d=stageData[5];els.kicker.textContent=d.k;els.title.textContent=d.t;els.desc.textContent=d.d;els.tip.textContent=d.tip;els.list.innerHTML=d.items.map(v=>`<li>${v}</li>`).join('');document.querySelectorAll('.step-btn').forEach((b,i)=>b.classList.toggle('active',i===5));assembly={start:performance.now(),duration:5400}});
+    document.getElementById('stopAnimation').addEventListener('click',()=>assembly=null);
+
+    function loop(now){const dt=Math.min(50,now-lastTime);lastTime=now;if(document.getElementById('autoRotate').checked&&!drag)view.yaw+=dt*.00035;draw(now);requestAnimationFrame(loop)}
+    buildGeometry();updateGuide(0);updateDimLabels();resize();requestAnimationFrame(loop);
+  })();
+  </script>
+</body>
+</html>

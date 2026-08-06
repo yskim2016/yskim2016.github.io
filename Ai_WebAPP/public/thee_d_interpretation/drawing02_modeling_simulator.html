@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>공개도면 2번 | 3D 모델링·조립 시뮬레이터</title>
+<meta name="description" content="3D프린터운용기능사 실기 공개도면 2번의 객체 1·2 모델링 과정과 조립 시뮬레이터"/>
+<style>
+:root{--bg:#f3f6fb;--panel:#fff;--ink:#162033;--muted:#62708a;--line:#dce4f0;--brand:#3157d5;--brand2:#13a8a8;--soft:#eef2ff;--shadow:0 16px 44px rgba(31,45,72,.10);--radius:22px;}
+*{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;background:linear-gradient(180deg,#eef3fb 0,#f8fafc 34%,#f4f7fb 100%);color:var(--ink);font-family:Pretendard,"Noto Sans KR",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.65}
+button,input{font:inherit} a{color:inherit} img{max-width:100%}
+.shell{width:min(1450px,calc(100% - 28px));margin:0 auto;padding:24px 0 72px}
+.hero{position:relative;overflow:hidden;border-radius:28px;padding:34px;background:linear-gradient(135deg,#172554,#263ea6 55%,#087f8c);color:#fff;box-shadow:var(--shadow)}
+.hero:after{content:"";position:absolute;right:-100px;top:-140px;width:420px;height:420px;border-radius:50%;border:72px solid rgba(255,255,255,.08)}
+.hero-grid{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1.55fr) minmax(260px,.75fr);gap:28px;align-items:center}
+.eyebrow{display:inline-flex;gap:9px;align-items:center;padding:7px 12px;border:1px solid rgba(255,255,255,.24);border-radius:999px;background:rgba(255,255,255,.10);font-size:.85rem;font-weight:800;letter-spacing:.04em}
+h1{margin:14px 0 10px;font-size:clamp(2rem,4vw,3.7rem);line-height:1.12;letter-spacing:-.045em}
+.hero p{margin:0;max-width:860px;color:rgba(255,255,255,.86);font-size:1.03rem}
+.hero-badges{display:flex;flex-wrap:wrap;gap:9px;margin-top:20px} .hero-badge{padding:8px 11px;border-radius:11px;background:rgba(255,255,255,.12);font-size:.86rem;font-weight:700}
+.hero-thumb{background:rgba(255,255,255,.96);border-radius:18px;padding:12px;transform:rotate(1.4deg);box-shadow:0 14px 32px rgba(0,0,0,.20)}
+.hero-thumb img{display:block;width:100%;height:270px;object-fit:contain;border-radius:12px;background:#fff}
+.notice{display:flex;gap:12px;align-items:flex-start;margin:20px 0;padding:15px 17px;border:1px solid #d7e7ff;background:#f6faff;color:#23406f;border-radius:15px}
+.notice strong{display:block;margin-bottom:2px}
+.section{margin-top:24px} .section-head{display:flex;justify-content:space-between;gap:20px;align-items:end;margin:0 4px 12px}
+.section-head h2{margin:0;font-size:clamp(1.4rem,2.4vw,2rem);letter-spacing:-.035em} .section-head p{margin:3px 0 0;color:var(--muted)}
+.panel{background:var(--panel);border:1px solid rgba(208,218,233,.85);border-radius:var(--radius);box-shadow:var(--shadow)}
+.drawing-grid{display:grid;grid-template-columns:1fr 1fr .72fr;gap:14px;padding:14px} .drawing-card{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:16px;background:#fbfcfe;min-height:270px}
+.drawing-card img{width:100%;height:100%;max-height:420px;object-fit:contain;display:block;background:#fff;transition:.25s transform} .drawing-card:hover img{transform:scale(1.018)}
+.tag{position:absolute;left:12px;top:12px;z-index:2;padding:6px 10px;border-radius:999px;background:rgba(18,28,49,.88);color:white;font-size:.78rem;font-weight:800}
+.zoom-btn{position:absolute;right:12px;bottom:12px;border:0;border-radius:10px;background:#fff;padding:8px 10px;box-shadow:0 6px 18px rgba(22,32,51,.15);cursor:pointer;font-weight:800;color:#334155}
+.app-grid{display:grid;grid-template-columns:330px minmax(0,1fr);gap:18px;padding:18px} .steps{display:flex;flex-direction:column;gap:8px}
+.step-btn{width:100%;display:grid;grid-template-columns:38px 1fr;gap:10px;text-align:left;border:1px solid var(--line);background:#fff;border-radius:14px;padding:11px;cursor:pointer;transition:.18s}
+.step-btn:hover{transform:translateY(-1px);border-color:#aebdf5} .step-btn.active{border-color:#8097ec;background:linear-gradient(135deg,#edf1ff,#f5ffff);box-shadow:0 8px 20px rgba(49,87,213,.12)}
+.step-no{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:#edf1f7;color:#42506b;font-weight:900} .step-btn.active .step-no{background:var(--brand);color:#fff}
+.step-title{font-weight:900;line-height:1.3} .step-sub{display:block;color:var(--muted);font-size:.78rem;margin-top:2px;line-height:1.35}
+.stage-wrap{min-width:0} .viewer{position:relative;height:620px;overflow:hidden;border-radius:18px;background:radial-gradient(circle at 50% 35%,#ffffff 0,#edf3fb 62%,#dfe8f5 100%);border:1px solid var(--line)}
+#simCanvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab} #simCanvas:active{cursor:grabbing}
+.canvas-hint{position:absolute;right:14px;bottom:14px;z-index:4;padding:8px 11px;border:1px solid rgba(208,218,233,.92);border-radius:11px;background:rgba(255,255,255,.84);color:#5c6980;font-size:.76rem;font-weight:800;backdrop-filter:blur(8px)}
+.viewer-overlay{position:absolute;left:14px;top:14px;z-index:5;max-width:min(430px,calc(100% - 28px));padding:13px 15px;border-radius:14px;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border:1px solid rgba(208,218,233,.95);box-shadow:0 9px 26px rgba(31,45,72,.12)}
+.viewer-overlay .kicker{font-size:.73rem;font-weight:900;color:var(--brand);letter-spacing:.06em;text-transform:uppercase} .viewer-overlay h3{margin:2px 0 2px;font-size:1.12rem} .viewer-overlay p{margin:0;color:var(--muted);font-size:.86rem;line-height:1.5}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px} .tool-btn,.view-btn{border:1px solid var(--line);background:#fff;color:#334155;border-radius:11px;padding:9px 12px;cursor:pointer;font-weight:800;font-size:.86rem}
+.tool-btn:hover,.view-btn:hover{border-color:#91a5ec;color:var(--brand)} .tool-btn.primary{background:var(--brand);color:white;border-color:var(--brand)} .tool-btn.stop{background:#fff7ed;color:#9a3412;border-color:#fed7aa}
+.control-grid{display:grid;grid-template-columns:repeat(4,minmax(145px,1fr));gap:10px;margin-top:10px} .control{padding:11px 12px;border:1px solid var(--line);border-radius:13px;background:#fafcff} .control label{display:flex;justify-content:space-between;gap:8px;font-size:.79rem;font-weight:800;color:#43506a;margin-bottom:7px} .control output{color:var(--brand)} .control input[type="range"]{width:100%;accent-color:var(--brand)}
+.toggle-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:11px;padding:10px 2px;color:#42506a;font-size:.85rem;font-weight:800} .toggle-row label{display:flex;gap:7px;align-items:center;cursor:pointer} .toggle-row input{accent-color:var(--brand)}
+.guide{display:grid;grid-template-columns:1.15fr .85fr;gap:14px;margin-top:14px} .guide-card{padding:18px;border:1px solid var(--line);border-radius:16px;background:#fff} .guide-card h3{margin:0 0 7px;font-size:1.05rem} .guide-card ol,.guide-card ul{margin:0;padding-left:20px;color:#43506a} .guide-card li+li{margin-top:6px} .tip-box{background:linear-gradient(135deg,#eef2ff,#ecfeff)}
+.dim-table{width:100%;border-collapse:collapse;font-size:.88rem} .dim-table th,.dim-table td{padding:10px 9px;border-bottom:1px solid var(--line);text-align:left} .dim-table th{color:#526079;background:#f8fafc} .dim-table td:last-child{font-weight:800;color:#334155}
+.assembly-flow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:16px} .flow-card{position:relative;padding:18px 15px;border:1px solid var(--line);border-radius:16px;background:#fff;min-height:164px} .flow-card:not(:last-child):after{content:"→";position:absolute;right:-18px;top:50%;transform:translateY(-50%);width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#fff;color:var(--brand);font-weight:900;z-index:2;box-shadow:0 3px 9px rgba(31,45,72,.15)} .flow-icon{width:42px;height:42px;border-radius:13px;background:var(--soft);display:grid;place-items:center;color:var(--brand);font-weight:950;font-size:1.1rem;margin-bottom:10px} .flow-card h3{font-size:1rem;margin:0 0 5px} .flow-card p{font-size:.85rem;color:var(--muted);margin:0}
+.checklist{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:16px} .check{padding:16px;border:1px solid var(--line);border-radius:16px;background:#fff} .check strong{display:block;margin-bottom:6px;font-size:.97rem} .check span{display:block;color:var(--muted);font-size:.87rem}
+footer{margin-top:26px;color:#64748b;text-align:center;font-size:.88rem}
+dialog{border:0;border-radius:18px;padding:0;max-width:min(1100px,92vw);box-shadow:0 30px 90px rgba(15,23,42,.35)} dialog::backdrop{background:rgba(15,23,42,.55)} .dialog-head{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)} .dialog-head button{border:0;background:#eef2ff;color:#334155;border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:700} #dialogImage{display:block;width:min(1100px,92vw);max-height:82vh;object-fit:contain;background:#fff}
+@media (max-width:1100px){.hero-grid,.app-grid,.guide,.drawing-grid,.assembly-flow,.checklist{grid-template-columns:1fr} .hero-thumb img{height:220px} .flow-card:not(:last-child):after{display:none} .control-grid{grid-template-columns:repeat(2,minmax(145px,1fr))}}
+@media (max-width:640px){.shell{width:min(100% - 18px,1450px)} .hero{padding:24px} .control-grid{grid-template-columns:1fr} .viewer{height:520px} }
+</style>
+</head>
+<body>
+<main class="shell">
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <span class="eyebrow">3D프린터운용기능사 · 공개도면 2번</span>
+        <h1>객체 1·2 모델링과<br/>조립 흐름을 한 페이지에서</h1>
+        <p>공개도면 2번의 1번 객체와 2번 객체를 교육용 가상 치수로 재해석해, 모델링 순서와 조립 시뮬레이션을 한 화면에서 확인할 수 있도록 구성한 테스트 웹앱입니다.</p>
+        <div class="hero-badges">
+          <span class="hero-badge">객체 1 모델링</span>
+          <span class="hero-badge">객체 2 모델링</span>
+          <span class="hero-badge">조립 애니메이션</span>
+          <span class="hero-badge">정면·우측·상단 시점</span>
+        </div>
+      </div>
+      <figure class="hero-thumb"><img alt="공개도면 2번 전체" src="../images/thee_d_sketch/02도면 - 어셈블리.png" data-asset-path="../images/thee_d_sketch/02도면 - 어셈블리.png"/></figure>
+    </div>
+  </section>
+
+  <div class="notice"><div>ℹ️</div><div><strong>테스트 버전 안내</strong>도면 2번은 치수가 표기되지 않은 공개도면이므로, 웹앱 내부 치수와 애니메이션은 <b>교육용 가상 치수</b> 및 조립 흐름 예시로 구성했습니다. 형상은 PDF의 정면·우측면·상단면·입체도를 기준으로 최대한 맞췄습니다.</div></div>
+
+  <section class="section" id="drawing-review">
+    <div class="section-head"><div><h2>1. 도면 확인</h2><p>객체 1, 객체 2, 조립 입체도를 빠르게 확인하세요.</p></div></div>
+    <div class="panel drawing-grid">
+      <figure class="drawing-card"><span class="tag">객체 1</span><img alt="공개도면 2번 객체 1" src="../images/thee_d_sketch/02도면 - 1번객체.png" data-asset-path="../images/thee_d_sketch/02도면 - 1번객체.png"/><button class="zoom-btn" data-image="../images/thee_d_sketch/02도면 - 1번객체.png">확대</button></figure>
+      <figure class="drawing-card"><span class="tag">객체 2</span><img alt="공개도면 2번 객체 2" src="../images/thee_d_sketch/02도면 - 2번객체.png" data-asset-path="../images/thee_d_sketch/02도면 - 2번객체.png"/><button class="zoom-btn" data-image="../images/thee_d_sketch/02도면 - 2번객체.png">확대</button></figure>
+      <figure class="drawing-card"><span class="tag">최종 조립</span><img alt="공개도면 2번 조립도" src="../images/thee_d_sketch/02도면 - 어셈블리.png" data-asset-path="../images/thee_d_sketch/02도면 - 어셈블리.png"/><button class="zoom-btn" data-image="../images/thee_d_sketch/02도면 - 어셈블리.png">확대</button></figure>
+    </div>
+  </section>
+
+  <section class="section" id="modeling-simulator">
+    <div class="section-head"><div><h2>2. 단계별 모델링 시뮬레이터</h2><p>왼쪽 단계를 클릭하거나 이전·다음 버튼으로 진행하세요.</p></div></div>
+    <div class="panel app-grid">
+      <nav class="steps" aria-label="모델링 단계">
+        <button class="step-btn active" data-stage="0"><span class="step-no">1</span><span><span class="step-title">형상 분석</span><span class="step-sub">객체 1과 2의 결합 방향 파악</span></span></button>
+        <button class="step-btn" data-stage="1"><span class="step-no">2</span><span><span class="step-title">객체 1 전면 블록</span><span class="step-sub">기준 블록과 좌측 관통부 기준</span></span></button>
+        <button class="step-btn" data-stage="2"><span class="step-no">3</span><span><span class="step-title">객체 1 곡면 암·슬롯</span><span class="step-sub">두 레일과 우측 곡선부 형성</span></span></button>
+        <button class="step-btn" data-stage="3"><span class="step-no">4</span><span><span class="step-title">객체 1 세부 형상</span><span class="step-sub">전면 표시부와 측면 홀 확인</span></span></button>
+        <button class="step-btn" data-stage="4"><span class="step-no">5</span><span><span class="step-title">객체 2 프레임</span><span class="step-sub">U자 프레임·원형 측판·핀 생성</span></span></button>
+        <button class="step-btn" data-stage="5"><span class="step-no">6</span><span><span class="step-title">상부 정렬</span><span class="step-sub">객체 2를 위에서 위치 맞춤</span></span></button>
+        <button class="step-btn" data-stage="6"><span class="step-no">7</span><span><span class="step-title">하강·전진 조립</span><span class="step-sub">수직 삽입 후 앞쪽으로 안착</span></span></button>
+      </nav>
+      <div class="stage-wrap">
+        <div class="viewer" id="viewer">
+          <div class="viewer-overlay"><div class="kicker" id="stageKicker">STEP 1 / 7</div><h3 id="stageTitle">형상 분석</h3><p id="stageDesc">객체 1은 전면 블록과 곡선형 이중 레일로, 객체 2는 U자 프레임과 양쪽 원형 측판·가로 핀으로 해석합니다.</p></div>
+          <canvas id="simCanvas" aria-label="공개도면 2번 객체 1과 객체 2 모델링 및 조립 시뮬레이터"></canvas>
+          <div class="canvas-hint">마우스 드래그: 회전 · 휠: 확대/축소 · 더블클릭: 초기화</div>
+        </div>
+        <div class="toolbar">
+          <button class="tool-btn" id="prevStep">← 이전 단계</button><button class="tool-btn primary" id="nextStep">다음 단계 →</button>
+          <button class="tool-btn" id="playAssembly">조립 애니메이션</button><button class="tool-btn stop" id="stopAnimation">정지</button>
+          <button class="view-btn" data-view="iso">입체</button><button class="view-btn" data-view="front">정면</button><button class="view-btn" data-view="right">우측</button><button class="view-btn" data-view="top">상단</button><button class="view-btn" id="resetCamera">화면 초기화</button>
+        </div>
+        <div class="control-grid">
+          <div class="control"><label>분해 거리 <output id="explodeOut">0</output></label><input id="explodeRange" type="range" min="0" max="54" value="0"/></div>
+          <div class="control"><label>객체 1 길이 <output id="baseLengthOut">56</output></label><input id="baseLength" type="range" min="48" max="66" value="56"/></div>
+          <div class="control"><label>객체 1 폭 <output id="baseWidthOut">26</output></label><input id="baseWidth" type="range" min="20" max="34" value="26"/></div>
+          <div class="control"><label>객체 2 높이 <output id="wallHeightOut">34</output></label><input id="wallHeight" type="range" min="28" max="42" value="34"/></div>
+        </div>
+        <div class="toggle-row">
+          <label><input id="autoRotate" type="checkbox"/> 자동 회전</label>
+          <label><input id="wireframe" type="checkbox"/> 와이어프레임</label>
+          <label><input id="transparent" type="checkbox"/> 반투명</label>
+          <label><input id="showAxes" type="checkbox" checked/> 기준축 표시</label>
+        </div>
+        <div class="guide">
+          <article class="guide-card"><h3>작업 순서</h3><ol id="guideList"><li>객체 1과 2의 결합 위치와 슬라이드 방향을 확인합니다.</li><li>객체 1은 전면 블록과 곡선형 레일부로 나눠 생각합니다.</li><li>객체 2는 프레임·측판·가로 핀의 세 묶음으로 해석합니다.</li></ol></article>
+          <aside class="guide-card tip-box"><h3>현재 단계 핵심</h3><p id="stageTip">먼저 객체 1의 상단면에서 외곽 곡선과 내부 슬롯의 흐름을 읽는 것이 중요합니다.</p></aside>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="virtual-dimensions">
+    <div class="section-head"><div><h2>3. 교육용 가상 치수</h2><p>실제 시험 치수가 아니라 시뮬레이터 형상을 위한 예시값입니다.</p></div></div>
+    <div class="panel" style="padding:16px;overflow:auto">
+      <table class="dim-table">
+        <thead><tr><th>구분</th><th>항목</th><th>가상값</th><th>모델링 기능 예시</th></tr></thead>
+        <tbody>
+          <tr><td>객체 1</td><td>전면 블록 + 곡면 암</td><td id="dimBase">56 × 26 × 8 mm</td><td>기준 블록 → 레일 추가 → 우측 곡면부 연결</td></tr>
+          <tr><td>객체 1</td><td>내부 슬롯</td><td>교육용 비례값</td><td>두 레일 사이 개구와 곡면부 확보</td></tr>
+          <tr><td>객체 2</td><td>U자 프레임</td><td id="dimWall">폭 22 × 높이 34 mm</td><td>측판 2개 + 상부 브리지 + 하부 가로 핀</td></tr>
+          <tr><td>조립</td><td>삽입 방향</td><td>위→아래 정렬 후 전진</td><td>수직 하강 → 곡면부 감싸기 → 전진 안착</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section" id="assembly-guide">
+    <div class="section-head"><div><h2>4. 두 객체 조립</h2><p>도면의 조립 입체도를 바탕으로 한 교육용 조립 순서입니다.</p></div></div>
+    <div class="panel assembly-flow">
+      <article class="flow-card"><div class="flow-icon">01</div><h3>객체 2를 상부에 배치</h3><p>객체 1의 곡선형 후단보다 위쪽에 객체 2를 충분히 띄워 둡니다. 이때 두 부품은 완전히 떨어진 상태를 유지합니다.</p></article>
+      <article class="flow-card"><div class="flow-icon">02</div><h3>중심선 정렬</h3><p>객체 2의 U자 프레임 중심과 객체 1의 후단 레일 중심을 맞춥니다. 양측 원형 측판은 객체 1 바깥쪽을 감싸는 위치가 됩니다.</p></article>
+      <article class="flow-card"><div class="flow-icon">03</div><h3>위에서 아래로 삽입</h3><p>객체 2를 -Z 방향으로 내리며 객체 1의 곡면부를 프레임 사이로 받습니다. 하강 중 측판과 레일이 간섭하지 않도록 간격을 유지합니다.</p></article>
+      <article class="flow-card"><div class="flow-icon">04</div><h3>앞쪽으로 전진 안착</h3><p>하강 후 객체 2를 객체 1의 곡선 암을 따라 앞쪽으로 조금 이동시켜 최종 조립 자세에 맞춥니다.</p></article>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head"><div><h2>5. 최종 점검</h2><p>모델 저장 전 확인할 항목입니다.</p></div></div>
+    <div class="panel checklist">
+      <div class="check"><strong>객체 1 외곽</strong><span>전면 블록, 좌우 이중 레일, 우측 곡선형 후단이 상단면과 입체도 흐름에 맞게 형성되었는가?</span></div>
+      <div class="check"><strong>객체 2 프레임</strong><span>U자 프레임, 양쪽 원형 측판, 내부 가로 핀의 위치와 높낮이가 정면도·우측면도와 어울리게 구성되었는가?</span></div>
+      <div class="check"><strong>조립 간섭</strong><span>객체 2가 위에서 내려온 뒤 앞쪽으로 이동해 안착하는 동안 두 객체가 불필요하게 서로 관통하지 않는가?</span></div>
+    </div>
+  </section>
+
+  <footer>공개도면 2번 테스트 웹앱 · 교육용 가상 치수 적용 · 단일 HTML 파일</footer>
+</main>
+
+<dialog id="imageDialog"><div class="dialog-head"><strong>도면 확대 보기</strong><button id="closeDialog">닫기</button></div><img id="dialogImage" alt="확대한 공개도면"/></dialog>
+
+<script>
+(()=>{
+'use strict';
+const stageData=[
+{k:'STEP 1 / 7',t:'형상 분석',d:'객체 1은 전면 블록과 곡선형 이중 레일, 객체 2는 U자 프레임과 원형 측판·가로 핀으로 해석합니다.',tip:'상단면과 입체도를 함께 보면 객체 1의 레일 흐름과 객체 2의 감싸는 방향을 읽기 쉽습니다.',items:['객체 1은 전면 블록, 곡선형 외곽, 내부 슬롯으로 나눠 봅니다.','객체 2는 양쪽 측판, 상부 브리지, 하부 가로 핀으로 나눠 생각합니다.','최종 조립도에서 객체 2가 객체 1 후단을 감싸는 구조를 확인합니다.']},
+{k:'STEP 2 / 7',t:'객체 1 전면 블록',d:'정면 기준이 되는 전면 블록을 먼저 만든 뒤, 측면의 원형 관통 위치를 잡습니다.',tip:'객체 1 전체 길이보다 먼저 전면 블록의 폭과 두께를 정하면 이후 곡선 암의 시작 위치를 잡기 쉽습니다.',items:['전면 기준면에 직사각형 블록을 스케치합니다.','객체 1 두께만큼 돌출해 기준 몸체를 만듭니다.','표시부와 측면 홀의 중심 위치를 함께 정해 둡니다.']},
+{k:'STEP 3 / 7',t:'객체 1 곡면 암·슬롯',d:'전면 블록 뒤쪽에서 두 개의 레일을 연장하고, 우측 곡면부로 자연스럽게 연결합니다.',tip:'상단면에서 외곽 곡선과 내부 슬롯이 같은 흐름으로 꺾여 들어가는 점을 반영합니다.',items:['전면 블록 뒤쪽에서 상·하 레일을 연장합니다.','우측 끝단은 둥근 곡면으로 돌려 연결합니다.','두 레일 사이 개구가 끝까지 유지되도록 내부 슬롯을 남깁니다.']},
+{k:'STEP 4 / 7',t:'객체 1 세부 형상',d:'전면 표시부와 측면 관통부를 점검하고, 조립 시 레일 간격이 충분한지 확인합니다.',tip:'객체 2가 내려와 감쌀 공간이 확보되어야 하므로, 내부 개구 폭을 너무 좁게 만들지 않습니다.',items:['전면 블록의 표시 면을 확인합니다.','측면의 원형 홀 위치와 크기를 조정합니다.','후단 곡면부와 레일 높이를 최종 점검합니다.']},
+{k:'STEP 5 / 7',t:'객체 2 프레임 생성',d:'양측 원형 측판과 상부 브리지를 만든 뒤, 내부 하단에 가로 핀을 배치합니다.',tip:'정면도에서 보이는 U자 개구 폭이 객체 1 후단을 감싸기에 충분해야 합니다.',items:['양쪽 측판을 대칭으로 생성합니다.','상부 브리지로 두 측판을 연결합니다.','하부 가로 핀을 추가해 객체 2의 특징 형상을 완성합니다.']},
+{k:'STEP 6 / 7',t:'상부 정렬',d:'객체 2를 객체 1 위쪽으로 띄운 뒤, 중심선과 폭 방향 위치를 맞춥니다.',tip:'하강 전에 먼저 XY 정렬을 끝내면, 실제 출력물 조립처럼 수직 삽입 동작을 표현하기 좋습니다.',items:['객체 2를 객체 1 위로 충분히 띄웁니다.','U자 프레임 중심을 객체 1 후단 중심과 맞춥니다.','양쪽 측판이 객체 1 바깥쪽을 감싸는지 확인합니다.']},
+{k:'STEP 7 / 7',t:'하강·전진 조립',d:'객체 2를 -Z 방향으로 내린 후, 객체 1의 곡면부를 따라 앞쪽으로 조금 이동시켜 최종 조립 위치에 안착시킵니다.',tip:'먼저 수직으로 내려간 다음 전진하도록 분리하면 불필요한 관통 없이 조립 흐름을 이해하기 쉽습니다.',items:['객체 2를 수직으로 하강시켜 객체 1 후단을 프레임 사이로 받습니다.','필요한 높이에 도달하면 하강을 멈춥니다.','객체 2를 앞쪽으로 짧게 이동시켜 최종 조립 자세를 완성합니다.']}
+];
+
+const canvas=document.getElementById('simCanvas');
+const ctx=canvas.getContext('2d');
+const params={baseLength:56,baseWidth:26,wallHeight:34,explode:0};
+const view={yaw:-0.82,pitch:0.64,scale:6.8,targetZ:10};
+let currentStage=0,faces=[],drag=null,assembly=null,lastTime=performance.now();
+const els={title:document.getElementById('stageTitle'),desc:document.getElementById('stageDesc'),kicker:document.getElementById('stageKicker'),tip:document.getElementById('stageTip'),list:document.getElementById('guideList')};
+
+
+
+document.querySelectorAll('img[data-asset-path]').forEach(img=>img.addEventListener('error',()=>{
+  const path=img.dataset.assetPath||img.getAttribute('src');
+  img.removeAttribute('src');
+  img.alt='이미지를 불러오지 못했습니다: '+path;
+  img.style.minHeight='210px';
+  img.style.padding='28px';
+  img.style.background='#fff1f2';
+  img.style.color='#9f1239';
+  img.style.fontWeight='800';
+  img.style.objectFit='contain';
+}));
+document.querySelectorAll('.zoom-btn').forEach(btn=>btn.addEventListener('click',()=>{document.getElementById('dialogImage').src=btn.dataset.image;document.getElementById('imageDialog').showModal();}));
+document.getElementById('closeDialog').addEventListener('click',()=>document.getElementById('imageDialog').close());
+document.getElementById('imageDialog').addEventListener('click',e=>{if(e.target.id==='imageDialog')e.currentTarget.close();});
+
+function updateGuide(stage){currentStage=Math.max(0,Math.min(6,stage));assembly=null;const d=stageData[currentStage];els.kicker.textContent=d.k;els.title.textContent=d.t;els.desc.textContent=d.d;els.tip.textContent=d.tip;els.list.innerHTML=d.items.map(v=>`<li>${v}</li>`).join('');document.querySelectorAll('.step-btn').forEach((b,i)=>b.classList.toggle('active',i===currentStage));}
+document.querySelectorAll('.step-btn').forEach(b=>b.addEventListener('click',()=>updateGuide(Number(b.dataset.stage))));
+document.getElementById('prevStep').addEventListener('click',()=>updateGuide(currentStage-1));
+document.getElementById('nextStep').addEventListener('click',()=>updateGuide(currentStage+1));
+
+const V=(x,y,z)=>({x,y,z}), clone=v=>V(v.x,v.y,v.z);
+function addFace(vertices,color,part,obj){faces.push({vertices,color,part,obj});}
+function addBox(cx,cy,cz,sx,sy,sz,color,part,obj){const x0=cx-sx/2,x1=cx+sx/2,y0=cy-sy/2,y1=cy+sy/2,z0=cz-sz/2,z1=cz+sz/2;const p=[V(x0,y0,z0),V(x1,y0,z0),V(x1,y1,z0),V(x0,y1,z0),V(x0,y0,z1),V(x1,y0,z1),V(x1,y1,z1),V(x0,y1,z1)];[[4,5,6,7],[0,3,2,1],[0,1,5,4],[1,2,6,5],[2,3,7,6],[3,0,4,7]].forEach(f=>addFace(f.map(i=>p[i]),color,part,obj));}
+function addExtrudedProfileZ(points,cz,depth,color,part,obj){const z0=cz-depth/2,z1=cz+depth/2;const front=points.map(p=>V(p.x,p.y,z0)),back=points.map(p=>V(p.x,p.y,z1));addFace(front,color,part,obj);addFace([...back].reverse(),color,part,obj);for(let i=0;i<points.length;i++){const j=(i+1)%points.length;addFace([front[i],front[j],back[j],back[i]],color,part,obj);}}
+function addExtrudedProfileY(points,cy,depth,color,part,obj){const y0=cy-depth/2,y1=cy+depth/2;const front=points.map(p=>V(p.x,y0,p.z)),back=points.map(p=>V(p.x,y1,p.z));addFace(front,color,part,obj);addFace([...back].reverse(),color,part,obj);for(let i=0;i<points.length;i++){const j=(i+1)%points.length;addFace([front[i],front[j],back[j],back[i]],color,part,obj);}}
+function addCylinderY(cx,cy,cz,r,length,color,part,obj,segments=24){const y0=cy-length/2,y1=cy+length/2;for(let i=0;i<segments;i++){const a=2*Math.PI*i/segments,b=2*Math.PI*(i+1)/segments;const p0=V(cx+r*Math.cos(a),y0,cz+r*Math.sin(a)),p1=V(cx+r*Math.cos(b),y0,cz+r*Math.sin(b)),q0=V(cx+r*Math.cos(a),y1,cz+r*Math.sin(a)),q1=V(cx+r*Math.cos(b),y1,cz+r*Math.sin(b));addFace([p0,p1,q1,q0],color,part,obj);addFace([V(cx,y0,cz),p1,p0],color,part,obj);addFace([V(cx,y1,cz),q0,q1],color,part,obj);}}
+function arcPoints(cx,cy,r,a0,a1,segments){const pts=[];for(let i=0;i<=segments;i++){const a=a0+(a1-a0)*i/segments;pts.push({x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)});}return pts;}
+function roundedHookPlan(length,width){const front=-length/2,mid=length*0.12,tail=length/2-2;const w=width/2;const wi=Math.max(4.6,width*0.24);const outerTop=[{x:front,y:w},{x:front+10,y:w},{x:mid,y:w}];const outerArc=arcPoints(tail-w,0,w,-Math.PI/2,Math.PI/2,12);const outerBottom=[{x:mid,y:-w},{x:front+10,y:-w},{x:front,y:-w}];return [...outerTop,...outerArc,...outerBottom];}
+function innerHookPlan(length,width){const front=-length/2+12,tail=length/2-7;const wi=Math.max(4.8,width*0.22);const straight=tail-wi;const pts=[{x:front,y:wi},{x:straight,y:wi}];pts.push(...arcPoints(straight,0,wi,Math.PI/2,-Math.PI/2,10));pts.push({x:front,y:-wi});return pts;}
+function plateProfile(height){const h=height;return [{x:-4,z:8},{x:-4,z:h-6},{x:0,z:h},{x:8,z:h-4},{x:8,z:12},{x:4,z:10},{x:2,z:8}];}
+
+function buildGeometry(){
+  faces=[];
+  const L=params.baseLength,W=params.baseWidth,H2=params.wallHeight;
+  const blue='#4e6fdd',blue2='#5c7be2',teal='#16a4a3',teal2='#2ab8b6';
+  const t=8;
+  // object 1
+  addBox(-L/2+7,0,t/2,14,W*0.86,t,blue,'obj1Block','obj1');
+  const outer=roundedHookPlan(L-10,W); addExtrudedProfileZ(outer,t/2,t,blue,'obj1Arm','obj1');
+  // build visible slot by adding a thinner raised guide between rails rather than a full solid fill
+  addBox(-4,0,t/2,18,W*0.28,t,blue2,'obj1Guide','obj1');
+  addBox(8, W*0.22,t/2,18,W*0.20,t,blue,'obj1Rail','obj1');
+  addBox(8,-W*0.22,t/2,18,W*0.20,t,blue,'obj1Rail','obj1');
+  // object 2
+  const yGap=12,plateDepth=4.6; const profile=plateProfile(H2);
+  addExtrudedProfileY(profile,-yGap/2,plateDepth,teal,'obj2Plate','obj2');
+  addExtrudedProfileY(profile, yGap/2,plateDepth,teal,'obj2Plate','obj2');
+  addBox(2,0,H2-4,11,yGap+plateDepth,7,teal2,'obj2Bridge','obj2');
+  addBox(0,0,H2-10,4,yGap+plateDepth,9,teal,'obj2Inner','obj2');
+  addCylinderY(0,0,8,4,yGap+2,teal2,'obj2Pin','obj2',22);
+  addCylinderY(8,-yGap/2,8,8,plateDepth,teal,'obj2Disc','obj2',22);
+  addCylinderY(8, yGap/2,8,8,plateDepth,teal,'obj2Disc','obj2',22);
+}
+
+function smooth01(v){v=Math.max(0,Math.min(1,v));return v*v*(3-2*v);}
+function objectState(obj,now){
+  const final={tx:15,ty:0,tz:0,rx:0,rz:0};
+  if(obj==='obj1'){let tx=0;if(currentStage===0)tx=-14;else if(currentStage<5)tx-=params.explode*.25;return {tx,ty:0,tz:0,rx:0,rz:0};}
+  if(assembly){const p=Math.min(1,(now-assembly.start)/assembly.duration);const drop=smooth01(p/.58);const slide=smooth01((p-.58)/.42);if(p>=1){assembly=null;currentStage=6;syncStageTextOnly();return {tx:final.tx-params.explode,ty:0,tz:final.tz,rx:0,rz:0};}return {tx:(24+(final.tx-24)*slide)-params.explode,ty:0,tz:32+(final.tz-32)*drop,rx:0,rz:0};}
+  if(currentStage===0)return {tx:28,ty:0,tz:14,rx:0,rz:0};
+  if(currentStage===4)return {tx:0,ty:0,tz:0,rx:0,rz:0};
+  if(currentStage===5)return {tx:24-params.explode,ty:0,tz:32,rx:0,rz:0};
+  if(currentStage===6)return {tx:final.tx-params.explode,ty:0,tz:final.tz,rx:0,rz:0};
+  return {tx:28+params.explode*.7,ty:0,tz:14,rx:0,rz:0};
+}
+function syncStageTextOnly(){const d=stageData[6];els.kicker.textContent=d.k;els.title.textContent=d.t;els.desc.textContent=d.d;els.tip.textContent=d.tip;els.list.innerHTML=d.items.map(v=>`<li>${v}</li>`).join('');document.querySelectorAll('.step-btn').forEach((b,i)=>b.classList.toggle('active',i===6));}
+function partVisible(part){if(currentStage===0)return part.startsWith('obj1')||part.startsWith('obj2');if(currentStage===1)return part==='obj1Block';if(currentStage===2)return part==='obj1Block'||part==='obj1Arm'||part==='obj1Rail';if(currentStage===3)return part.startsWith('obj1');if(currentStage===4)return part.startsWith('obj2');return part.startsWith('obj1')||part.startsWith('obj2');}
+function transformPoint(v,state){const rx=state.rx||0,rz=state.rz||0,cx=Math.cos(rx),sx=Math.sin(rx),cz=Math.cos(rz),sz=Math.sin(rz);const y1=cx*v.y-sx*v.z,z1=sx*v.y+cx*v.z;return V(cz*v.x-sz*y1+state.tx,sz*v.x+cz*y1+state.ty,z1+state.tz);}
+function cameraPoint(v){const z=v.z-view.targetZ,cy=Math.cos(view.yaw),sy=Math.sin(view.yaw),cp=Math.cos(view.pitch),sp=Math.sin(view.pitch);const x1=cy*v.x-sy*v.y,y1=sy*v.x+cy*v.y,y2=cp*y1-sp*z,z2=sp*y1+cp*z;const f=240/(240+y2);return {x:canvas.clientWidth/2+x1*view.scale*f,y:canvas.clientHeight*.58-z2*view.scale*f,depth:y2,scale:f};}
+function cross(a,b,c){const u=V(b.x-a.x,b.y-a.y,b.z-a.z),v=V(c.x-a.x,c.y-a.y,c.z-a.z);return V(u.y*v.z-u.z*v.y,u.z*v.x-u.x*v.z,u.x*v.y-u.y*v.x);}
+function normalize(n){const l=Math.hypot(n.x,n.y,n.z)||1;return V(n.x/l,n.y/l,n.z/l);}
+function shade(hex,f){const n=parseInt(hex.slice(1),16),r=(n>>16)&255,g=(n>>8)&255,b=n&255;return `rgb(${Math.round(Math.min(255,r*f))},${Math.round(Math.min(255,g*f))},${Math.round(Math.min(255,b*f))})`;}
+function drawLine3(a,b,color,width=1,dash=[]){const A=cameraPoint(a),B=cameraPoint(b);ctx.save();ctx.strokeStyle=color;ctx.lineWidth=width;ctx.setLineDash(dash);ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();ctx.restore();}
+function drawGrid(){const size=70,step=10,z=-10;for(let i=-size;i<=size;i+=step){drawLine3(V(-size,i,z),V(size,i,z),'rgba(95,113,143,.16)',1);drawLine3(V(i,-size,z),V(i,size,z),'rgba(95,113,143,.16)',1)}if(document.getElementById('showAxes').checked){drawLine3(V(0,0,z),V(35,0,z),'rgba(220,65,65,.82)',2);drawLine3(V(0,0,z),V(0,35,z),'rgba(38,145,90,.82)',2);drawLine3(V(0,0,z),V(0,0,30),'rgba(45,93,210,.85)',2);const labels=[['X',V(38,0,z),'#b91c1c'],['Y',V(0,38,z),'#15803d'],['Z',V(0,0,33),'#1d4ed8']];ctx.save();ctx.font='800 12px system-ui';labels.forEach(([t,p,c])=>{const P=cameraPoint(p);ctx.fillStyle=c;ctx.fillText(t,P.x+3,P.y-3);});ctx.restore();}}
+function draw(now){const w=canvas.clientWidth,h=canvas.clientHeight;ctx.clearRect(0,0,w,h);drawGrid();const wire=document.getElementById('wireframe').checked,transparent=document.getElementById('transparent').checked;const renderFaces=[];for(const face of faces){if(!partVisible(face.part))continue;const st=objectState(face.obj,now),world=face.vertices.map(v=>transformPoint(v,st)),screen=world.map(cameraPoint),depth=screen.reduce((a,p)=>a+p.depth,0)/screen.length;renderFaces.push({face,world,screen,depth});}renderFaces.sort((a,b)=>b.depth-a.depth);const light=normalize(V(-.7,-.8,1.4));for(const rf of renderFaces){const n=normalize(cross(rf.world[0],rf.world[1],rf.world[2])),lum=.66+.34*Math.abs(n.x*light.x+n.y*light.y+n.z*light.z);ctx.save();ctx.beginPath();rf.screen.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.globalAlpha=transparent?.46:1;if(!wire){ctx.fillStyle=shade(rf.face.color,lum);ctx.fill();}ctx.globalAlpha=transparent?.62:1;ctx.strokeStyle='rgba(22,32,51,.55)';ctx.lineWidth=wire?1.15:.72;ctx.stroke();ctx.restore();}
+  // object1 front text mark
+  if(currentStage!==4){const st=objectState('obj1',now),p=cameraPoint(transformPoint(V(-24,-1,7),st));ctx.save();ctx.fillStyle='rgba(7,52,56,.88)';ctx.font=`900 ${Math.max(13,17*p.scale)}px system-ui`;ctx.fillText('01',p.x-8,p.y+3);ctx.restore();}
+  ctx.save();ctx.fillStyle='rgba(49,87,213,.88)';ctx.font='800 12px system-ui';ctx.fillText('교육용 가상 형상',14,h-17);ctx.restore();}
+function resize(){const r=canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);canvas.width=Math.max(1,Math.round(r.width*dpr));canvas.height=Math.max(1,Math.round(r.height*dpr));ctx.setTransform(dpr,0,0,dpr,0,0);}
+new ResizeObserver(resize).observe(canvas);
+canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,yaw:view.yaw,pitch:view.pitch};});
+canvas.addEventListener('pointermove',e=>{if(!drag)return;view.yaw=drag.yaw+(e.clientX-drag.x)*.009;view.pitch=Math.max(-1.45,Math.min(1.45,drag.pitch+(e.clientY-drag.y)*.008));});
+canvas.addEventListener('pointerup',()=>drag=null);canvas.addEventListener('pointercancel',()=>drag=null);
+canvas.addEventListener('wheel',e=>{e.preventDefault();view.scale=Math.max(3.8,Math.min(13,view.scale*(e.deltaY>0?.92:1.08)));},{passive:false});
+canvas.addEventListener('dblclick',()=>setView('iso'));
+function setView(v){if(v==='iso'){view.yaw=-.82;view.pitch=.64;view.scale=6.8;} if(v==='front'){view.yaw=0;view.pitch=0;view.scale=7.7;} if(v==='right'){view.yaw=-Math.PI/2;view.pitch=0;view.scale=7.7;} if(v==='top'){view.yaw=0;view.pitch=Math.PI/2;view.scale=7.7;}}
+document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));document.getElementById('resetCamera').addEventListener('click',()=>setView('iso'));
+function bindRange(id,key,outId,rebuildNeeded=false){const input=document.getElementById(id),out=document.getElementById(outId);input.addEventListener('input',()=>{params[key]=Number(input.value);out.textContent=input.value;if(rebuildNeeded)buildGeometry();updateDimLabels();});}
+bindRange('explodeRange','explode','explodeOut');bindRange('baseLength','baseLength','baseLengthOut',true);bindRange('baseWidth','baseWidth','baseWidthOut',true);bindRange('wallHeight','wallHeight','wallHeightOut',true);
+function updateDimLabels(){document.getElementById('dimBase').textContent=`${params.baseLength} × ${params.baseWidth} × 8 mm`;document.getElementById('dimWall').textContent=`폭 22 × 높이 ${params.wallHeight} mm`;}
+document.getElementById('playAssembly').addEventListener('click',()=>{currentStage=5;const d=stageData[5];els.kicker.textContent=d.k;els.title.textContent=d.t;els.desc.textContent=d.d;els.tip.textContent=d.tip;els.list.innerHTML=d.items.map(v=>`<li>${v}</li>`).join('');document.querySelectorAll('.step-btn').forEach((b,i)=>b.classList.toggle('active',i===5));assembly={start:performance.now(),duration:4200};});
+document.getElementById('stopAnimation').addEventListener('click',()=>assembly=null);
+function loop(now){const dt=Math.min(50,now-lastTime);lastTime=now;if(document.getElementById('autoRotate').checked&&!drag)view.yaw+=dt*.00035;draw(now);requestAnimationFrame(loop);}
+buildGeometry();updateGuide(0);updateDimLabels();resize();requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
