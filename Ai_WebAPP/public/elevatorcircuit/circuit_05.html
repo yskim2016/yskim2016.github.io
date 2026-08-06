@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5번 회로 해석: T1→T2 순차 기동, T2에서 MC2로 전환 · 도면 해석</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { background: #0F172A; }
+  #root { min-height:100vh; }
+  #boot {
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:#0F172A; color:#8FA79B; font-family:monospace; font-size:0.85rem;
+    letter-spacing:0.05em; z-index:1;
+  }
+  .animate-fadeIn { animation: fadeIn 0.3s ease-in; }
+  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.383.0?external=react"
+  }
+}
+</script>
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+</head>
+<body>
+<div id="boot">불러오는 중...</div>
+<div id="root"></div>
+
+<script type="text/babel" data-type="module" data-presets="react,typescript">
+import React, { useState, useEffect } from 'react';
+import {
+  Activity, RotateCcw, Maximize2, Image as ImageIcon, ArrowRight, X, FileSearch, AlertTriangle
+} from 'lucide-react';
+
+const IMG_PATH = '../images/elevator_practice_circuit/Elevator005_jpg_20250323.PNG';
+
+function App() {
+  const [modalImage, setModalImage] = useState(null);
+
+  const [mccbOn, setMccbOn] = useState(true);
+  const [eocrTripped, setEocrTripped] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [phase, setPhase] = useState('A');
+  const [delaySetting, setDelaySetting] = useState(3);
+  const [left, setLeft] = useState(3);
+
+  const controlPowerOn = mccbOn && !eocrTripped;
+
+  useEffect(() => {
+    if (!controlPowerOn) setRunning(false);
+  }, [controlPowerOn]);
+
+  useEffect(() => {
+    if (!running) { setPhase('A'); setLeft(delaySetting); }
+  }, [running]);
+
+  useEffect(() => {
+    if (!running || phase === 'B') return;
+    const id = setInterval(() => {
+      setLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(id);
+          setPhase('B');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [running, phase, delaySetting]);
+
+  const t1On = running;
+  const t2On = running && phase === 'B';
+  const mc1On = false;
+  const mc2On = running && phase === 'B';
+  const rlOn = t2On && !mc1On;
+  const glOn = t2On && !mc2On;
+  const eocrCoilOn = mccbOn;
+  const ylOn = mccbOn && eocrTripped;
+
+  const pressPB1 = () => { if (controlPowerOn && !running) setRunning(true); };
+  const pressPB0 = () => setRunning(false);
+  const toggleMccb = () => setMccbOn((v) => !v);
+  const tripEocr = () => setEocrTripped(true);
+  const resetEocr = () => setEocrTripped(false);
+
+  const changeDelay = (sec) => {
+    setDelaySetting(sec);
+    setLeft(sec);
+    setRunning(false);
+  };
+
+  const resetAll = () => {
+    setMccbOn(true);
+    setEocrTripped(false);
+    setRunning(false);
+    setLeft(delaySetting);
+  };
+
+  const W = 898, H = 467;
+  const X = { EOCR: 352, YL: 414, T1: 538, T2: 600, MC1: 662, RL: 722, MC2: 786, GL: 848 };
+  const topY = 112;
+  const holdY = 205;
+  const trunkY = 298;
+  const alarmY = 298;
+  const busY = 408;
+  const mccbTapY = 128;
+  const cornerX = 289;
+
+  const wire = (on, stroke, d, key) => on && (
+    <g key={key} fill="none" stroke={stroke} strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.85" filter="url(#glow5)">
+      <path d={d} />
+    </g>
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-950 p-4 md:p-8 max-w-5xl mx-auto space-y-6">
+      <div className="space-y-6 animate-fadeIn">
+
+        <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700 space-y-4">
+          <div className="flex items-center space-x-2 text-amber-400 font-bold text-base border-b border-slate-700 pb-3">
+            <FileSearch className="w-5 h-5" />
+            <h2>5번 회로 해석: T1 → T2 순차 기동, T2에서 MC2로 전환</h2>
+          </div>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            PB1을 누르면 T1이 여자되어(순시a 자기유지) T1 코일이 즉시 상시 통전됩니다. T1의 별도 한시접점이 설정시간 후 닫히면 T2가
+            여자됩니다. T2가 여자되면 T2 자신의 두 접점(각각 별도 컬럼)이 동시에 닫히며 두 갈래 버스를 살립니다: 한쪽은 MC2 b접점을 거쳐
+            MC1로, 다른 한쪽은 MC1 b접점을 거쳐 MC2로 향합니다. 즉 두 접촉기가 동시에 조건을 만족하는 구조라 실제로는 어느 한쪽이 먼저
+            여자되어 상대를 인터록으로 막는 경합 구조입니다. 이 시뮬레이터는 MC2가 먼저 여자되어 역회전으로 전환되는 것으로 가정했습니다
+            (RL은 MC1 b접점, GL은 MC2 b접점 경로라 이 가정에서는 RL 점등·GL 소등으로 표시됩니다).
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-3">
+              <span className="text-amber-400 font-bold">전동기 구성</span>
+              <p className="text-slate-300 mt-1">단일 전동기(위상 교체로 정·역회전)</p>
+            </div>
+            <div className="bg-slate-900 rounded-xl border border-slate-800 p-3">
+              <span className="text-amber-400 font-bold">타이머 구성</span>
+              <p className="text-slate-300 mt-1">T1(자기유지, 상시) → T1 한시접점으로 T2 기동 → T2 자신의 두 접점이 MC1/MC2 버스를 동시에 개방</p>
+            </div>
+          </div>
+
+          <div className="bg-amber-500/10 border border-amber-500/40 rounded-xl p-3 flex gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-amber-100 leading-relaxed">
+              좌표(코일 8개, 상단모선·자기유지버스·분기점·하단모선 y)는 이미지 픽셀 분석과 3배 확대 크롭 대조로 실측해 매우 정확합니다.
+              다만 T2 활성화 시 MC1·MC2가 이론상 동시에 조건을 만족하는 경합 구조는 도면만으로 어느 쪽이 실제로 우선하는지 확정할 수
+              없어 MC2 우선으로 가정했습니다. 실제 시험에서는 반드시 원본 도면과 지급 기기로 재확인하세요.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <span className="text-xs font-bold text-amber-400 flex items-center space-x-1.5">
+              <ImageIcon className="w-4 h-4" />
+              <span>원본 공개도면 (5번)</span>
+            </span>
+            <button
+              onClick={() => setModalImage(IMG_PATH)}
+              className="text-[11px] text-amber-400 hover:text-amber-300 flex items-center space-x-1 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/30"
+            >
+              <Maximize2 className="w-3 h-3" />
+              <span>사진 크게 보기</span>
+            </button>
+          </div>
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-3 flex flex-col items-center justify-center overflow-hidden">
+            <img
+              src={IMG_PATH}
+              alt="5번 회로 공개도면"
+              className="max-h-[420px] w-auto object-contain rounded-lg border border-slate-700/60 shadow cursor-pointer hover:opacity-95 transition-all bg-white"
+              onClick={() => setModalImage(IMG_PATH)}
+            />
+          </div>
+        </div>
+
+        <div className="bg-slate-950 rounded-2xl border border-slate-800 p-5 space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-3 border-b border-slate-800 pb-3">
+            <span className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center space-x-1.5">
+              <Activity className="w-4 h-4 text-amber-400" />
+              <span>실시간 회로 통전 상태 (실측 좌표 · 주회로 포함)</span>
+            </span>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-400">
+              <span className="flex items-center gap-1"><i className="inline-block w-3 h-1 rounded bg-yellow-400"></i>전원/공통모선</span>
+              <span className="flex items-center gap-1"><i className="inline-block w-3 h-1 rounded bg-sky-400"></i>T1·T2</span>
+              <span className="flex items-center gap-1"><i className="inline-block w-3 h-1 rounded bg-emerald-400"></i>MC2(역회전)</span>
+              <span className="flex items-center gap-1"><i className="inline-block w-3 h-1 rounded bg-orange-400"></i>RL/GL</span>
+              <span className="flex items-center gap-1"><i className="inline-block w-3 h-1 rounded bg-rose-400"></i>EOCR/YL</span>
+            </div>
+          </div>
+
+          <div className="mx-auto w-full max-w-[780px] overflow-hidden rounded-xl border border-slate-700 bg-white shadow-inner">
+            <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" role="img" aria-label="5번 회로 실시간 통전 상태">
+              <defs><filter id="glow5" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+              <image href={IMG_PATH} x="0" y="0" width={W} height={H} preserveAspectRatio="xMidYMid meet" />
+
+              {wire(mccbOn, "#eab308", `M48 20V${mccbTapY}H${cornerX}V${topY}H${X.EOCR}`, "mccb")}
+
+              {wire(mc2On, "#10b981", "M52 260V405L66 418M85 260V406M117 260V405L103 418", "mc2main")}
+              {wire(mc2On, "#10b981", "M85 260a34 34 0 1 0 0.1 0", "motor")}
+
+              {wire(controlPowerOn, "#eab308", `M${X.EOCR} ${topY}H${X.GL}`, "rail")}
+
+              {wire(eocrCoilOn, "#f43f5e", `M${X.EOCR} ${topY}V${busY}`, "eocrcoil")}
+              {wire(ylOn, "#f43f5e", `M${X.EOCR} ${alarmY}H${X.YL}V${busY}`, "yl")}
+
+              {wire(t1On, "#38bdf8", `M${X.T1} ${topY}V${busY}`, "t1coil")}
+
+              {wire(t2On, "#38bdf8", `M${X.T1} ${holdY}V${trunkY}H${X.T2}V${busY}`, "t2coil")}
+
+              {wire(mc2On, "#10b981", `M${X.MC2} ${topY}V${busY}`, "mc2")}
+
+              {wire(rlOn, "#fb923c", `M${X.MC1} ${topY}V${trunkY}H${X.RL}V${busY}`, "rl")}
+
+              {wire(glOn, "#fb923c", `M${X.MC2} ${trunkY}H${X.GL}V${busY}`, "gl")}
+            </svg>
+          </div>
+          <p className="text-[10px] text-slate-500 text-center">배선 좌표는 이미지 픽셀 분석으로 실측했습니다. 통전되지 않은 구간은 원본 도면 그대로(검정선) 보이고, 통전 시에만 색이 켜집니다.</p>
+
+          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 text-center pt-1">
+            {[
+              { name: 'EOCR', on: eocrCoilOn, cls: 'bg-rose-500 text-white border-rose-300' },
+              { name: 'YL', on: ylOn, cls: 'bg-rose-500 text-white border-rose-300' },
+              { name: 'T1', on: t1On, cls: 'bg-sky-500 text-white border-sky-300' },
+              { name: 'T2', on: t2On, cls: 'bg-sky-500 text-white border-sky-300' },
+              { name: 'MC1', on: mc1On, cls: 'bg-red-500 text-white border-red-300' },
+              { name: 'RL', on: rlOn, cls: 'bg-orange-400 text-slate-900 border-orange-200' },
+              { name: 'MC2', on: mc2On, cls: 'bg-emerald-500 text-white border-emerald-300' },
+              { name: 'GL', on: glOn, cls: 'bg-orange-400 text-slate-900 border-orange-200' },
+            ].map((item) => (
+              <div key={item.name} className={`p-2 rounded-lg border text-[10px] font-bold ${item.on ? item.cls : 'bg-slate-900 border-slate-800 text-slate-500'}`}>
+                <div>{item.name}</div>
+                <div className="mt-0.5">{item.on ? '통전' : 'OFF'}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 space-y-5">
+          <div className="flex items-center justify-between flex-wrap gap-3 border-b border-slate-700 pb-3">
+            <div className="flex items-center space-x-2 text-amber-400 font-bold text-base">
+              <Activity className="w-5 h-5" />
+              <h2>동작 시뮬레이터</h2>
+            </div>
+            <button onClick={resetAll} className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-700 hover:bg-slate-600 text-slate-100 flex items-center space-x-2">
+              <RotateCcw className="w-4 h-4" /><span>전체 초기화</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-2.5">
+              <h3 className="text-xs font-bold text-slate-300">① 전원·보호</h3>
+              <button onClick={toggleMccb} className={`w-full py-2 rounded-lg text-xs font-bold ${mccbOn ? 'bg-amber-500 text-slate-950' : 'bg-slate-700 text-slate-300'}`}>MCCB: {mccbOn ? 'ON' : 'OFF'}</button>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={tripEocr} disabled={!mccbOn || eocrTripped} className="py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-40">EOCR 트립</button>
+                <button onClick={resetEocr} disabled={!eocrTripped} className="py-2 rounded-lg text-xs font-bold bg-slate-700 hover:bg-slate-600 text-white disabled:opacity-40">EOCR 복귀</button>
+              </div>
+            </div>
+
+            <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-2.5">
+              <h3 className="text-xs font-bold text-slate-300">② 운전·정지</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={pressPB1} disabled={!controlPowerOn || running} className="py-2 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-40">PB1 기동</button>
+                <button onClick={pressPB0} disabled={!running} className="py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-40">PB0 정지</button>
+              </div>
+              <div className="text-[11px] text-slate-400 bg-slate-950 rounded-lg px-3 py-2 border border-slate-800">
+                {!controlPowerOn ? 'EOCR b접점이 열려 운전할 수 없습니다.' :
+                 !running ? 'PB1을 누르면 T1이 기동됩니다.' :
+                 phase === 'A' ? `T1 기동 중(모터 대기) · 전환까지 ${left}초` :
+                 'T2 여자 · MC2 역회전 중'}
+              </div>
+            </div>
+
+            <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3">
+              <h3 className="text-xs font-bold text-slate-300">③ 설정시간 (T1)</h3>
+              <div className="flex gap-1.5">{[1, 3, 5, 7].map((sec) => (
+                <button key={sec} onClick={() => changeDelay(sec)} className={`flex-1 py-1.5 rounded-lg text-xs font-bold border ${delaySetting === sec ? 'bg-sky-500 text-slate-950 border-sky-300' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>{sec}초</button>
+              ))}</div>
+              <div className="text-[11px] text-slate-400 bg-slate-950 rounded-lg px-2 py-1.5 border border-slate-800">T1→T2 전환 지연시간 (개념 시뮬레이션용)</div>
+            </div>
+          </div>
+
+          <div className="bg-slate-900 rounded-xl border border-slate-800 p-3 overflow-x-auto">
+            <div className="text-xs font-bold text-amber-300 mb-2">정상 운전 순서</div>
+            <div className="flex items-center space-x-1.5 min-w-max text-[11px] font-bold">
+              <span className={`px-2.5 py-1.5 rounded-lg border ${running ? 'bg-sky-500/20 border-sky-500/50 text-sky-300' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>PB1</span>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-600" />
+              <span className={`px-2.5 py-1.5 rounded-lg border ${t1On && !t2On ? 'bg-sky-500/20 border-sky-500/50 text-sky-300' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>T1 기동(모터 정지)</span>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-600" />
+              <span className={`px-2.5 py-1.5 rounded-lg border ${mc2On ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>T2 여자·MC2 역회전</span>
+            </div>
+            <p className="text-[10px] text-slate-500 mt-2">PB1 → T1 자기유지(모터는 아직 정지) → 설정시간 후 T2 여자 → MC2 여자(역회전, RL 점등·GL 소등)</p>
+          </div>
+
+          <p className="text-[10px] text-slate-500">EOCR 트립 또는 PB0 시 전체가 즉시 정지합니다. 실제 시험에서는 지급 기기의 접점번호와 도면 표기를 우선 확인하세요.</p>
+        </div>
+      </div>
+
+      {modalImage && (
+        <div onClick={() => setModalImage(null)} className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer">
+          <div className="relative max-w-5xl w-full bg-slate-900 border border-slate-700 rounded-2xl p-4 overflow-auto max-h-[90vh] shadow-2xl">
+            <button onClick={() => setModalImage(null)} className="absolute top-3 right-3 p-2 rounded-full bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 z-10">
+              <X className="w-5 h-5" />
+            </button>
+            <img src={modalImage} alt="원본 도면 확대" className="w-full h-auto object-contain rounded-xl bg-white border border-slate-800" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+import { createRoot } from 'react-dom/client';
+const bootEl = document.getElementById('boot');
+if (bootEl) bootEl.remove();
+createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
