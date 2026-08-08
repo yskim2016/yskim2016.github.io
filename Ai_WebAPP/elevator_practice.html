@@ -2196,7 +2196,12 @@ export default function App() {
 
                     {/* 원본 도면을 바탕으로 사용하여 기구·접점·배선 위치를 정확히 유지 */}
                     <rect width="848" height="477" fill="#ffffff" />
-                    <image href="./public/images/elevator/ControlDiagram.PNG" x="0" y="0" width="848" height="477" preserveAspectRatio="xMidYMid meet" />
+                    <image
+                      href={controlDiagramSrc}
+                      x="0" y="0" width="848" height="477"
+                      preserveAspectRatio="xMidYMid meet"
+                      onError={handleControlDiagramError}
+                    />
 
                     {/* MCCB 이후 전원 및 MC 접점의 전원측 */}
                     {pdMccbOn && (
