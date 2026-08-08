@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>10번 회로 해석: 2대 전동기 순차 기동·정지 + FR 이중 경보 회로 · 도면 해석</title>
+<title>10번 회로 해석: 2대 전동기 순차 기동·정지 + FR 이중 경로 · 도면 해석</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
   body { background: #0F172A; }
@@ -38,89 +38,87 @@ import {
 } from 'lucide-react';
 
 const IMG_PATH = '../images/elevator_practice_circuit/Elevator010_jpg_20250323.PNG';
-const COIL_POSITIONS = [40.09, 46.92, 60.57, 67.4, 74.23, 81.06, 87.89, 94.71];
 
 function App() {
   const [modalImage, setModalImage] = useState(null);
 
-  const [pdMccbOn, setPdMccbOn] = useState(true);
-  const [pdEocrTripped, setPdEocrTripped] = useState(false);
-  const [pdSelfHold, setPdSelfHold] = useState(false);
-  const [pdDelaySetting, setPdDelaySetting] = useState(3);
-  const [pdLeft, setPdLeft] = useState(3);
-  const [pdPhaseB, setPdPhaseB] = useState(false);
-  const [pdFrBlink, setPdFrBlink] = useState(false);
+  const [mccbOn, setMccbOn] = useState(true);
+  const [eocrTripped, setEocrTripped] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [phase, setPhase] = useState('A'); // 'A'(FR1 경유 M1) -> 'B'(FR2/T2 경유 M2)
+  const [delaySetting, setDelaySetting] = useState(3);
+  const [left, setLeft] = useState(3);
 
-  const pdControlPowerOn = pdMccbOn && !pdEocrTripped;
-
-  useEffect(() => {
-    if (!pdControlPowerOn) setPdSelfHold(false);
-  }, [pdControlPowerOn]);
+  const controlPowerOn = mccbOn && !eocrTripped;
 
   useEffect(() => {
-    if (!pdSelfHold) {
-      setPdLeft(pdDelaySetting);
-      setPdPhaseB(false);
-      return;
-    }
-    if (pdPhaseB) return;
+    if (!controlPowerOn) setRunning(false);
+  }, [controlPowerOn]);
+
+  useEffect(() => {
+    if (!running) { setPhase('A'); setLeft(delaySetting); }
+  }, [running]);
+
+  useEffect(() => {
+    if (!running || phase === 'B') return;
     const id = setInterval(() => {
-      setPdLeft((prev) => {
+      setLeft((prev) => {
         if (prev <= 1) {
           clearInterval(id);
-          setPdPhaseB(true);
+          setPhase('B');
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(id);
-  }, [pdSelfHold, pdDelaySetting, pdPhaseB]);
+  }, [running, phase, delaySetting]);
 
-  const pdMc1Energized = pdControlPowerOn && pdSelfHold && !pdPhaseB;
-  const pdMc2Energized = pdControlPowerOn && pdSelfHold && pdPhaseB;
+  const tOn = running;                     // T: 자기유지로 상시 여자
+  const fr1On = running && phase === 'A';  // FR(1): T 한시b(초기 폐로) 직결, MC1 구동용
+  const mc1On = fr1On;                     // MC1(M1): FR(1) 직결 (A단계)
+  const fr2On = running && phase === 'B';  // FR(2)/T 한시a 경유, MC2 구동용
+  const mc2On = fr2On;                     // MC2(M2): FR(2)+T한시a 경유 (B단계)
+  const rlOn = controlPowerOn && !mc1On;   // RL: MC1 b접점
+  const glOn = controlPowerOn && !mc2On;   // GL: MC2 b접점
+  const eocrCoilOn = mccbOn;
+  const ylOn = mccbOn && eocrTripped;      // YL: EOCR 자체 a접점 (직접)
 
-  const pdPressPB1 = () => { if (pdControlPowerOn && !pdSelfHold) setPdSelfHold(true); };
-  const pdPressPB0 = () => setPdSelfHold(false);
+  const pressPB1 = () => { if (controlPowerOn && !running) setRunning(true); };
+  const pressPB0 = () => setRunning(false);
+  const toggleMccb = () => setMccbOn((v) => !v);
+  const tripEocr = () => setEocrTripped(true);
+  const resetEocr = () => setEocrTripped(false);
 
-  const pdChangeDelay = (sec) => {
-    setPdDelaySetting(sec);
-    setPdLeft(sec);
-    setPdSelfHold(false);
-    setPdPhaseB(false);
+  const changeDelay = (sec) => {
+    setDelaySetting(sec);
+    setLeft(sec);
+    setRunning(false);
   };
-
-  const pdToggleMccb = () => setPdMccbOn((v) => !v);
-  const pdTripEocr = () => setPdEocrTripped(true);
-  const pdResetEocr = () => setPdEocrTripped(false);
-
-  useEffect(() => {
-    if (!pdEocrTripped || !pdMccbOn) { setPdFrBlink(false); return; }
-    const id = setInterval(() => setPdFrBlink((v) => !v), 700);
-    return () => clearInterval(id);
-  }, [pdEocrTripped, pdMccbOn]);
-
-  const pdYlOn = pdMccbOn && pdEocrTripped && pdFrBlink;
 
   const resetAll = () => {
-    setPdMccbOn(true);
-    setPdEocrTripped(false);
-    setPdSelfHold(false);
-    setPdLeft(pdDelaySetting);
-    setPdPhaseB(false);
-    setPdFrBlink(false);
+    setMccbOn(true);
+    setEocrTripped(false);
+    setRunning(false);
+    setLeft(delaySetting);
   };
 
-  const coilRow = [
-      { name: 'EOCR', on: (pdEocrTripped), cls: 'bg-rose-500 text-white border-rose-300', stroke: '#f43f5e' },
-      { name: 'YL', on: (pdYlOn), cls: 'bg-yellow-400 text-slate-900 border-yellow-200', stroke: '#eab308' },
-      { name: 'T', on: (pdSelfHold), cls: 'bg-sky-500 text-white border-sky-300', stroke: '#38bdf8' },
-      { name: 'FR', on: (pdEocrTripped), cls: 'bg-rose-500 text-white border-rose-300', stroke: '#f43f5e' },
-      { name: 'MC1', on: (pdMc1Energized), cls: 'bg-red-500 text-white border-red-300', stroke: '#ef4444' },
-      { name: 'RL', on: (pdMc1Energized), cls: 'bg-red-500 text-white border-red-300', stroke: '#ef4444' },
-      { name: 'MC2', on: (pdMc2Energized), cls: 'bg-emerald-500 text-white border-emerald-300', stroke: '#10b981' },
-      { name: 'GL', on: (pdMc2Energized), cls: 'bg-emerald-500 text-white border-emerald-300', stroke: '#10b981' }
-    ];
+  // ===== 실측 좌표 =====
+  const W = 908, H = 470;
+  const X = { EOCR: 364, YL: 426, T: 550, FR1: 612, MC1: 674, RL: 736, MC2: 798, GL: 860 };
+  const topY = 118;
+  const holdY = 211;    // PB1/T 자기유지 및 PB0·T·FR1·MC1header·FR2·T2 가 모두 걸린 단일 폭넓은 버스
+  const jogY = 304;     // FR(2)/T(2) 합류 이후 MC1b 인터록을 거쳐 GL로 분기하는 지점
+  const alarmY = 304;
+  const busY = 414;
+  const mccbTapY = 134;
+  const cornerX = 301;
+
+  const wire = (on, stroke, d, key) => on && (
+    <g key={key} fill="none" stroke={stroke} strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.85" filter="url(#glow10)">
+      <path d={d} />
+    </g>
+  );
 
   return (
     <div className="min-h-screen bg-slate-950 p-4 md:p-8 max-w-5xl mx-auto space-y-6">
@@ -129,9 +127,15 @@ function App() {
         <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700 space-y-4">
           <div className="flex items-center space-x-2 text-amber-400 font-bold text-base border-b border-slate-700 pb-3">
             <FileSearch className="w-5 h-5" />
-            <h2>10번 회로 해석: 2대 전동기 순차 기동·정지 + FR 이중 경보 회로</h2>
+            <h2>10번 회로 해석: 2대 전동기 순차 기동·정지 + FR 이중 경로</h2>
           </div>
-          <p className="text-xs text-slate-300 leading-relaxed">M1, M2 두 대의 전동기를 MC1, MC2로 순차 기동하는 구조는 8·9번과 같습니다. 다만 FR 플리커 릴레이 접점이 회로 내 두 지점(T측·MC2측 인근)에서 확인되어, 경보 계통이 이중으로 구성되거나 서로 다른 조건에서 각각 점멸을 트리거하는 확장형으로 추정됩니다. PB1 → MC1 여자·M1 기동·RL 점등(T) → 설정시간 경과 → MC2 여자·M2 순차 기동·GL 점등이며, PB0 또는 EOCR 트립 시 정지합니다.</p>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            8·9번과 같이 M1(MC1)·M2(MC2) 순차 기동이며, 이번에는 FR이 두 곳에서 각각 사용됩니다. PB1 → T 자기유지 후, T의
+            한시b접점이 첫 번째 FR을 여자시키고 그 접점이 곧바로 MC1을 여자시켜 M1이 기동됩니다(RL 소등, GL 점등). T 설정시간이
+            지나면 한시b가 열려 첫 번째 FR·MC1이 소자되고(RL 점등), 동시에 두 번째 FR과 T의 한시a접점이 함께 관여하는 경로를 거쳐
+            MC2가 여자되어 M2가 기동됩니다(GL 소등). 6·7번의 FR이 경보 램프 점멸용이었다면, 8~10번의 FR은 모두 전동기 전환용 보조
+            계전기로 쓰이고 있습니다.
+          </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
             <div className="bg-slate-900 rounded-xl border border-slate-800 p-3">
@@ -139,14 +143,19 @@ function App() {
               <p className="text-slate-300 mt-1">독립된 전동기 2대(M1, M2) 순차 기동</p>
             </div>
             <div className="bg-slate-900 rounded-xl border border-slate-800 p-3">
-              <span className="text-amber-400 font-bold">타이머/경보 구성</span>
-              <p className="text-slate-300 mt-1">T(순차 기동 지연), FR(이중 경보)</p>
+              <span className="text-amber-400 font-bold">타이머 구성</span>
+              <p className="text-slate-300 mt-1">T 한시b → FR(1) → MC1(M1) / T 한시a + FR(2) → MC2(M2)</p>
             </div>
           </div>
 
           <div className="bg-amber-500/10 border border-amber-500/40 rounded-xl p-3 flex gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-            <p className="text-[11px] text-amber-100 leading-relaxed">FR 접점이 두 곳에서 사용되어 경보 조건이 이중으로 걸려 있는 것으로 보입니다. 아래 배선 하이라이트의 정확한 경로는 참고용이며, 실제 접점 순서는 원본 도면을 기준으로 확인하세요.</p>
+            <p className="text-[11px] text-amber-100 leading-relaxed">
+              좌표는 이미지 픽셀 분석과 3배 확대 크롭 대조로 실측했습니다. MC2 코일로 이어지는 접점에 "MC2"로 읽히는 라벨이 있어
+              자기 참조처럼 보이는 부분이 있었는데, 8·9번과의 구조적 대칭을 근거로 MC1 인터록의 오독이거나 자기유지 목적으로
+              판단해 MC2는 FR(2)/T 한시a 경로로 직접 여자되는 것으로 단순화했습니다. 실제 배선 전 원본 도면의 해당 접점을 반드시
+              재확인하세요.
+            </p>
           </div>
 
           <div className="flex items-center justify-between flex-wrap gap-2">
@@ -168,20 +177,7 @@ function App() {
               alt="10번 회로 공개도면"
               className="max-h-[420px] w-auto object-contain rounded-lg border border-slate-700/60 shadow cursor-pointer hover:opacity-95 transition-all bg-white"
               onClick={() => setModalImage(IMG_PATH)}
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.style.display = 'none';
-                document.getElementById('fallback-public-diagram').style.display = 'flex';
-              }}
             />
-            <div
-              id="fallback-public-diagram"
-              className="hidden flex-col items-center justify-center p-6 text-center space-y-2 bg-slate-950 rounded-xl border border-dashed border-slate-700 text-slate-400 w-full"
-            >
-              <ImageIcon className="w-8 h-8 text-slate-500 mb-1" />
-              <p className="text-xs font-bold text-slate-300">공개도면 이미지 준비 중</p>
-              <p className="text-[11px] text-slate-500">경로: <code className="text-amber-400">{IMG_PATH}</code></p>
-            </div>
           </div>
         </div>
 
@@ -189,79 +185,67 @@ function App() {
           <div className="flex items-center justify-between flex-wrap gap-3 border-b border-slate-800 pb-3">
             <span className="text-xs font-bold text-slate-300 uppercase tracking-widest flex items-center space-x-1.5">
               <Activity className="w-4 h-4 text-amber-400" />
-              <span>실시간 회로 통전 상태</span>
+              <span>실시간 회로 통전 상태 (실측 좌표 · 주회로 개략 포함)</span>
             </span>
             <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-400">
               <span className="flex items-center gap-1"><i className="inline-block w-3 h-1 rounded bg-yellow-400"></i>전원/공통모선</span>
-              <span className="flex items-center gap-1"><i className="inline-block w-3 h-1 rounded bg-sky-400"></i>타이머</span>
-              <span className="flex items-center gap-1"><i className="inline-block w-3 h-1 rounded bg-red-500"></i>MC1 (M1 기동)</span>
-              <span className="flex items-center gap-1"><i className="inline-block w-3 h-1 rounded bg-emerald-400"></i>MC2 (M2 기동)</span>
-              <span className="flex items-center gap-1"><i className="inline-block w-3 h-1 rounded bg-rose-400"></i>EOCR/경보</span>
+              <span className="flex items-center gap-1"><i className="inline-block w-3 h-1 rounded bg-sky-400"></i>T·FR</span>
+              <span className="flex items-center gap-1"><i className="inline-block w-3 h-1 rounded bg-red-500"></i>MC1(M1)</span>
+              <span className="flex items-center gap-1"><i className="inline-block w-3 h-1 rounded bg-emerald-400"></i>MC2(M2)</span>
+              <span className="flex items-center gap-1"><i className="inline-block w-3 h-1 rounded bg-orange-400"></i>RL/GL</span>
+              <span className="flex items-center gap-1"><i className="inline-block w-3 h-1 rounded bg-rose-400"></i>EOCR/YL</span>
             </div>
           </div>
 
           <div className="mx-auto w-full max-w-[780px] overflow-hidden rounded-xl border border-slate-700 bg-white shadow-inner">
-            <svg viewBox="0 0 908 470" className="block h-auto w-full" role="img" aria-label="10번 회로 실시간 통전 상태 (실측 좌표 기반)">
-                    <defs><filter id="glow10" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
-                    <image href={IMG_PATH} x="0" y="0" width="908" height="470" preserveAspectRatio="xMidYMid meet" />
-                    {pdMccbOn && (
-                    <g fill="none" stroke="#eab308" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.75" filter="url(#glow10)">
-                    <path d="M68 33V235" />
-                    </g>)}
-                    {(pdMc1Energized || pdMc2Energized) && (
-                    <g fill="none" stroke={pdMc1Energized ? "#ef4444" : "#10b981"} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" filter="url(#glow10)">
-                    <circle cx="86" cy="221" r="35" />
-                    </g>)}
-                    {pdControlPowerOn && (
-                    <g fill="none" stroke="#eab308" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.78" filter="url(#glow10)">
-                    <path d="M364 118H860" />
-                    </g>)}
-                    {pdSelfHold && (
-                    <g fill="none" stroke="#38bdf8" strokeWidth="3.8" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" filter="url(#glow10)">
-                    <path d="M550 118V211" />
-                    </g>)}
-                    {pdEocrTripped && pdMccbOn && (
-                    <g fill="none" stroke="#f97316" strokeWidth="3.8" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" filter="url(#glow10)">
-                    <path d="M364 118V211" />
-                    </g>)}
-                    {(pdEocrTripped) && (
-                    <g fill="none" stroke="#f43f5e" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.82" filter="url(#glow10)">
-                    <path d="M364 118V460" />
-                    </g>)}
-                    {(pdYlOn) && (
-                    <g fill="none" stroke="#eab308" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.82" filter="url(#glow10)">
-                    <path d="M364 211H426V460" />
-                    </g>)}
-                    {(pdSelfHold) && (
-                    <g fill="none" stroke="#38bdf8" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.82" filter="url(#glow10)">
-                    <path d="M550 118V460" />
-                    </g>)}
-                    {(pdEocrTripped) && (
-                    <g fill="none" stroke="#f43f5e" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.82" filter="url(#glow10)">
-                    <path d="M364 211H612V460" />
-                    </g>)}
-                    {(pdMc1Energized) && (
-                    <g fill="none" stroke="#ef4444" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.82" filter="url(#glow10)">
-                    <path d="M550 211H674V460" />
-                    </g>)}
-                    {(pdMc1Energized) && (
-                    <g fill="none" stroke="#ef4444" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.82" filter="url(#glow10)">
-                    <path d="M550 211H736V460" />
-                    </g>)}
-                    {(pdMc2Energized) && (
-                    <g fill="none" stroke="#10b981" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.82" filter="url(#glow10)">
-                    <path d="M550 211H798V460" />
-                    </g>)}
-                    {(pdMc2Energized) && (
-                    <g fill="none" stroke="#10b981" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.82" filter="url(#glow10)">
-                    <path d="M550 211H860V460" />
-                    </g>)}
-                    </svg>
+            <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" role="img" aria-label="10번 회로 실시간 통전 상태">
+              <defs><filter id="glow10" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+              <image href={IMG_PATH} x="0" y="0" width={W} height={H} preserveAspectRatio="xMidYMid meet" />
+
+              {wire(mccbOn, "#eab308", `M48 20V${mccbTapY}H${cornerX}V${topY}H${X.EOCR}`, "mccb")}
+
+              {wire(mc1On, "#ef4444", "M52 250V405L66 418M85 250V406M117 250V405L103 418", "m1main")}
+              {wire(mc1On, "#ef4444", "M85 250a34 34 0 1 0 0.1 0", "motor1")}
+              {wire(mc2On, "#10b981", "M182 250V405L196 418M215 250V406M247 250V405L233 418", "m2main")}
+              {wire(mc2On, "#10b981", "M215 250a34 34 0 1 0 0.1 0", "motor2")}
+
+              {wire(controlPowerOn, "#eab308", `M${X.EOCR} ${topY}H${X.GL}`, "rail")}
+
+              {wire(eocrCoilOn, "#f43f5e", `M${X.EOCR} ${topY}V${busY}`, "eocrcoil")}
+              {wire(ylOn, "#f43f5e", `M${X.EOCR} ${alarmY}H${X.YL}V${busY}`, "yl")}
+
+              {/* T: 자기유지로 상시 통전 */}
+              {wire(tOn, "#38bdf8", `M${X.T} ${topY}V${busY}`, "tcoil")}
+
+              {/* FR(1): 자기유지버스에서 좌측 컬럼 -> 직행 */}
+              {wire(fr1On, "#38bdf8", `M${X.T} ${holdY}H${X.FR1}V${busY}`, "fr1")}
+
+              {/* MC1(M1): FR(1) 컬럼 -> 직행 (같은 컬럼, A단계) */}
+              {wire(mc1On, "#ef4444", `M${X.FR1} ${busY - 60}V${busY}`, "mc1")}
+
+              {/* RL: MC1 헤더 컬럼에서 직행 */}
+              {wire(rlOn, "#fb923c", `M${X.RL} ${topY}V${busY}`, "rl")}
+
+              {/* FR(2)/MC2: 자기유지버스에서 우측으로 -> 직행 (B단계) */}
+              {wire(fr2On, "#38bdf8", `M${X.T} ${holdY}H${X.MC2}V${busY}`, "fr2mc2")}
+
+              {/* GL: FR(2) 컬럼에서 MC1b 인터록 거쳐 우측으로 -> GL (B단계에서만) */}
+              {wire(glOn, "#fb923c", `M${X.MC2} ${jogY}H${X.GL}V${busY}`, "gl")}
+            </svg>
           </div>
-          <p className="text-[10px] text-slate-500 text-center">배선 색상은 원본 도면의 실제 컬럼 위치를 근사한 것입니다. 통전 시 해당 배선을 따라 색이 켜지고, 비통전 구간은 원본 도면 그대로(검정선) 표시됩니다.</p>
+          <p className="text-[10px] text-slate-500 text-center">배선 좌표는 이미지 픽셀 분석으로 실측했습니다. 통전되지 않은 구간은 원본 도면 그대로(검정선) 보이고, 통전 시에만 색이 켜집니다.</p>
 
           <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 text-center pt-1">
-            {coilRow.map((item) => (
+            {[
+              { name: 'EOCR', on: eocrCoilOn, cls: 'bg-rose-500 text-white border-rose-300' },
+              { name: 'YL', on: ylOn, cls: 'bg-rose-500 text-white border-rose-300' },
+              { name: 'T', on: tOn, cls: 'bg-sky-500 text-white border-sky-300' },
+              { name: 'FR(1)', on: fr1On, cls: 'bg-sky-500 text-white border-sky-300' },
+              { name: 'MC1(M1)', on: mc1On, cls: 'bg-red-500 text-white border-red-300' },
+              { name: 'RL', on: rlOn, cls: 'bg-orange-400 text-slate-900 border-orange-200' },
+              { name: 'MC2(M2)', on: mc2On, cls: 'bg-emerald-500 text-white border-emerald-300' },
+              { name: 'GL', on: glOn, cls: 'bg-orange-400 text-slate-900 border-orange-200' },
+            ].map((item) => (
               <div key={item.name} className={`p-2 rounded-lg border text-[10px] font-bold ${item.on ? item.cls : 'bg-slate-900 border-slate-800 text-slate-500'}`}>
                 <div>{item.name}</div>
                 <div className="mt-0.5">{item.on ? '통전' : 'OFF'}</div>
@@ -284,46 +268,49 @@ function App() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-2.5">
               <h3 className="text-xs font-bold text-slate-300">① 전원·보호</h3>
-              <button onClick={pdToggleMccb} className={`w-full py-2 rounded-lg text-xs font-bold ${pdMccbOn ? 'bg-amber-500 text-slate-950' : 'bg-slate-700 text-slate-300'}`}>MCCB: {pdMccbOn ? 'ON' : 'OFF'}</button>
+              <button onClick={toggleMccb} className={`w-full py-2 rounded-lg text-xs font-bold ${mccbOn ? 'bg-amber-500 text-slate-950' : 'bg-slate-700 text-slate-300'}`}>MCCB: {mccbOn ? 'ON' : 'OFF'}</button>
               <div className="grid grid-cols-2 gap-2">
-                <button onClick={pdTripEocr} disabled={!pdMccbOn || pdEocrTripped} className="py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-40">EOCR 트립</button>
-                <button onClick={pdResetEocr} disabled={!pdEocrTripped} className="py-2 rounded-lg text-xs font-bold bg-slate-700 hover:bg-slate-600 text-white disabled:opacity-40">EOCR 복귀</button>
+                <button onClick={tripEocr} disabled={!mccbOn || eocrTripped} className="py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-40">EOCR 트립</button>
+                <button onClick={resetEocr} disabled={!eocrTripped} className="py-2 rounded-lg text-xs font-bold bg-slate-700 hover:bg-slate-600 text-white disabled:opacity-40">EOCR 복귀</button>
               </div>
             </div>
 
             <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-2.5">
               <h3 className="text-xs font-bold text-slate-300">② 운전·정지</h3>
               <div className="grid grid-cols-2 gap-2">
-                <button onClick={pdPressPB1} disabled={!pdControlPowerOn || pdSelfHold} className="py-2 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-40">PB1 기동</button>
-                <button onClick={pdPressPB0} disabled={!pdSelfHold} className="py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-40">PB0 정지</button>
+                <button onClick={pressPB1} disabled={!controlPowerOn || running} className="py-2 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-40">PB1 기동</button>
+                <button onClick={pressPB0} disabled={!running} className="py-2 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white disabled:opacity-40">PB0 정지</button>
               </div>
               <div className="text-[11px] text-slate-400 bg-slate-950 rounded-lg px-3 py-2 border border-slate-800">
-                {!pdControlPowerOn ? 'EOCR b접점이 열려 운전할 수 없습니다.' : !pdSelfHold ? 'PB1을 누르면 운전이 시작됩니다.' : pdPhaseB ? 'MC2 (M2 기동) 전환 완료' : `MC1 (M1 기동) 동작 중 · 남은 시간 ${pdLeft}초`}
+                {!controlPowerOn ? 'EOCR b접점이 열려 운전할 수 없습니다.' :
+                 !running ? 'PB1을 누르면 M1이 기동됩니다.' :
+                 phase === 'A' ? `M1 기동 중(FR1 경유) · M2 전환까지 ${left}초` :
+                 'M2 기동 중(FR2 경유, M1은 정지)'}
               </div>
             </div>
 
             <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 space-y-3">
-              <h3 className="text-xs font-bold text-slate-300">③ 설정시간</h3>
+              <h3 className="text-xs font-bold text-slate-300">③ 설정시간 (T)</h3>
               <div className="flex gap-1.5">{[1, 3, 5, 7].map((sec) => (
-                <button key={sec} onClick={() => pdChangeDelay(sec)} className={`flex-1 py-1.5 rounded-lg text-xs font-bold border ${pdDelaySetting === sec ? 'bg-sky-500 text-slate-950 border-sky-300' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>{sec}초</button>
+                <button key={sec} onClick={() => changeDelay(sec)} className={`flex-1 py-1.5 rounded-lg text-xs font-bold border ${delaySetting === sec ? 'bg-sky-500 text-slate-950 border-sky-300' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}`}>{sec}초</button>
               ))}</div>
-              <div className="text-[11px] text-slate-400 bg-slate-950 rounded-lg px-2 py-1.5 border border-slate-800">전환 지연시간 설정 (개념 시뮬레이션용)</div>
+              <div className="text-[11px] text-slate-400 bg-slate-950 rounded-lg px-2 py-1.5 border border-slate-800">M1→M2 전환 지연시간</div>
             </div>
           </div>
 
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-3 overflow-x-auto">
             <div className="text-xs font-bold text-amber-300 mb-2">정상 운전 순서</div>
             <div className="flex items-center space-x-1.5 min-w-max text-[11px] font-bold">
-              <span className={`px-2.5 py-1.5 rounded-lg border ${pdSelfHold ? 'bg-sky-500/20 border-sky-500/50 text-sky-300' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>PB1</span>
+              <span className={`px-2.5 py-1.5 rounded-lg border ${running ? 'bg-sky-500/20 border-sky-500/50 text-sky-300' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>PB1</span>
               <ArrowRight className="w-3.5 h-3.5 text-slate-600" />
-              <span className={`px-2.5 py-1.5 rounded-lg border ${pdMc1Energized ? 'bg-red-500/20 border-red-500/50 text-red-300' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>MC1 (M1 기동) · RL</span>
+              <span className={`px-2.5 py-1.5 rounded-lg border ${mc1On ? 'bg-red-500/20 border-red-500/50 text-red-300' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>FR(1) 경유 MC1·M1 기동</span>
               <ArrowRight className="w-3.5 h-3.5 text-slate-600" />
-              <span className={`px-2.5 py-1.5 rounded-lg border ${pdMc2Energized ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>MC2 (M2 기동) · GL</span>
+              <span className={`px-2.5 py-1.5 rounded-lg border ${mc2On ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>FR(2) 경유 MC2·M2 기동</span>
             </div>
-            <p className="text-[10px] text-slate-500 mt-2">PB1 → MC1 여자·M1 기동·RL 점등(T) → 설정시간 경과 → MC2 여자·M2 순차 기동·GL 점등</p>
+            <p className="text-[10px] text-slate-500 mt-2">PB1 → T 자기유지·FR(1) 여자·MC1 여자·M1 기동(RL 소등,GL 점등) → 설정시간 후 FR(1)·MC1 소자(RL 점등)·FR(2) 여자·MC2 여자·M2 기동(GL 소등)</p>
           </div>
 
-          <p className="text-[10px] text-slate-500">EOCR 트립 시 전체 운전 계열은 즉시 정지하고 경보 계통만 별도로 동작합니다. 실제 시험에서는 지급 기기의 접점번호와 도면 표기를 우선 확인하세요.</p>
+          <p className="text-[10px] text-slate-500">EOCR 트립 또는 PB0 시 전체가 즉시 정지합니다. 실제 시험에서는 지급 기기의 접점번호와 도면 표기를 우선 확인하세요.</p>
         </div>
       </div>
 
