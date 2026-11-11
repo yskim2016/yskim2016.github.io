@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SatisfyCounter · 만족도 수합 카운터 · 김쌔미앙tv</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 폰트 및 애니메이션 설정 */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Pretendard', 'Noto Sans KR', 'Inter', sans-serif;
+            background-color: #f3f4f6; /* bg-gray-100 */
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="text-gray-800 antialiased min-h-screen flex flex-col">
+
+    <!-- 헤더 영역 -->
+    <header class="bg-white shadow-sm sticky top-0 z-10">
+        <div class="max-w-3xl mx-auto px-4 py-3 flex justify-between items-center gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+            <!-- 교사용 페이지로 돌아가기 (Ai_WebAPP 폴더 기준 상위의 teacher.html) -->
+            <a href="../teacher.html" class="shrink-0 inline-flex items-center gap-1 text-sm font-semibold text-gray-600 hover:text-indigo-600 bg-gray-50 hover:bg-indigo-50 border border-gray-200 rounded-lg py-1.5 px-2.5 transition-colors" title="교사용 페이지로 돌아가기">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                교사용
+            </a>
+            <h1 class="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2 truncate">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <span class="truncate">만족도 수합 카운터</span>
+            </h1>
+            </div>
+            <button onclick="openResetModal()" class="bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 font-semibold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1 text-sm border border-red-200 shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                전체 초기화
+            </button>
+        </div>
+    </header>
+
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="flex-grow p-3 sm:p-4 max-w-3xl mx-auto w-full flex flex-col gap-4">
+        
+        <!-- 1. 점수 입력 영역 (모여있는 곳) -->
+        <section class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
+            <h2 class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2 border-b pb-2">
+                ✍️ 점수 입력
+            </h2>
+            <div id="inputs-container" class="flex flex-col gap-4">
+                <!-- JS로 동적 렌더링 -->
+            </div>
+            
+            <!-- 영역 추가/삭제 컨트롤 버튼 -->
+            <div class="flex gap-2 mt-4 pt-3 border-t border-dashed border-gray-200">
+                <button onclick="removeArea()" class="flex-1 py-2 sm:py-3 bg-gray-50 text-gray-600 font-bold rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors flex justify-center items-center gap-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path></svg>
+                    영역 삭제
+                </button>
+                <button onclick="addArea()" class="flex-1 py-2 sm:py-3 bg-indigo-50 text-indigo-600 font-bold rounded-lg border border-indigo-200 hover:bg-indigo-100 transition-colors flex justify-center items-center gap-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    영역 추가
+                </button>
+            </div>
+        </section>
+
+        <!-- 2. 결과 통계 영역 (분리되어 하단에 모임) -->
+        <section class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 mb-8">
+            <h2 class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2 border-b pb-2">
+                📊 수합 결과
+            </h2>
+            <div id="results-container" class="flex flex-col gap-2">
+                <!-- JS로 동적 렌더링 -->
+            </div>
+            
+            <!-- 총 응답수 요약 패널 -->
+            <div id="summary-container" class="mt-3 bg-gray-50 rounded-lg border border-gray-200 p-3 flex flex-col items-center justify-center fade-in">
+                <!-- JS로 동적 렌더링 -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 커스텀 모달 (초기화 확인용) -->
+    <div id="confirm-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center px-4 bg-gray-900 bg-opacity-50 transition-opacity">
+        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 transform transition-all fade-in">
+            <div class="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 mx-auto mb-4">
+                <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+            </div>
+            <h3 class="text-lg font-bold text-center text-gray-900 mb-2">정말 초기화하시겠습니까?</h3>
+            <p class="text-sm text-gray-500 text-center mb-6">모든 영역의 카운트가 0으로 리셋되며, 영역 개수도 5개로 복구됩니다.</p>
+            <div class="flex flex-row gap-3">
+                <button onclick="closeResetModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-2.5 rounded-xl transition-colors">
+                    취소
+                </button>
+                <button onclick="confirmReset()" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 rounded-xl transition-colors shadow-sm">
+                    초기화 실행
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 로직 스크립트 -->
+    <script>
+        const STORAGE_KEY = 'satisfaction_survey_data_v2';
+        
+        // 5개 영역의 기본 데이터 생성 함수
+        function getDefaultData() {
+            return [
+                { id: 1, name: '영역 1', counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } },
+                { id: 2, name: '영역 2', counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } },
+                { id: 3, name: '영역 3', counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } },
+                { id: 4, name: '영역 4', counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } },
+                { id: 5, name: '영역 5', counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } }
+            ];
+        }
+
+        let surveyData = [];
+
+        // 점수별 버튼 색상 테마
+        const scoreColors = {
+            1: 'bg-red-100 text-red-700 hover:bg-red-200 border-red-200',
+            2: 'bg-orange-100 text-orange-700 hover:bg-orange-200 border-orange-200',
+            3: 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border-yellow-200',
+            4: 'bg-green-100 text-green-700 hover:bg-green-200 border-green-200',
+            5: 'bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200'
+        };
+
+        // 초기화 (데이터 로드 및 렌더링)
+        function init() {
+            loadData();
+            render();
+        }
+
+        // LocalStorage에서 데이터 불러오기
+        function loadData() {
+            let stored = null;
+            try { stored = localStorage.getItem(STORAGE_KEY); } catch (e) { stored = null; }
+            if (stored) {
+                try {
+                    surveyData = JSON.parse(stored);
+                    if(!Array.isArray(surveyData) || surveyData.length === 0) {
+                        surveyData = getDefaultData();
+                    }
+                } catch (e) {
+                    surveyData = getDefaultData();
+                }
+            } else {
+                surveyData = getDefaultData();
+            }
+        }
+
+        // LocalStorage에 데이터 저장하기
+        function saveData() {
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(surveyData)); } catch (e) { /* 저장 불가 환경: 화면 집계만 유지 */ }
+        }
+
+        // 점수 카운트 증가 함수
+        function incrementScore(areaIndex, score) {
+            surveyData[areaIndex].counts[score]++;
+            saveData();
+            render(); // 상태 업데이트 후 리렌더링
+        }
+
+        // 영역 추가 기능
+        function addArea() {
+            const newIndex = surveyData.length + 1;
+            surveyData.push({ 
+                id: Date.now(), 
+                name: `영역 ${newIndex}`, 
+                counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } 
+            });
+            saveData();
+            render();
+        }
+
+        // 영역 삭제 기능
+        function removeArea() {
+            if (surveyData.length > 1) { // 최소 1개의 영역은 유지
+                surveyData.pop();
+                saveData();
+                render();
+            }
+        }
+
+        // 화면 렌더링 함수
+        function render() {
+            const inputsContainer = document.getElementById('inputs-container');
+            const resultsContainer = document.getElementById('results-container');
+            const summaryContainer = document.getElementById('summary-container');
+            
+            inputsContainer.innerHTML = ''; 
+            resultsContainer.innerHTML = ''; 
+
+            let maxResponses = 0; 
+            let grandTotalClicks = 0; 
+
+            surveyData.forEach((area, index) => {
+                // -----------------------------
+                // 1. 입력부 (Inputs) 렌더링
+                // -----------------------------
+                let buttonsHtml = '';
+                for (let i = 1; i <= 5; i++) {
+                    // 버튼 두께(패딩)를 2배로 늘림: py-4 sm:py-5 적용 (높이 강조)
+                    buttonsHtml += `
+                        <button onclick="incrementScore(${index}, ${i})" 
+                                class="flex-1 flex flex-col items-center justify-center py-4 sm:py-5 border ${scoreColors[i]} rounded-xl transition-transform active:scale-95 shadow-sm">
+                            <span class="text-xl sm:text-2xl font-black leading-none mb-1">${i}</span>
+                            <span class="text-[10px] sm:text-xs opacity-80">점</span>
+                        </button>
+                    `;
+                }
+
+                const inputRow = document.createElement('div');
+                inputRow.className = 'fade-in';
+                inputRow.innerHTML = `
+                    <div class="text-sm font-bold text-gray-700 mb-1.5 ml-1">${area.name}</div>
+                    <div class="flex flex-nowrap w-full gap-2">
+                        ${buttonsHtml}
+                    </div>
+                `;
+                inputsContainer.appendChild(inputRow);
+
+                // -----------------------------
+                // 2. 결과부 (Results) 렌더링
+                // -----------------------------
+                let totalResponses = 0;
+                let sumScores = 0;
+                
+                for (let i = 1; i <= 5; i++) {
+                    totalResponses += area.counts[i];
+                    sumScores += area.counts[i] * i;
+                }
+                
+                const averageScore = totalResponses > 0 ? (sumScores / totalResponses).toFixed(2) : "0.00";
+                
+                if (totalResponses > maxResponses) maxResponses = totalResponses;
+                grandTotalClicks += totalResponses;
+
+                const resultRow = document.createElement('div');
+                resultRow.className = 'bg-white rounded border border-gray-100 p-2 fade-in';
+                resultRow.innerHTML = `
+                    <div class="flex justify-between items-center mb-2 px-1">
+                        <span class="font-bold text-sm text-gray-800">${area.name}</span>
+                        <span class="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs font-bold">
+                            평균 ${averageScore}
+                        </span>
+                    </div>
+                    <div class="grid grid-cols-5 gap-1 text-center">
+                        ${[1, 2, 3, 4, 5].map(score => `
+                            <div class="flex flex-col bg-gray-50 rounded py-1 border border-gray-100">
+                                <span class="text-[10px] text-gray-500">${score}점</span>
+                                <span class="text-xs sm:text-sm font-bold text-gray-800">${area.counts[score]}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                resultsContainer.appendChild(resultRow);
+            });
+
+            // -----------------------------
+            // 3. 총계 (Summary) 렌더링
+            // -----------------------------
+            summaryContainer.innerHTML = `
+                <div class="flex flex-row items-center justify-center gap-8 w-full">
+                    <div class="text-center">
+                        <p class="text-xs text-gray-500 mb-1">총 제출 완료 (추정)</p>
+                        <p class="text-xl font-black text-indigo-600">${maxResponses}<span class="text-sm font-medium text-gray-600 ml-1">명</span></p>
+                    </div>
+                    <div class="w-px h-10 bg-gray-300"></div>
+                    <div class="text-center">
+                        <p class="text-xs text-gray-500 mb-1">전체 버튼 누적 클릭</p>
+                        <p class="text-lg font-bold text-gray-700">${grandTotalClicks}<span class="text-sm font-medium text-gray-500 ml-1">회</span></p>
+                    </div>
+                </div>
+            `;
+        }
+
+        /* --- 커스텀 모달 제어 로직 --- */
+        const modal = document.getElementById('confirm-modal');
+
+        function openResetModal() {
+            modal.classList.remove('hidden');
+        }
+
+        function closeResetModal() {
+            modal.classList.add('hidden');
+        }
+
+        function confirmReset() {
+            surveyData = getDefaultData(); // 기본 5개 영역으로 초기화
+            saveData();
+            render();
+            closeResetModal();
+        }
+
+        // 앱 초기화 실행
+        window.onload = init;
+    </script>
+</body>
+</html>
