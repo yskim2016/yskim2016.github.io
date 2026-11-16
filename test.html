@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2026 경기 직업계고 교육과정 ON-게시판</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    body {
+      background-color: #f7f9fc;
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      color: #333;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .header-banner {
+      background: #ffffff;
+      padding: 2.2rem 1rem 1.8rem;
+      border-bottom: 2px solid #e2e8f0;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+      margin-bottom: 2.5rem;
+    }
+    .logo-img {
+      max-width: 320px;
+      width: 100%;
+      height: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.04));
+    }
+    .card-choice {
+      border: 2px solid transparent;
+      border-radius: 18px;
+      transition: all 0.25s ease-in-out;
+      cursor: pointer;
+      background: #ffffff;
+    }
+    .card-choice:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 28px rgba(30, 60, 114, 0.12);
+      border-color: #2a5298;
+    }
+    .form-container {
+      background: #ffffff;
+      border-radius: 18px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+      padding: 2.2rem;
+    }
+    .btn-primary-custom {
+      background-color: #1a4b8c;
+      border-color: #1a4b8c;
+      color: white;
+    }
+    .btn-primary-custom:hover {
+      background-color: #13396a;
+      border-color: #13396a;
+      color: white;
+    }
+    .notice-box {
+      background-color: #f1f6fd;
+      border-left: 4px solid #1a4b8c;
+      border-radius: 10px;
+      padding: 1.1rem 1.3rem;
+    }
+    .privacy-badge {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+      font-size: 0.8rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+    .admin-card {
+      background-color: #fff8e1;
+      border: 1px solid #ffe082;
+      border-radius: 12px;
+    }
+    .footer-desc {
+      color: #7b8591;
+      font-size: 0.84rem;
+      letter-spacing: -0.01em;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 상단 헤더 -->
+  <header class="header-banner text-center">
+    <div class="container">
+      <div class="mb-2">
+        <img src="https://lh3.googleusercontent.com/d/1_8fSmW_wNTf1DmuUZp24mg7aoTzHgX_Z" alt="경기 직업계고 교육과정 ON 로고" class="logo-img">
+      </div>
+      <h3 class="fw-bold mb-1 text-dark">2026 경기 직업계고 교육과정 ON-게시판</h3>
+      <p class="text-secondary small mb-0">경기도 직업계고 교원 & 교육지원청 장학사 질의응답 소통 공간</p>
+
+      <div id="userBadgeWrap" class="mt-2" style="display: none;">
+        <span class="badge bg-light text-secondary border px-3 py-1 rounded-pill small">
+          <i class="bi bi-person-check-fill text-primary me-1"></i>
+          <span id="userEmailText"></span>
+          <span id="adminBadge" class="badge bg-warning text-dark ms-1" style="display: none;">지원단/관리자</span>
+        </span>
+        <button type="button" class="btn btn-link btn-sm text-muted text-decoration-none p-0 ms-2" onclick="logout()">로그아웃</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container pb-4 flex-grow-1">
+
+    <!-- 0단계: 구글 로그인 화면 -->
+    <section id="loginSection" class="row justify-content-center">
+      <div class="col-md-6">
+        <div class="form-container text-center py-5">
+          <div class="display-4 text-primary mb-3">
+            <i class="bi bi-shield-lock"></i>
+          </div>
+          <h4 class="fw-bold mb-2">Google 계정 로그인</h4>
+          <p class="text-muted small mb-4">
+            경기도 직업계고 교육과정 ON-게시판 이용을 위해<br>Google 계정으로 로그인해 주세요.
+          </p>
+          <div id="gSignInBtn" class="d-flex justify-content-center"></div>
+          <div id="loginLoading" class="mt-3 text-muted small" style="display: none;">
+            <span class="spinner-border spinner-border-sm me-1"></span> 계정 확인 중...
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 1단계: 진입 메뉴 선택 화면 -->
+    <section id="choiceSection" class="row justify-content-center g-4" style="display: none;">
+      <div class="col-md-5">
+        <div class="card card-choice h-100 p-4 text-center shadow-sm" onclick="showQuestionForm()">
+          <div class="card-body py-4">
+            <div class="display-4 text-primary mb-3"><i class="bi bi-pencil-square"></i></div>
+            <h4 class="fw-bold mb-2">질문 추가하기</h4>
+            <p class="text-muted small mb-4">교육과정 편성, 나이스, 고시외과목 등 현장 질문을 등록합니다.</p>
+            <button class="btn btn-primary-custom px-4 py-2 rounded-pill fw-semibold">
+              질문 작성하기 <i class="bi bi-arrow-right ms-1"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-5">
+        <div class="card card-choice h-100 p-4 text-center shadow-sm" onclick="openPublicSpreadsheet()">
+          <div class="card-body py-4">
+            <div class="display-4 text-success mb-3"><i class="bi bi-table"></i></div>
+            <h4 class="fw-bold mb-2">공개 게시판 열기</h4>
+            <p class="text-muted small mb-4">등록된 질문과 지원단의 답변을 열람합니다. (개인정보는 보호됩니다)</p>
+            <a id="publicSheetLink" href="https://docs.google.com/spreadsheets/d/1vklQUGMK5t-1pXkiiED_fFg2hWJto7b1fZ5uDHELKSQ/edit" target="_blank" class="btn btn-outline-success px-4 py-2 rounded-pill fw-semibold" onclick="event.stopPropagation();">
+              게시판(스프레드시트) 열기 <i class="bi bi-box-arrow-up-right ms-1"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 지원단 전용 시트 영역 (관리자 인증 시에만 동적 표시) -->
+      <div id="adminCardWrap" class="col-md-10" style="display: none;">
+        <div class="admin-card p-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <div>
+            <span class="badge bg-warning text-dark me-2">지원단 전용</span>
+            <strong class="text-dark">관리용 원본 스프레드시트 (답변 작성 및 비고 열람)</strong>
+            <div class="text-muted small">지원단 위원님은 이곳에서 비고(소속/성명)를 확인하고 답변을 입력하실 수 있습니다.</div>
+          </div>
+          <a id="adminSheetLink" href="#" target="_blank" class="btn btn-warning fw-bold rounded-pill text-nowrap">
+            답변 작성 시트 열기 <i class="bi bi-pencil-fill ms-1"></i>
+          </a>
+        </div>
+      </div>
+
+      <!-- 게시판 안내 -->
+      <div class="col-md-10 mt-3">
+        <div class="notice-box">
+          <h6 class="fw-bold text-primary mb-2"><i class="bi bi-shield-check me-1"></i> 게시판 활용 및 개인정보 보호 안내</h6>
+          <ul class="mb-0 small text-secondary ps-3">
+            <li><strong>안심 익명 보장:</strong> 질문 등록 시 기재하신 소속, 성명(비고란)은 일반 공개 게시판에는 전혀 나타나지 않습니다.</li>
+            <li><strong>열람 대상 분리:</strong> 비고 정보는 오직 답변을 전담하는 <strong>원스톱 지원단과 교육청 담당자만</strong> 열람할 수 있도록 안전하게 분리되어 있습니다.</li>
+            <li><strong>답변 기한:</strong> 등록된 질문은 담당 지원단이 48시간 이내에 검토하여 답변을 등록합니다.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2단계: 질문 작성 양식 -->
+    <section id="formSection" class="row justify-content-center" style="display: none;">
+      <div class="col-md-8">
+        <div class="form-container">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="fw-bold mb-0 text-primary"><i class="bi bi-pencil-fill me-2"></i>새 질문 등록</h4>
+            <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" onclick="showChoiceMenu()">
+              <i class="bi bi-arrow-left me-1"></i> 이전으로
+            </button>
+          </div>
+
+          <form id="questionForm" onsubmit="handleFormSubmit(event)">
+            <div class="mb-3">
+              <label for="categorySelect" class="form-label fw-bold">분야 <span class="text-danger">*</span></label>
+              <select class="form-select" id="categorySelect" required onchange="updateCategoryDesc()">
+                <option value="" selected disabled>질문 분야를 선택해주세요</option>
+                <option value="교육과정(상업)">교육과정(상업)</option>
+                <option value="교육과정(공업)">교육과정(공업)</option>
+                <option value="교육과정(농업.가사)">교육과정(농업.가사)</option>
+                <option value="나이스">나이스</option>
+                <option value="고시외과목">고시외과목</option>
+                <option value="건의 및 제안">건의 및 제안</option>
+              </select>
+              <div id="categoryDesc" class="form-text text-muted mt-1 small"></div>
+            </div>
+
+            <div class="mb-3">
+              <label for="questionText" class="form-label fw-bold">질문 내용 <span class="text-danger">*</span></label>
+              <textarea class="form-control" id="questionText" rows="6" placeholder="구체적인 질문 내용을 입력해주세요." required></textarea>
+            </div>
+
+            <div class="mb-4">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label for="remarksText" class="form-label fw-bold mb-0">
+                  비고 <span class="text-muted fw-normal">(개별 연락 희망 시)</span>
+                </label>
+                <span class="privacy-badge"><i class="bi bi-lock-fill me-1"></i>지원단 전용 열람 (비공개)</span>
+              </div>
+              <input type="text" class="form-control" id="remarksText" placeholder="개별 회신이나 상세 상담이 필요한 경우에 한해 소속, 성명, 연락처를 기재해주세요.">
+              <div class="form-text text-muted small mt-1">
+                <i class="bi bi-info-circle me-1"></i>입력하신 비고 내용은 일반 열람자에게 공개되지 않으며, 지원단 및 교육청 담당자만 확인합니다.
+              </div>
+            </div>
+
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary-custom py-2 fw-semibold">
+                <i class="bi bi-send-fill me-1"></i> 질문 등록하기
+              </button>
+            </div>
+          </form>
+
+          <div id="loadingIndicator" class="text-center py-4" style="display: none;">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted fw-semibold">안전하게 저장 중입니다...</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3단계: 완료 안내 화면 -->
+    <section id="resultSection" class="row justify-content-center text-center" style="display: none;">
+      <div class="col-md-6">
+        <div class="form-container py-5">
+          <div class="display-3 text-success mb-3"><i class="bi bi-check-circle-fill"></i></div>
+          <h4 class="fw-bold mb-2">질문이 등록되었습니다!</h4>
+          <p class="text-muted mb-4" id="resultMessage">스프레드시트에 안전하게 반영되었습니다.</p>
+          <div class="d-flex justify-content-center gap-3">
+            <button class="btn btn-outline-primary rounded-pill px-3" onclick="resetForm()">
+              <i class="bi bi-plus-lg me-1"></i> 질문 더 남기기
+            </button>
+            <a href="https://docs.google.com/spreadsheets/d/1vklQUGMK5t-1pXkiiED_fFg2hWJto7b1fZ5uDHELKSQ/edit" target="_blank" class="btn btn-success rounded-pill px-3">
+              <i class="bi bi-table me-1"></i> 공개 게시판 확인하기
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="text-center py-4 mt-auto border-top bg-white">
+    <div class="container">
+      <p class="mb-0 footer-desc">
+        주관: 경기도교육청 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 지원: 김쌔미앙TV
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    // =========================================================================
+    // [필수 설정] 1단계, 2단계에서 발급받은 값을 입력하세요
+    // =========================================================================
+    const GOOGLE_CLIENT_ID = 199611322103-rt3fk8i88gasqokn88b6a0nobavs0oro.apps.googleusercontent.com;
+    const GAS_API_URL = https://script.google.com/macros/s/AKfycbwhSmnIcMHXs3dZrw3iwLbmsNpAxBHPcdrB8DUinB8t7by2jZNAs_7Hj6fGt-aiU9tA/exec;
+    // =========================================================================
+
+    const PUBLIC_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1vklQUGMK5t-1pXkiiED_fFg2hWJto7b1fZ5uDHELKSQ/edit';
+    let currentIdToken = '';
+
+    const categoryInfo = {
+      '교육과정(상업)': '상업계열 직업계고 교육과정 편성에 대한 질문',
+      '교육과정(공업)': '공업계열 직업계고 교육과정 편성에 대한 질문',
+      '교육과정(농업.가사)': '농업 및 가사계열 직업계고 교육과정 편성에 대한 질문',
+      '나이스': '교육과정 관련 나이스 활용에 대한 질문',
+      '고시외과목': '직업계고 고시외 과목 개설 및 운영 등에 대한 질문',
+      '건의 및 제안': '교육과정 컨설팅, 역량강화연수 등 학교 현장에서 필요한 사항'
+    };
+
+    window.onload = function () {
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleCredentialResponse
+      });
+      google.accounts.id.renderButton(
+        document.getElementById('gSignInBtn'),
+        { theme: 'outline', size: 'large', width: 260, text: 'signin_with', shape: 'pill' }
+      );
+    };
+
+    async function handleCredentialResponse(response) {
+      currentIdToken = response.credential;
+      document.getElementById('loginLoading').style.display = 'block';
+
+      try {
+        const res = await callGasApi({ action: 'verifyLogin', idToken: currentIdToken });
+        document.getElementById('loginLoading').style.display = 'none';
+
+        if (!res.success) {
+          alert(res.message || '로그인 확인에 실패했습니다.');
+          return;
+        }
+
+        document.getElementById('userEmailText').textContent = res.email;
+        document.getElementById('userBadgeWrap').style.display = 'block';
+
+        if (res.isAdmin && res.adminSpreadsheetUrl) {
+          document.getElementById('adminBadge').style.display = 'inline-block';
+          document.getElementById('adminSheetLink').href = res.adminSpreadsheetUrl;
+          document.getElementById('adminCardWrap').style.display = 'block';
+        } else {
+          document.getElementById('adminBadge').style.display = 'none';
+          document.getElementById('adminCardWrap').style.display = 'none';
+        }
+
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('choiceSection').style.display = 'flex';
+      } catch (err) {
+        document.getElementById('loginLoading').style.display = 'none';
+        alert('서버 연결 오류: ' + err.message);
+      }
+    }
+
+    function logout() {
+      currentIdToken = '';
+      if (window.google && google.accounts && google.accounts.id) {
+        google.accounts.id.disableAutoSelect();
+      }
+      document.getElementById('userBadgeWrap').style.display = 'none';
+      document.getElementById('choiceSection').style.display = 'none';
+      document.getElementById('formSection').style.display = 'none';
+      document.getElementById('resultSection').style.display = 'none';
+      document.getElementById('loginSection').style.display = 'flex';
+    }
+
+    // Apps Script CORS 프리플라이트(OPTIONS) 방지를 위해 text/plain 전송
+    async function callGasApi(payload) {
+      const response = await fetch(GAS_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+      return await response.json();
+    }
+
+    function updateCategoryDesc() {
+      const select = document.getElementById('categorySelect');
+      document.getElementById('categoryDesc').textContent = categoryInfo[select.value] || '';
+    }
+
+    function showQuestionForm() {
+      document.getElementById('choiceSection').style.display = 'none';
+      document.getElementById('resultSection').style.display = 'none';
+      document.getElementById('formSection').style.display = 'flex';
+    }
+
+    function showChoiceMenu() {
+      document.getElementById('formSection').style.display = 'none';
+      document.getElementById('resultSection').style.display = 'none';
+      document.getElementById('choiceSection').style.display = 'flex';
+    }
+
+    function openPublicSpreadsheet() {
+      window.open(PUBLIC_SHEET_URL, '_blank');
+    }
+
+    function resetForm() {
+      document.getElementById('questionForm').reset();
+      document.getElementById('categoryDesc').textContent = '';
+      showQuestionForm();
+    }
+
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+
+      const payload = {
+        action: 'submitQuestion',
+        idToken: currentIdToken,
+        category: document.getElementById('categorySelect').value,
+        question: document.getElementById('questionText').value.trim(),
+        remarks: document.getElementById('remarksText').value.trim()
+      };
+
+      if (!payload.category || !payload.question) {
+        alert('분야와 질문 내용을 모두 입력해주세요.');
+        return;
+      }
+
+      document.getElementById('questionForm').style.display = 'none';
+      document.getElementById('loadingIndicator').style.display = 'block';
+
+      try {
+        const res = await callGasApi(payload);
+        document.getElementById('loadingIndicator').style.display = 'none';
+        document.getElementById('questionForm').style.display = 'block';
+
+        if (res && res.success) {
+          document.getElementById('formSection').style.display = 'none';
+          document.getElementById('resultMessage').innerText = `연번 [${res.number}]번으로 등록되었습니다.`;
+          document.getElementById('resultSection').style.display = 'flex';
+        } else {
+          alert('등록 실패: ' + (res.message || '알 수 없는 오류'));
+        }
+      } catch (err) {
+        document.getElementById('loadingIndicator').style.display = 'none';
+        document.getElementById('questionForm').style.display = 'block';
+        alert('서버 통신 실패: ' + err.message);
+      }
+    }
+  </script>
+</body>
+</html>
