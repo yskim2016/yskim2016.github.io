@@ -89,10 +89,12 @@
   <!-- 상단 헤더 -->
   <header class="header-banner text-center">
     <div class="container">
-      <div class="mb-2">
-        <img src="https://lh3.googleusercontent.com/d/1_8fSmW_wNTf1DmuUZp24mg7aoTzHgX_Z" alt="경기 직업계고 교육과정 ON 로고" class="logo-img">
+      <div style="cursor: pointer;" onclick="goHome()" title="홈으로 이동">
+        <div class="mb-2">
+          <img src="https://lh3.googleusercontent.com/d/1_8fSmW_wNTf1DmuUZp24mg7aoTzHgX_Z" alt="경기 직업계고 교육과정 ON 로고" class="logo-img">
+        </div>
+        <h3 class="fw-bold mb-1 text-dark">2026 경기 직업계고 교육과정 ON-게시판</h3>
       </div>
-      <h3 class="fw-bold mb-1 text-dark">2026 경기 직업계고 교육과정 ON-게시판</h3>
       <p class="text-secondary small mb-0">경기도 직업계고 교원 & 교육지원청 장학사 질의응답 소통 공간</p>
 
       <div id="userBadgeWrap" class="mt-2" style="display: none;">
@@ -188,8 +190,8 @@
         <div class="form-container">
           <div class="d-flex justify-content-between align-items-center mb-4">
             <h4 class="fw-bold mb-0 text-primary"><i class="bi bi-pencil-fill me-2"></i>새 질문 등록</h4>
-            <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" onclick="showChoiceMenu()">
-              <i class="bi bi-arrow-left me-1"></i> 이전으로
+            <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" onclick="goHome()">
+              <i class="bi bi-house-door me-1"></i> 홈으로
             </button>
           </div>
 
@@ -248,7 +250,10 @@
           <div class="display-3 text-success mb-3"><i class="bi bi-check-circle-fill"></i></div>
           <h4 class="fw-bold mb-2">질문이 등록되었습니다!</h4>
           <p class="text-muted mb-4" id="resultMessage">스프레드시트에 안전하게 반영되었습니다.</p>
-          <div class="d-flex justify-content-center gap-3">
+          <div class="d-flex justify-content-center flex-wrap gap-2">
+            <button class="btn btn-outline-secondary rounded-pill px-3" onclick="goHome()">
+              <i class="bi bi-house-door me-1"></i> 홈으로
+            </button>
             <button class="btn btn-outline-primary rounded-pill px-3" onclick="resetForm()">
               <i class="bi bi-plus-lg me-1"></i> 질문 더 남기기
             </button>
@@ -276,7 +281,7 @@
     // =========================================================================
     const GOOGLE_CLIENT_ID = '199611322103-rt3fk8i88gasqokn88b6a0nobavs0oro.apps.googleusercontent.com';
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbyoP3lUf9dCJv10NL0jJTvUqGSESlnLrjxxB6f6OEy66OGvhe8C0Fwj4kIZQ25O8fIi/exec';
-    // ================='========================================================
+    // =========================================================================
 
     const PUBLIC_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1vklQUGMK5t-1pXkiiED_fFg2hWJto7b1fZ5uDHELKSQ/edit';
     let currentIdToken = '';
@@ -371,6 +376,16 @@
       document.getElementById('formSection').style.display = 'none';
       document.getElementById('resultSection').style.display = 'none';
       document.getElementById('choiceSection').style.display = 'flex';
+    }
+
+    function goHome() {
+      document.getElementById('formSection').style.display = 'none';
+      document.getElementById('resultSection').style.display = 'none';
+      if (currentIdToken) {
+        document.getElementById('choiceSection').style.display = 'flex';
+      } else {
+        document.getElementById('loginSection').style.display = 'flex';
+      }
     }
 
     function openPublicSpreadsheet() {
